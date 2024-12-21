@@ -1,0 +1,20 @@
+body.night {
+    background: black;
+    color: #722;
+}
+
+.range.night {
+    accent-color: red;
+}
+
+.date_button.night {
+    background: black;
+    color: #722;
+    border-color: #a55;
+}
+
+.log {
+    overflow: scroll;
+    height: 100px;
+}
+

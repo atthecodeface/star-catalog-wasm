@@ -1,0 +1,43 @@
+[package]
+authors = ["Gavin J Stark"]
+categories = ["wasm"]
+description = "A WASM interface to the star-catalog library"
+edition = "2021"
+name = "star-catalog-wasm"
+readme = "README.md"
+version = "0.0.1"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies.wasm-bindgen]
+version = ">=0.2.92"
+
+[dependencies.js-sys]
+version = ">=0.3.64"
+
+[dependencies.geo-nd]
+version = ">=0.5"
+
+[dependencies.geo-nd-wasm]
+version = "0.1.0"
+path = "../geo-nd-wasm"
+
+[dependencies.star-catalog]
+version = ">=0.0.8"
+features = ["postcard", "hipp_bright"]
+path = "../star-catalog"
+
+[dependencies.web-sys]
+features = [
+  'console',
+]
+version = ">=0.3.40"
+
+[dependencies.postcard]
+version = "1.0"
+features = ["alloc"]
+
+[profile.release]
+lto = true
+opt-level = 3
