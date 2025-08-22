@@ -1,0 +1,35 @@
+.tab-list ul {
+   list-style-type: none;
+   margin: 0;
+   padding: 0;
+   overflow: hidden;
+   background-color: #ccc;
+    border-bottom-width: 3px;
+    border-bottom-style: solid;
+    // same as li.active a
+    border-bottom-color: #666;
+}
+
+.tab-list ul li {
+    float: left;
+}
+
+.tab-list ul li.active a {
+  pointer-events:none;
+  color:#fff;
+  background:#666;
+}
+
+.tab-list ul li a {
+    display: block;
+    color : black;
+    text-align: center;
+    padding: 6px 12px;
+    text-decoration: none;
+}
+
+.tab-list ul li a:hover {
+    background-color: #111;
+}
+
+

@@ -20,13 +20,12 @@ version = ">=0.3.64"
 version = ">=0.5"
 
 [dependencies.geo-nd-wasm]
-version = "0.1.0"
-path = "../geo-nd-wasm"
+version = "0.1.2"
 
 [dependencies.star-catalog]
 version = ">=0.0.8"
 features = ["postcard", "hipp_bright"]
-path = "../star-catalog"
+# path = "../star-catalog"
 
 [dependencies.web-sys]
 features = [

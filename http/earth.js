@@ -37,7 +37,7 @@ class webgl_obj {
         webgl.bufferData(webgl.ELEMENT_ARRAY_BUFFER, this.indices.buffer, webgl.STATIC_DRAW);
     }
     draw(webgl) {
-        
+
         webgl.bindBuffer(webgl.ARRAY_BUFFER,
                               this.position_buf );
         webgl.enableVertexAttribArray(0);
@@ -87,6 +87,8 @@ export class Earth {
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
+        console.log("Earh: constructor: created with size ", this.width, this.height, " in ", canvas_div_id);
+
         this.webgl = use_webgl;
         this.ctx = null;
 
@@ -109,6 +111,7 @@ export class Earth {
             me.draw();
         }
         this.texture_image.src = "Blue_Marble_2002_x10.jpg";
+
         this.window_loaded();
         //this.texture_image.src = "square.jpg";
     }
@@ -162,8 +165,8 @@ export class Earth {
             this.start_webgl(this.canvas);
         }
 
-        this.canvas.width = this.canvas.offsetWidth;
-        this.canvas.height = this.canvas.offsetHeight;
+        // this.canvas.width = this.canvas.offsetWidth;
+        // this.canvas.height = this.canvas.offsetHeight;
         if (this.webgl == null) {
             this.ctx = this.canvas.getContext("2d");
             window.log.add_log("info", "earth", "webgl", `Using 2D context for the earth sphere ${this.ctx}`);
@@ -180,6 +183,7 @@ export class Earth {
             return;
         }
         this.webgl = gl;
+        console.log(gl);
 
         const vertex_e = document.getElementById("vertex_src");
         const fragment_e = document.getElementById("fragment_src");
@@ -194,12 +198,14 @@ export class Earth {
 
         const vs = this.webgl_load_shader(this.webgl.VERTEX_SHADER, vertex_src);
         if (vs == null) {
+            window.log.add_log("error", "earth", "webgl", `Failed to compile vertex shader`);
             return;
         }
         this.webgl.attachShader(this.program, vs);
         this.webgl.deleteShader(vs);
         const fs = this.webgl_load_shader(this.webgl.FRAGMENT_SHADER, fragment_src);
         if (fs == null) {
+            window.log.add_log("error", "earth", "webgl", `Failed to compile fragment shader`);
             return;
         }
         this.webgl.attachShader(this.program, fs);
@@ -252,12 +258,14 @@ export class Earth {
         this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_T, this.webgl.CLAMP_TO_EDGE);
 
         
-        this.webgl.viewport(0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight);
+        this.webgl.viewport(0, 0, this.width, this.height);
+        window.log.add_log("info", "earth", "webgl", `WebGl started successfully`);
     }
     
     webgl_load_shader(kind, src) {
         const shader = this.webgl.createShader(kind);
         if (shader == null) {
+            window.log.add_log("error", "earth", "webgl", `Failed to create shader`);
             return null;
         }
         this.webgl.shaderSource(shader, src);
@@ -270,13 +278,11 @@ export class Earth {
     }
     
     webgl_draw() {
+
         const matrix = new Float32Array(16);
         const color = new Float32Array(4);
         this.webgl.useProgram(this.program);
 
-        this.webgl.clearColor(0.0 , 0.0, 0.0, 1.0); // Clear to black, fully opaque
-        this.webgl.clearDepth(1.0); // Clear everything
-        
         // this.webgl.enable(this.webgl.CULL_FACE);
         // this.webgl.cullFace(this.webgl.BACK);
 
@@ -297,7 +303,7 @@ export class Earth {
             );
             this.texture_created = true;
         }
-
+        
         if (this.u_projection != null) {
             // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
             const x = WasmMat4f32.from_array([0,this.view_scale,0,0,
@@ -336,6 +342,7 @@ export class Earth {
                                          false,
                                          matrix );
         }
+        
         this.webgl_icosphere.draw(this.webgl);
 
         if (this.u_color != null) {

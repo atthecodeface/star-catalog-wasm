@@ -1,20 +1,132 @@
-body.night {
-    background: black;
-    color: #722;
+/*a Non-colors (i.e. day and night) */
+.tab-list ul {
+   list-style-type: none;
+   margin: 0;
+   padding: 0;
+   overflow: hidden;
+   border-bottom-width: 3px;
+   border-bottom-style: solid;
 }
 
-.range.night {
-    accent-color: red;
+.tab-list ul li {
+    float: left;
 }
 
-.date_button.night {
-    background: black;
-    color: #722;
-    border-color: #a55;
+.tab-list ul li.active a {
+  pointer-events:none;
+}
+
+.tab-list ul li a {
+    display: block;
+    text-align: center;
+    padding: 6px 12px;
+    text-decoration: none;
+}
+
+.tab-list ul li label {
+     display: block;
+     text-align: bottom;
+    padding: 6px 12px;
+    text-decoration: none;
 }
 
 .log {
     overflow: scroll;
     height: 100px;
+}
+
+#day_night_checkbox { 
+    position: absolute;
+    left: 0; 
+    opacity: 0.01;
+} 
+
+#day_night_checkbox:checked ~ #day_night_label {
+    background: #c33;
+}
+
+/*a Night mode  - default */
+body {
+    background: black;
+    color: #722;
+}
+
+input[type="checkbox"] { /* change "blue" browser chrome to yellow */
+  filter: invert(100%) hue-rotate(320deg) brightness(0.7);
+}
+
+input[type="range"] { /* change "blue" browser chrome to yellow */
+  filter: invert(100%) hue-rotate(320deg) brightness(0.7);
+}
+
+.tab-list ul {
+   background-color: #000;
+   /* same as li.active a */
+   border-bottom-color: #422;
+}
+
+.tab-list ul li.active a {
+  color:#c33;
+  background:#422;
+}
+
+.tab-list ul li a {
+    color : #722;
+}
+
+.tab-list ul li a:hover {
+    background-color: #111;
+}
+
+.date_button {
+    background: black;
+    color: #722;
+    border-color: #a55;
+}
+
+a {
+    color : #944;
+}
+
+a:visited {
+    color : #722;
+}
+
+
+
+/*a Day mode */
+body.day input[type="checkbox"] { /* change "blue" browser chrome to yellow */
+  filter: invert(100%) hue-rotate(18deg) brightness(1.7);
+}
+
+
+body.day .tab-list ul {
+    /* same as li.active a */
+   background-color: #ccc;
+   border-bottom-color: #666;
+}
+
+body.day .tab-list ul li.active a {
+  color:#fff;
+  background:#666;
+}
+
+body.day .tab-list ul li a {
+    color : black;
+}
+
+body.day.tab-list ul li a:hover {
+    background-color: #111;
+}
+
+body.day {
+    background: white;
+    color: black;
+}
+
+.date_button.day {
+    background: white;
+    color:black;
+    border-color: #a55;
 }
 

@@ -149,93 +149,171 @@
 
       }
     </script>
-    <table>
-      <tr>
-        <td>
-          <table>
-            <tr>
-              <td id="lat">
-              </td>
-              <td id="lon">
-              </td>
-              <td id="date">
-              </td>
-              <td id="time">
-              </td>
-              <td id="today">
-                      <input class="date_button dn" type="button" value="Today" onclick="window.star_catalog.date_set();"/>
-              </td>
-              <td id="now">
-                      <input class="date_button dn" type="button" value="Now" onclick="window.star_catalog.time_set();"/>
-              </td>
-        <td>
- <input type="radio" class="dn" id="night_radio" name="selected_css" value="night" checked onchange="window.star_catalog.selected_css_changed()"/>
-      <label for="day_radio" class="dn">Night mode</label>
- <input type="radio" class="dn" id="day_radio" name="selected_css" value="day" onchange="window.star_catalog.selected_css_changed()"/>
- <label for="night_radio" class="dn">Day mode</label>
-        </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <div id='SkyCanvas'></div>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <table>
-            <tr>
-              <td>
-                <label for="brightness" class="dn" id="max_mag">Max magnitude</label>
-                <input type="range" class="range dn" id="brightness"  style="width:150px;" name="brightness" step="0.2" min="1" max="12" oninput="window.star_catalog.sky_view_brightness_set();"/>
-              </td>
-              <td>
-                <input class="dn" type="checkbox" name="show_azimuthal" onclick="window.star_catalog.set_styling();"/>
-                <label for="show_azimuthal">Azimuthal</label>
-              </td>
-              <td>
-                <input class="dn" type="checkbox" name="show_equatorial" onclick="window.star_catalog.set_styling();"/>
-                <label for="show_equatorial">Equatorial</label>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <label for="zoom" class="dn">Field of view</label>
-                <input type="range" class="range dn" id="zoom" name="zoom"  style="width:150px;" step="0.5" min="1" max="120" oninput="window.star_catalog.sky_view_zoom_set();"/>
-              </td>
-              <td id="focal_length">
-              </td>
-              <td id="fov">
-              </td>
-            </tr>
-            </table>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <div id="star_info"></div>
-          </td>
-      </tr>
-      <tr>
-        <td>
+    <div id="tab-list" class="tab-list">
+      <ul>
+        <li><a href="#tab-help">Help</a></li>
+        <li><a href="#tab-skyview">Sky View</a></li>
+        <li><a href="#tab-skymap">Sky Map</a></li>
+        <li><a href="#tab-location">Location/Date/Time</a></li>
+        <li><a href="#tab-settings">Settings</a></li>
+        <li><a href="#tab-log">Log</a></li>
+        <li>
+            <input class="dn" type="checkbox" id="day_night_checkbox" name="day_night" onclick="window.star_catalog.selected_css_changed();"/>
+            <label id="day_night_label" onclick="window.star_catalog.selected_css_toggle();" for="day_night">Day mode</label>
+        </li>
+      </ul>
+    </div>
 
- <input type="radio" class="dn" id="map_radio" name="selected_tab" value="map" checked onchange="window.star_catalog.selected_tab_changed()"/>
-      <label for="map_radio" class="dn">Sky map</label>
- <input type="radio" class="dn" id="earth_radio" name="selected_tab" value="earth" onchange="window.star_catalog.selected_tab_changed()"/>
-      <label for="earth_radio" class="dn">Location</label>
- <input type="radio" class="dn" id="log_radio" name="selected_tab" value="log" onchange="window.star_catalog.selected_tab_changed()"/>
-      <label for="log_radio" class="dn">Log</label>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <div id='MapCanvas'></div>
-          <div id="EarthCanvas"></div>
-          <div id='Log'></div>
-        </td>
-      </tr>
-    </table>
+    <div id="tab-help">
+      <h1>Introduction</h1>
+      This page provides a view of the stars from where you are, and a map of all the stars in the sky.
+      <p>
+        The tabs select one of a number of subpages;
+        <dl>
+          <dt>Sky view</dt>
+          <dd>This is your window on to the stars in the sky;
+            it can be zoomed, panned and rotated. An individual star can be
+            selected.
+
+            The view is not affected by the 'time', 'date', and 'location' settings.
+
+            The equatorial grid and/or azimuthal grid can be overlaid
+            on top of the view (the azimuthal grid <b>is</b> affected
+            by the location and time/date).
+
+            The top of the sky view has a green line; the left and right edges are blue, and the bottom is red. This window is shown on the <i>sky map</i>.
+
+          </dd>
+          <dt>Sky map</dt>
+          <dd>
+            The sky map is *all* of the stars, using a <a href="https://en.wikipedia.org/wiki/Map_projection#Normal_cylindrical">equirectangular cylindrical projection</a>.
+            
+            An 'equatorial' grid can be overlayed on top of the map, showing the equator, the 30th and 60th parallels, and great circles for every 30 degrees of longitude.
+            
+            An 'azimuthal' grid can be overlayed on top of the map, showing the grid as seen by <i>you</i> at your location and time (if the location and time are set to <i>your</i> location and time!). The rectangular 'sky view'
+
+            The rectangular <i>sky view windows</i> is shown on the
+            sky map; this usually does not appear as a rectangle
+            (unless the field of view is small), but distorted. The
+            top edge of the window is green (as in the sky view
+            window), and the bottom edge of the window is red (etc).
+
+            Clicking on the map will centre the sky view window on the that location.
+                
+          </dd>
+          <dt>Location</dt>
+          <dd>
+          </dd>
+          <dt>Sky map</dt>
+          <dd>
+          </dd>
+        </dl>
+      <p>
+    </div>
+
+    <div id="tab-skyview">
+      <table>
+        <tr>
+          <td>
+            <div id='SkyCanvas'></div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <label for="brightness" class="dn" id="max_mag">Max magnitude</label>
+            <input type="range" class="range dn" id="brightness"  style="width:150px;" name="brightness" step="0.2" min="1" max="12" oninput="window.star_catalog.sky_view_brightness_set();"/>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <div id="star_info"></div>
+          </td>
+        </tr>
+      </table>
+    </div>
+    
+    <div id="tab-skymap">
+      <table>
+        <tr>
+          <td>
+            <div id='MapCanvas'></div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <table>
+              <tr>
+                <td>
+                  <input class="dn" type="checkbox" name="show_azimuthal" onclick="window.star_catalog.set_styling();"/>
+                  <label for="show_azimuthal">Azimuthal</label>
+                </td>
+                <td>
+                  <input class="dn" type="checkbox" name="show_equatorial" onclick="window.star_catalog.set_styling();"/>
+                  <label for="show_equatorial">Equatorial</label>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <label for="zoom" class="dn">Field of view</label>
+                  <input type="range" class="range dn" id="zoom" name="zoom"  style="width:150px;" step="0.5" min="1" max="120" oninput="window.star_catalog.sky_view_zoom_set();"/>
+                </td>
+                <td id="focal_length">
+                </td>
+                <td id="fov">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        
+      </table>
+    </div>
+    
+    <div id="tab-location">
+      <table>
+        <tr>
+          <td>
+            <div id="EarthCanvas"></div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div id="tab-log">
+      <table>
+        <div id='Log'></div>
+      </table>
+    </div>
+    
+    <div id="tab-settings">
+      <table>
+        <tr>
+          <td>
+            <table>
+              <tr>
+                <td id="lat">
+                </td>
+                <td id="lon">
+                </td>
+              </tr>
+              <tr>
+                <td id="date">
+                </td>
+                <td id="today">
+                  <input class="date_button dn" type="button" value="Today" onclick="window.star_catalog.date_set();"/>
+                </td>
+              </tr>
+              <tr>
+                <td id="time">
+                </td>
+                <td id="now">
+                  <input class="date_button dn" type="button" value="Now" onclick="window.star_catalog.time_set();"/>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
   </body>
 </html>

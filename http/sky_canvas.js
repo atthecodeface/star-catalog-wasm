@@ -110,7 +110,7 @@ export class SkyCanvas {
             const e = document.getElementById("star_info");
             if (e) {
                 html.clear(e);
-                e.append(html.vtable([],[["Id", `${star.id}`],
+                e.append(html.table([],[["Id", `${star.id}`],
                                          ["Ra", `${(star.right_ascension * this.rad2deg).toFixed(2)}`],
                                          ["De", `${(star.declination * this.rad2deg).toFixed(2)}`],
                                          ["M", `${(star.magnitude).toFixed(2)}`],
