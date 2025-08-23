@@ -1,4 +1,6 @@
+//c Mouse
 export class Mouse {
+    //cp constructor
     constructor(client, ele) {
         this.client = client;
         this.ele = ele;
@@ -23,10 +25,13 @@ export class Mouse {
         ele.addEventListener('wheel', function(e) {me.wheel(e);});
     }
 
+    //mp cxy
     cxy(e) {
         const rect = this.ele.getBoundingClientRect();
         return [e.clientX - rect.left, e.clientY - rect.top];
     }
+
+    //mp has_dragged
     has_dragged(sxy, cxy) {
             if (Math.abs(cxy[0]-sxy[0])< 5 &&
                 Math.abs(cxy[1]-sxy[1])< 5) {
@@ -35,6 +40,7 @@ export class Mouse {
         return true;
     }
 
+    //mp wheel
     wheel(e) {
         if (e.deltaY!=0) {
             this.client.zoom(Math.pow(this.zoom_ratio, e.deltaY));
@@ -42,7 +48,7 @@ export class Mouse {
         e.preventDefault();
     }
 
-    // touches_first
+    //mp touches_first
     touches_first(e) {
         if (this.touch_first[0] == e.touches[0].identifier) {
             return 0;

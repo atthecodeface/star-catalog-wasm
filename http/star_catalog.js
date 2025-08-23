@@ -7,6 +7,7 @@ import * as utils from "./utils.js";
 import * as map from "./map_canvas.js";
 import * as sky from "./sky_canvas.js";
 import * as earth from "./earth.js";
+import * as compass from "./compass.js";
 import * as styling from "./styling.js";
 
 //a Useful functions
@@ -27,8 +28,14 @@ class StarCatalog {
 
         this.styling = new styling.Styling();
         
+        this.view_needs_update = false;
+
         this.deg2rad = Math.PI / 180;
         this.rad2deg = 180 / Math.PI;
+
+        this.vector_x = new WasmVec3f64(1,0,0);
+        this.vector_y = new WasmVec3f64(0,1,0);
+        this.vector_z = new WasmVec3f64(0,0,1);
 
         this.lat = 52;
         this.lon = 0;
@@ -36,30 +43,87 @@ class StarCatalog {
         this.days_since_epoch = 19711;
         this.time_of_day = 18.377;
 
+        this.viewer_q = WasmQuatf64.unit();
+
         this.sky_canvas = new sky.SkyCanvas(this, this.catalog, "SkyCanvas",800,400);
         this.map_canvas = new map.MapCanvas(this, this.catalog, "MapCanvas",800,300);
         const earth_division = 8;
         const earth_webgl = true;
         this.earth_canvas = new earth.Earth(this, "EarthCanvas", 800, 400, earth_webgl, earth_division);
 
+        this.sky_view_compass = new compass.CompassCanvas(this, "SkyViewCompass", 200, 150 );
+
         this.selected_css_changed();        
         this.date_set();
         this.time_set();
         this.update_latlon([this.lat, this.lon]);
+
+        this.set_view_needs_update();
 
     }
 
     //mp set_styling
     /// Invoked by events on the page to change the contents; such as selection of equatorial grid 'on'
     set_styling() {
-        this.force_update();
+        this.set_view_needs_update();
+    }
+
+    //mp set_view_needs_update
+    /// Mark the view as needing an update
+    set_view_needs_update() {
+        if (!this.view_needs_update) {
+            this.view_needs_update = true;
+            setTimeout(this.update_view());
+        }
+    }
+
+    //mp update_view
+    /// Update the view, because of a view change, time change, etc
+    update_view() {
+        if (!this.view_needs_update) {
+            return;
+        }
+        this.derive_data();
+        this.sky_canvas.update();
+        this.map_canvas.update();
+        this.sky_view_compass.update();
+        this.earth_canvas.update();
+        this.view_needs_update = false;
     }
 
     //mp derive_data
     /// Derive data for the internals based on the time, date, lat and lon
     ///
-    /// The data
+    /// There are *three* XYZ coordinate systems:
+    ///
+    ///  1. ECEF - earth centered, earth fixed; the stars are in this
+    ///      system. +z is through the north pole, +x is through Greenwich
+    ///
+    ///  2. Observer position - From a given lat/lon and time; +z is
+    ///     from the center of the earth through the observer's feet,
+    ///     and it rotates around the earth's axis over time; +x is
+    ///     such that the earth's axis lies in the X-Z plane; +y is
+    ///     such tha XYZ form a right-handed set.
+    ///
+    ///  3. View orientation - with X being to the right of the view,
+    ///     Y up, and Z out of the screen.
+    ///
+    /// Properties are:
+    ///
+    ///   up - vector from the center of the earth out through the feet of the observer (hence uses ra and de only)
+    ///
+    ///   q_looking_ns - quaternion mapping ECEF XYZ direction to
+    ///      observer XYZ to ECEF XYZ direction; effectively a camera
+    ///      at the observer horizontally pointed north. Apply this to
+    ///      a star determine where it is relative to the observer;
+    ///      apply the conjugate to map an observer position to ECEF,
+    ///      such as for the azimuthal grid. Apply the conjugate to
+    ///      (1,0,0) to show the compass heading and elevation
+    ///
+    ///   
     derive_data() {
+        this.viewer_q_i = this.viewer_q.conjugate();
+
         for (const style of ["show_azimuthal", "show_equatorial"]) {
             this.styling.sky[style] = (document.querySelector(`input[name=${style}]:checked`) != null);
             this.styling.map[style] = (document.querySelector(`input[name=${style}]:checked`) != null);
@@ -89,7 +153,7 @@ class StarCatalog {
         const v2 = this.up.cross_product(v1).normalize();
         const up_and_ns = this.up.cross_product(v2).normalize();
         this.q_looking_ns = WasmQuatf64.unit().rotate_x(Math.PI/2 - de).rotate_z(Math.PI/2-ra);
-        
+
         html.if_ele_id("lat", this.lat, function(e,v) {
             e.innerText = `Lat: ${v.toFixed(1)}`;
         });
@@ -114,13 +178,6 @@ class StarCatalog {
         if (tab_id=="#tab-location") {
             console.log("Opened tab-location");
         }
-    }
-
-    //mp update_view
-    /// Update the view, because of a view change, time change, etc
-    update_view() {
-        this.sky_canvas.update();
-        this.map_canvas.update();
     }
 
     //mp selected_css_toggle
@@ -186,6 +243,18 @@ class StarCatalog {
         this.earth_canvas.update();
     }
 
+    //mp view_q_post_mul
+    view_q_post_mul(q) {
+        this.viewer_q = this.viewer_q.mul(q);
+        this.set_view_needs_update();
+    }
+
+    //mp view_q_pre_mul
+    view_q_pre_mul(q) {
+        this.viewer_q = q.mul(this.viewer_q);
+        this.set_view_needs_update();
+    }
+
     //mp center_sky_view
     /// Center the sky view on a specific right ascension / declination
     center_sky_view(ra_de) {
@@ -193,11 +262,11 @@ class StarCatalog {
     }
 
     //mp sky_view_vector_of_fxy
-    /// Map a star direction vector into a direction vector for the
+    /// Map a frame XY into a star unit direction vector
     /// sky view window
     sky_view_vector_of_fxy(fxy) {
         const v = this.sky_canvas.vector_of_fxy(fxy);
-        return this.sky_canvas.q.apply3(v);
+        return this.viewer_q.apply3(v);
     }
 
     //mp sky_view_brightness_set
@@ -226,4 +295,4 @@ window.addEventListener("load", (e) => {
                          (id) => {if (window.star_catalog !== null) {window.star_catalog.tab_selected(id);}});
         complete_init();
     }
-               )});
+)});

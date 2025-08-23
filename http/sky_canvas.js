@@ -25,16 +25,17 @@ export class SkyCanvas {
         this.fovh = Math.PI / 2;
         // Aspect ratio in 'tan' space of a single Y pixel compared to a single X pixel
         this.tan_yx = 1.0;
-        this.q = WasmQuatf64.unit();
 
         this.brightness = 5.0;
 
         this.selected = null;
         this.mouse = new mouse.Mouse(this, this.canvas);
-        
+
+        this.derive_data();
         window.log.add_log(0, "project", "load", `Created sky canvas`);
     }
 
+    //mp derive_data
     derive_data() {
         this.styling = this.star_catalog.styling.sky;
 
@@ -45,7 +46,6 @@ export class SkyCanvas {
         // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
         this.tan_pixh = 2 * this.tan_hfovh / this.width;
         this.tan_pixv = 2 * this.tan_pixh / this.tan_yx;
-        this.q_i = this.q.conjugate();
 
         html.if_ele_id("focal_length", this.tan_hfovh, function(e,v) {
             e.innerText = `${(18 / v).toFixed(2)}mm equiv`;
@@ -65,11 +65,13 @@ export class SkyCanvas {
 
     }
 
+    //mp update
     update() {
         this.derive_data();
         this.redraw_canvas();
     }
 
+    //mp vector_of_cxy
     // Vector of canvas coord +X right +Y down
     vector_of_cxy(cxy) {
         const fx = (-cxy[0] / this.width + 0.5) * 2;
@@ -77,6 +79,7 @@ export class SkyCanvas {
         return this.vector_of_fxy([fx,fy]);
     }
 
+    //mp vector_of_fcxy
     // Vector of *square* canvas fraction with -1,-1 being bottom left, 1,1 top right
     //
     // This assumes that -1 in the Y corresponds to a 'full' width
@@ -92,6 +95,7 @@ export class SkyCanvas {
         return new WasmVec3f64(vx, vy, vz);
     }
 
+    //mp cxy_of_vector
     // Canvas XY of vector in'camera' space
     //
     // Note X+ is in to screen, Y+ is left, Z+ is up
@@ -102,6 +106,8 @@ export class SkyCanvas {
         const y = this.height/2.0 - (v[2]/v[0] / this.tan_pixh); // v / this.win_ar );
         return [x,y];
     }
+
+    //mp select
     select(s) {
         window.log.add_log(0, "sky", "select", `Selected ${s}`);
         this.selected = s;
@@ -110,11 +116,11 @@ export class SkyCanvas {
             const e = document.getElementById("star_info");
             if (e) {
                 html.clear(e);
-                e.append(html.table([],[["Id", `${star.id}`],
-                                         ["Ra", `${(star.right_ascension * this.rad2deg).toFixed(2)}`],
-                                         ["De", `${(star.declination * this.rad2deg).toFixed(2)}`],
-                                         ["M", `${(star.magnitude).toFixed(2)}`],
-                                        ]));
+                e.append(html.table([],[`Id: ${star.id}`,
+                                        `Mag: ${(star.magnitude).toFixed(2)}`,
+                                        `Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`,
+                                        `De: ${(star.declination * this.rad2deg).toFixed(2)}`,
+                                       ], []));
                                              
             }
         }
@@ -143,15 +149,14 @@ export class SkyCanvas {
             const cy1 = cxy1[1] - this.height/2;
             const angle = Math.atan2(cy1,cx1) - Math.atan2(cy0,cx0);
             const q = WasmQuatf64.unit().rotate_x(-angle);
-            this.q = this.q.mul(q);
-            this.star_catalog.update_view();
+            this.star_catalog.view_q_post_mul(q);
         } else {
             const dcx = (cxy0[0] - cxy1[0]) * this.tan_pixh;
             const dcy = (cxy0[1] - cxy1[1]) * this.tan_pixv;
             const qz = WasmQuatf64.unit().rotate_z(-Math.atan(dcx));
             const qy = WasmQuatf64.unit().rotate_y(Math.atan(dcy));
-            this.q = this.q.mul(qz).mul(qy);
-            this.star_catalog.update_view();
+            const q = qz.mul(qy);
+            this.star_catalog.view_q_post_mul(q);
         }
     }
     
@@ -162,6 +167,7 @@ export class SkyCanvas {
     
     //mi mouse_click
     mouse_click(cxy) {
+        this.q = this.star_catalog.viewer_q;
         const v = this.vector_of_cxy(cxy);
         const qv = this.q.apply3(v).array;
         const ra = Math.atan2(qv[1],qv[0]);
@@ -171,6 +177,7 @@ export class SkyCanvas {
         this.select(this.catalog.closest_to(ra,de));
     }
 
+    //mi zoom
     zoom(factor) {
         // window.log.add_log("info","sky","zoom",`${factor}`);
         this.fovh = 2*Math.atan(factor*Math.tan(this.fovh/2));
@@ -179,17 +186,50 @@ export class SkyCanvas {
         } else if (this.fovh < 0.01){
             this.fovh = 0.01;
         }
-        this.star_catalog.update_view();
+        this.star_catalog.set_view_needs_update();
     }
+
+    //mi rotate
     rotate(angle) {
         // window.log.add_log("info","sky","rotate",`${angle}`);
         const v = new WasmVec3f64(1,0,0);
         const q = WasmQuatf64.of_axis_angle(v, -angle);
-        this.q = this.q.mul(q);
-        this.star_catalog.update_view();
+        this.star_catalog.view_q_post_mul(q);
     }
 
+    //mi rotate_axis
+    rotate_axis(axis, delta) {
+        var v = new WasmVec3f64(1,0,0);
+        if (axis == 1) {
+            v = new WasmVec3f64(0,1,0);
+        }
+        else if (axis == 2) {
+            v = new WasmVec3f64(0,0,1);
+        }
+        const q = WasmQuatf64.of_axis_angle(v, delta);
+        this.star_catalog.view_q_post_mul(q);
+    }
+
+    //mi center
+    center(ra_de) {
+        console.log("sky_canvas: center:", ra_de);
+        this.q = this.star_catalog.viewer_q;
+        const ra = ra_de[0];
+        const de = ra_de[1];
+        // Get star space vectors
+        const vv = new WasmVec3f64(1,0,0);
+        const qv = this.q.apply3(vv);
+        const new_qv = this.star_catalog.vec_of_ra_de(ra, de);
+        const q = WasmQuatf64.rotation_of_vec_to_vec(qv, new_qv);
+
+        // Add that rotation to the map camera
+        this.star_catalog.view_q_pre_mul(q);
+    }
+
+    //mi draw_star
     draw_star(ctx, star) {
+        this.q = this.star_catalog.viewer_q;
+        this.q_i = this.star_catalog.viewer_q_i;
         const m = star.magnitude;
         const ra = star.right_ascension;
         const de = star.declination;
@@ -212,6 +252,7 @@ export class SkyCanvas {
         }
     }
 
+    //mi draw_grid
     draw_grid(ctx, q_grid, styling) {
         if (styling == null) {
             return;
@@ -256,6 +297,7 @@ export class SkyCanvas {
         l.finish();
     }
 
+    //mi draw_border
     draw_border(ctx) {
         if (this.styling.view_border == null) {
             return;
@@ -272,7 +314,10 @@ export class SkyCanvas {
         ctx.fillRect(rx-2, 0, 2, by);
     }        
 
+    //mi redraw_canvas
     redraw_canvas() {
+        this.q = this.star_catalog.viewer_q;
+        this.q_i = this.star_catalog.viewer_q_i;
         const ctx = this.canvas.getContext("2d");
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -295,7 +340,6 @@ export class SkyCanvas {
         this.catalog.clear_filter();
         this.catalog.filter_max_magnitude(this.brightness);
 
-        console.log(this.styling);
         if (this.styling.show_azimuthal) {
             this.draw_grid(ctx, this.q_i.mul(this.star_catalog.q_looking_ns.conjugate()), this.styling.azimuthal_grid);
         }
@@ -331,66 +375,26 @@ export class SkyCanvas {
         }
 
     }
-    rotate_axis(axis, delta) {
-        var v = new WasmVec3f64(1,0,0);
-        if (axis == 1) {
-            v = new WasmVec3f64(0,1,0);
-        }
-        else if (axis == 2) {
-            v = new WasmVec3f64(0,0,1);
-        }
-        const q = WasmQuatf64.of_axis_angle(v, delta);
-        this.q = this.q.mul(q);
-        this.star_catalog.update_view();
-    }
-    center(ra_de) {
-        const ra = ra_de[0];
-        const de = ra_de[1];
-        // Get star space vectors
-        const vv = new WasmVec3f64(1,0,0);
-        const qv = this.q.apply3(vv);
-        const new_qv = this.star_catalog.vec_of_ra_de(ra, de);
-        const q = WasmQuatf64.rotation_of_vec_to_vec(qv, new_qv);
 
-        // Add that rotation to the map camera
-        this.q = q.mul(this.q);
-        this.star_catalog.update_view();
-    }
+    //mi zoom_set
     zoom_set() {
         const e = document.getElementById("zoom");
         if (e) {
             this.fovh = e.value * this.deg2rad;
-            this.star_catalog.update_view();
+            this.star_catalog.set_view_needs_update();
         }
     }
+
+    //mi brightness_set
     brightness_set() {
         const e = document.getElementById("brightness");
         if (e) {
             let brightness = e.value;
             this.brightness = 1.0 * brightness;
-            this.star_catalog.update_view();
+            this.star_catalog.set_view_needs_update();
         }
     }
-    rotate_x() {
-        const e = document.getElementById("rotx");
-        if (!e) {return;}
-        window.log.add_log(0, "sky", "rotx", `Value ${e.value}`);
-        this.rotate(0,-0.05 * e.value);
-        e.value = 0;
-    }
-    rotate_y() {
-        const e = document.getElementById("roty");
-        if (!e) {return;}
-        window.log.add_log(0, "sky", "roty", `Value ${e.value}`);
-        this.rotate(1,-0.05 * e.value);
-        e.value = 0;
-    }
-    rotate_z() {
-        const e = document.getElementById("rotz");
-        if (!e) {return;}
-        window.log.add_log(0, "sky", "rotz", `Value ${e.value}`);
-        this.rotate(2,-0.05 * e.value);
-        e.value = 0;
-    }
+
+    //zz All done
 }
 

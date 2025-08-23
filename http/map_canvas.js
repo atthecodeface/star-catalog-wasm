@@ -99,6 +99,7 @@ export class MapCanvas {
         e.preventDefault();
     }
 
+    //mi ra_de_of_cxy
     ra_de_of_cxy(cxy) {
         const fx = cxy[0] /  this.width;
         const fy = cxy[1] / this.height;

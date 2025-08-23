@@ -183,7 +183,6 @@ export class Earth {
             return;
         }
         this.webgl = gl;
-        console.log(gl);
 
         const vertex_e = document.getElementById("vertex_src");
         const fragment_e = document.getElementById("fragment_src");

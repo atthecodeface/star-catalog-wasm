@@ -218,18 +218,27 @@
             <div id='SkyCanvas'></div>
           </td>
         </tr>
+      </table>
+      <table>
         <tr>
           <td>
-            <label for="brightness" class="dn" id="max_mag">Max magnitude</label>
-            <input type="range" class="range dn" id="brightness"  style="width:150px;" name="brightness" step="0.2" min="1" max="12" oninput="window.star_catalog.sky_view_brightness_set();"/>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <div id="star_info"></div>
+            <table>
+              <tr>
+                <td>
+                  <label for="brightness" class="dn" id="max_mag">Max magnitude</label>
+                  <input type="range" class="range dn" id="brightness"  style="width:150px;" name="brightness" step="0.2" min="1" max="12" oninput="window.star_catalog.sky_view_brightness_set();"/>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div id="star_info"></div>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
       </table>
+      
     </div>
     
     <div id="tab-skymap">
@@ -264,6 +273,15 @@
               </tr>
             </table>
           </td>
+          <td>
+            <table>
+              <tr>
+                <td>
+                  <div id="SkyViewCompass"/>
+                </td>
+              </tr>
+            </table>
+          </td>
         </tr>
         
       </table>
@@ -275,19 +293,6 @@
           <td>
             <div id="EarthCanvas"></div>
           </td>
-        </tr>
-      </table>
-    </div>
-
-    <div id="tab-log">
-      <table>
-        <div id='Log'></div>
-      </table>
-    </div>
-    
-    <div id="tab-settings">
-      <table>
-        <tr>
           <td>
             <table>
               <tr>
@@ -310,6 +315,23 @@
                   <input class="date_button dn" type="button" value="Now" onclick="window.star_catalog.time_set();"/>
                 </td>
               </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div id="tab-log">
+      <table>
+        <div id='Log'></div>
+      </table>
+    </div>
+    
+    <div id="tab-settings">
+      <table>
+        <tr>
+          <td>
+            <table>
             </table>
           </td>
         </tr>
