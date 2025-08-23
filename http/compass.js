@@ -1,13 +1,15 @@
 import {WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import {Line} from "./line.js";
-import * as mouse from "./mouse.js";
+import {Mouse} from "./mouse.js";
 
 //a CompassCanvas
 export class CompassCanvas {
     //fp constructor
     constructor(star_catalog, canvas_div_id, width, height) {
         this.star_catalog = star_catalog;
+        this.vp = this.star_catalog.vp;
+
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
@@ -19,13 +21,10 @@ export class CompassCanvas {
         this.canvas.height = this.height;
         this.ctx = this.canvas.getContext("2d");
 
-        this.mouse = new mouse.Mouse(this, this.canvas);
+        this.mouse = new Mouse(this, this.canvas);
         
         window.log.add_log(0, "project", "load", `Created compass canvas`);
         this.redraw();
-
-        this.direction = 20;
-
     }
 
     //mp redraw
@@ -65,8 +64,8 @@ export class CompassCanvas {
         ctx.stroke();
 
         const d2r = Math.PI / 180;
-        const c = Math.cos((this.direction + 90) * d2r );
-        const s = Math.sin((this.direction + 90) * d2r );
+        const c = Math.cos((this.vp.compass_direction + 90) * d2r );
+        const s = Math.sin((this.vp.compass_direction + 90) * d2r );
         ctx.setTransform(c,-s*0.6,s,c*0.6,cx,cy);
 
         ctx.strokeStyle = color;
@@ -101,23 +100,13 @@ export class CompassCanvas {
     //mp update
     /// Invoked to purely update the state
     update() {
-        const d2r = Math.PI / 180;
-        const location_up = this.star_catalog.up;
-        const xyz = this.star_catalog.viewer_q.apply3(this.star_catalog.vector_x).array;
-
-        const angle = Math.atan2(xyz[1], xyz[0]) / d2r;
-        console.log(xyz[0], xyz[1], xyz[2]);
-        const elevation = Math.asin(xyz[2] / (xyz[0]*xyz[0] + xyz[1]*xyz[1]) ) / d2r;
-
-        this.direction = angle;
         this.redraw();
-        // console.log(angle, elevation);
         // this.styling = this.star_catalog.styling.map;
     }
 
     //mp zoom
     zoom(z) {
-        this.direction = z * 180.0;
+        // this.direction = z * 180.0;
         this.redraw();
         console.log(this);
     }
@@ -131,10 +120,10 @@ export class CompassCanvas {
     drag_to(e) {
         let dx = (e[0] - this.drag_xy[0]) / this.width;
         this.drag_xy = e;
-        let axis = this.star_catalog.up.cross_product(this.star_catalog.up.cross_product(new WasmVec3f64(0,0,1)));
-        console.log(this.star_catalog.up.array);
+        let axis = this.vp.up.cross_product(this.vp.up.cross_product(new WasmVec3f64(0,0,1)));
+        console.log(this.vp.up.array);
         axis = new WasmVec3f64(0,1,0);
-        axis = this.star_catalog.up;
+        axis = this.vp.up;
         const q = WasmQuatf64.of_axis_angle(axis, dx*Math.PI);
         this.star_catalog.sky_canvas.post_mult_q(q);
         

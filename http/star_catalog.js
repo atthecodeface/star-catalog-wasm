@@ -71,29 +71,11 @@ class StarCatalog {
         
         this.view_needs_update = false;
 
-        this.deg2rad = Math.PI / 180;
-        this.rad2deg = 180 / Math.PI;
-
-        this.vector_x = new WasmVec3f64(1,0,0);
-        this.vector_y = new WasmVec3f64(0,1,0);
-        this.vector_z = new WasmVec3f64(0,0,1);
-
-        this.lat = 52;
-        this.lon = 0;
-
-        this.days_since_epoch = 19711;
-        this.time_of_day = 18.377;
-
-        this.viewer_q = WasmQuatf64.unit();
-        this.date_set();
-        this.time_set();
-        this.update_latlon([this.lat, this.lon]);
-        const earth_division = 8;
-        const earth_webgl = true;
+        this.vp = new ViewProperties(this);
 
         this.sky_canvas = new sky.SkyCanvas(this, this.catalog, "SkyCanvas",800,400);
         this.map_canvas = new map.MapCanvas(this, this.catalog, "MapCanvas",800,300);
-        this.earth_canvas = new earth.Earth(this, "EarthCanvas", 800, 400, earth_webgl, earth_division);
+        this.earth_canvas = new earth.Earth(this, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
         this.sky_view_compass = new compass.CompassCanvas(this, "SkyViewCompass", 200, 150 );
 
         this.selected_css_changed();        
@@ -109,9 +91,10 @@ class StarCatalog {
     //mp set_view_needs_update
     /// Mark the view as needing an update
     set_view_needs_update() {
+        console.log(this.view_needs_update)
         if (!this.view_needs_update) {
             this.view_needs_update = true;
-            setTimeout(() => this.update_view());
+            setTimeout(() => { console.log(this); this.update_view() } );
         }
     }
 
@@ -121,68 +104,15 @@ class StarCatalog {
         if (!this.view_needs_update) {
             return;
         }
-        this.derive_data();
+        this.vp.derive_data();
+        
         this.sky_canvas.update();
         this.map_canvas.update();
         this.sky_view_compass.update();
         this.earth_canvas.update();
+
         this.view_needs_update = false;
     }
-
-    //mp derive_data
-    /// Derive data for the internals based on the time, date, lat and lon
-    ///
-    derive_data() {
-        this.viewer_q_i = this.viewer_q.conjugate();
-
-        for (const style of ["show_azimuthal", "show_equatorial"]) {
-            this.styling.sky[style] = (document.querySelector(`input[name=${style}]:checked`) != null);
-            this.styling.map[style] = (document.querySelector(`input[name=${style}]:checked`) != null);
-        }
-
-        this.time_of_day = 24 * fract(this.time_of_day / 24.0);
-        if (this.lat > 90) {this.lat = 90;}
-        if (this.lat < -90) {this.lat = -90;}
-        if (this.lon > 180) {this.lon -= 360;}
-        if (this.lon < -180) {this.lat += 360;}
-
-        const de = this.lat * this.deg2rad;
-        const ra_of_days = this.days_since_epoch * (366.25/365.25);
-        // This magic constant seems to be about right
-        const OFFSET = 100.4157224224/360;
-        const ra_time = this.lon / 360 +  fract(ra_of_days) + this.time_of_day / 24 * 366.25/365.35 + OFFSET;
-        const ra = fract(ra_time) * 2*Math.PI;
-        this.up = this.vec_of_ra_de(ra, de);
-
-        // Make v1 be star north by default
-        var v1 = new WasmVec3f64(1,0,0);
-        const cos_ns = this.up.dot(v1);
-        // If at a pole, then at least make it non fragile
-        if ((cos_ns > 0.99)  || (cos_ns < -0.99)) {
-            v1 = new WasmVec3f64(0,1,0);
-        }
-        const v2 = this.up.cross_product(v1).normalize();
-        const up_and_ns = this.up.cross_product(v2).normalize();
-        this.q_looking_ns = WasmQuatf64.unit().rotate_x(Math.PI/2 - de).rotate_z(Math.PI/2-ra);
-
-        html.if_ele_id("lat", this.lat, function(e,v) {
-            e.innerText = `Lat: ${v.toFixed(1)}`;
-        });
-        html.if_ele_id("lon", this.lon, function(e,v) {
-            e.innerText = `Lon: ${v.toFixed(1)}`;
-        });
-        html.if_ele_id("time", this.time_of_day, function(e,v) {
-            const hour = Math.floor(v);
-            const mins = (v - hour) * 60;
-            const secs = (mins - Math.floor(mins)) * 60;
-            e.innerText = `Time: ${String(hour).padStart(2,'0')}:${String(Math.floor(mins)).padStart(2,'0')}:${String(Math.floor(secs)).padStart(2,'0')}`;
-        });
-        html.if_ele_id("date", this.days_since_epoch, function(e,v) {
-            const date = new Date();
-            date.setTime(v*24*60*60*1000);
-            e.innerText = `${date.toDateString()}`;
-        });
-    }        
 
     //mp tab_selected
     tab_selected(tab_id) {
@@ -218,42 +148,33 @@ class StarCatalog {
     //mp date_set
     /// Set the date to *today*
     date_set() {
-        const date = new Date(Date.now());
-        date.setUTCHours(0,0,0);
-        this.days_since_epoch = Math.round(date.valueOf() / (24*60*60*1000));
-        this.derive_data();
-        this.update_view();
+        vp.date_set();
+        this.set_view_needs_update();
     }
     
     //mp time_set
     /// Set the time-of-day to *now*
     time_set() {
-        const date = new Date(Date.now());
-        date.setUTCMonth(0,1);
-        date.setUTCFullYear(1970);
-        this.time_of_day = date.valueOf() / (60*60*1000);
-        this.derive_data();
-        this.update_view();
+        vp.time_set();
+        this.set_view_needs_update();
     }
 
     //mp update_latlon
     /// Update the view, because of a view change, time change, etc
     update_latlon(lat_lon) {
-        window.log.add_log("info", "star", "update", `Set Lat/Lon to ${180/Math.PI*lat_lon[0]},${180/Math.PI*lat_lon[1]}`);
-        this.lat = lat_lon[0];
-        this.lon = lat_lon[1];
+        vp.update_latlon(lat_lon);
         this.set_view_needs_update();
     }
 
     //mp view_q_post_mul
     view_q_post_mul(q) {
-        this.viewer_q = this.viewer_q.mul(q);
+        vp.view_q_post_mul(q);
         this.set_view_needs_update();
     }
 
     //mp view_q_pre_mul
     view_q_pre_mul(q) {
-        this.viewer_q = q.mul(this.viewer_q);
+        vp.view_q_pre_mul(q);
         this.set_view_needs_update();
     }
 
@@ -268,7 +189,7 @@ class StarCatalog {
     /// sky view window
     sky_view_vector_of_fxy(fxy) {
         const v = this.sky_canvas.vector_of_fxy(fxy);
-        return this.viewer_q.apply3(v);
+        return this.vp.viewer_q.apply3(v);
     }
 
     //mp sky_view_brightness_set

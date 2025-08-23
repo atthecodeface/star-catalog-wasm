@@ -9,6 +9,8 @@ export class SkyCanvas {
     constructor(star_catalog, catalog, canvas_div_id, width, height) {
         this.star_catalog = star_catalog;
         this.catalog = catalog;
+        this.vp = this.star_catalog.vp;
+        
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
@@ -18,9 +20,6 @@ export class SkyCanvas {
 
         this.canvas.width = this.width;
         this.canvas.height = this.height;
-
-        this.deg2rad = Math.PI / 180;
-        this.rad2deg = 180 / Math.PI;
 
         this.fovh = Math.PI / 2;
         // Aspect ratio in 'tan' space of a single Y pixel compared to a single X pixel
@@ -149,14 +148,14 @@ export class SkyCanvas {
             const cy1 = cxy1[1] - this.height/2;
             const angle = Math.atan2(cy1,cx1) - Math.atan2(cy0,cx0);
             const q = WasmQuatf64.unit().rotate_x(-angle);
-            this.star_catalog.view_q_post_mul(q);
+            this.vp.view_q_post_mul(q);
         } else {
             const dcx = (cxy0[0] - cxy1[0]) * this.tan_pixh;
             const dcy = (cxy0[1] - cxy1[1]) * this.tan_pixv;
             const qz = WasmQuatf64.unit().rotate_z(-Math.atan(dcx));
             const qy = WasmQuatf64.unit().rotate_y(Math.atan(dcy));
             const q = qz.mul(qy);
-            this.star_catalog.view_q_post_mul(q);
+            this.vp.view_q_post_mul(q);
         }
     }
     
@@ -167,9 +166,10 @@ export class SkyCanvas {
     
     //mi mouse_click
     mouse_click(cxy) {
-        const view_to_ecef_q = this.star_catalog.viewer_q;
+        // Map click location to ECEF direction
         const v = this.vector_of_cxy(cxy);
-        const qv = view_to_ecef_q.apply3(v).array;
+        const qv = this.vp.view_to_ecef_q.apply3(v).array;
+
         const ra = Math.atan2(qv[1],qv[0]);
         const de = Math.asin(qv[2]);
         this.catalog.clear_filter();
@@ -194,7 +194,7 @@ export class SkyCanvas {
         // window.log.add_log("info","sky","rotate",`${angle}`);
         const v = new WasmVec3f64(1,0,0);
         const q = WasmQuatf64.of_axis_angle(v, -angle);
-        this.star_catalog.view_q_post_mul(q);
+        this.vp.view_q_post_mul(q);
     }
 
     //mi rotate_axis
@@ -207,40 +207,37 @@ export class SkyCanvas {
             v = new WasmVec3f64(0,0,1);
         }
         const q = WasmQuatf64.of_axis_angle(v, delta);
-        this.star_catalog.view_q_post_mul(q);
+        this.vp.view_q_post_mul(q);
     }
 
     //mi center
     center(ra_de) {
-        // console.log("sky_canvas: center:", ra_de);
-        const view_to_ecef_q = this.star_catalog.viewer_q;
-        
+        // Get new direction that is desired for the center of the view
         const ra = ra_de[0];
         const de = ra_de[1];
+        const new_qv = this.vp.vec_of_ra_de(ra, de);
 
-        // Get star space vectors
-        const qv = view_to_ecef_q.apply3(this.star_catalog.vector_x);
-        const new_qv = this.star_catalog.vec_of_ra_de(ra, de);
-        const q = WasmQuatf64.rotation_of_vec_to_vec(qv, new_qv);
+        // Get quaternon to rotate current center of view to the desired center of view
+        const q = WasmQuatf64.rotation_of_vec_to_vec(this.vp.view_ecef_center_dir, new_qv);
 
         // Add that rotation to the map camera
-        this.star_catalog.view_q_pre_mul(q);
+        this.vp.view_q_pre_mul(q);
     }
 
     //mi draw_star
     draw_star(ctx, star) {
-        const q_i = this.star_catalog.viewer_q_i;
+        // Determine viewer direction vector for the star
+        const qv = this.vp.ecef_to_view_q.apply3(star.vector);
+
+        // Determine the canvas XY of the star
+        const cxy = this.cxy_of_vector(qv);
+        if (cxy == null) {return; }
+        
         const m = star.magnitude;
         const ra = star.right_ascension;
         const de = star.declination;
         const rgb = star.rgb.array;
 
-        // Determine viewer direction vector for the star
-        const qv = q_i.apply3(star.vector);
-
-        // Determine the canvas XY of the star
-        const cxy = this.cxy_of_vector(qv);
-        if (cxy == null) {return; }
         const cx = cxy[0];
         const cy = cxy[1];
         let r = Math.floor(Math.min(255, Math.max(0,rgb[0]*255)));
@@ -320,9 +317,7 @@ export class SkyCanvas {
 
     //mi redraw_canvas
     redraw_canvas() {
-        const view_to_ecef_q = this.star_catalog.viewer_q;
-        const ecef_to_view_q = this.star_catalog.viewer_q_i;
-        
+       
         const ctx = this.canvas.getContext("2d");
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -331,7 +326,7 @@ export class SkyCanvas {
         if (this.selected != null) {
             const star = this.catalog.star(this.selected);
             ctx.strokeStyle = "White";
-            const qv = ecef_to_view_q.apply3(star.vector);
+            const qv = this.vp.ecef_to_view_q.apply3(star.vector);
             const cxy = this.cxy_of_vector(qv);
             if (cxy != null) {
                 const cx = cxy[0];
@@ -346,18 +341,17 @@ export class SkyCanvas {
         this.catalog.filter_max_magnitude(this.brightness);
 
         if (this.styling.show_azimuthal) {
-            this.draw_grid(ctx, ecef_to_view_q.mul(this.star_catalog.q_looking_ns.conjugate()), this.styling.azimuthal_grid);
+            this.draw_grid(ctx, this.vp.ecef_to_view_q.mul(this.vp.q_looking_ns.conjugate()), this.styling.azimuthal_grid);
         }
         if (this.styling.show_equatorial) {
-            this.draw_grid(ctx, ecef_to_view_q, this.styling.equatorial_grid);
+            this.draw_grid(ctx, this.vp.ecef_to_view_q, this.styling.equatorial_grid);
         }
 
-        const qv = view_to_ecef_q.apply3(this.star_catalog.vector_x);
         var first = 0;
         var steps = 0;
         var adjust_brightess = false;
         while (true) {
-            const s = this.catalog.find_stars_around(qv, this.fovh, first, 100);
+            const s = this.catalog.find_stars_around(this.vp.view_ecef_center_dir, this.fovh, first, 100);
             for (const index of s) {
                 const star = this.catalog.star(index);
                 this.draw_star(ctx, star);

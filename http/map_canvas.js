@@ -13,6 +13,8 @@ export class MapCanvas {
     constructor(star_catalog, catalog, canvas_div_id, width, height) {
         this.star_catalog = star_catalog;
         this.catalog = catalog;
+        this.vp = this.star_catalog.vp;
+
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
@@ -22,52 +24,6 @@ export class MapCanvas {
 
         this.canvas.width = this.width;
         this.canvas.height = this.height;
-
-        this.deg2rad = Math.PI / 180;
-        this.rad2deg = 180 / Math.PI;
-
-        // Epoch will be Jan 1 1970
-        //
-        // What the RA is for Lon 0 at 00:00:00 on Jan 1 1970, don't know yet
-
-        // this.days_since_epoch = 19500;
-        // this.time_of_day = 0.46;
-        // skyguie has HIP80710 striaght up
-        // RA of 247.180 That is UTC May 23 2023 at 00:27:38
-        // We have RA of 248.81 with our magic constant of + 176.51305887/360-127.0/360;
-
-        // this.days_since_epoch = 19500;
-        // this.time_of_day = 1.92;
-        // skyguie has HIP87833 striaght up
-        // RA of 269.1515 That is UTC May 23 2023 at 01:55:11
-        // We have RA of 270.4547 with our magic constant of + 176.51305887/360-127.0/360;
-
-        // this.days_since_epoch = 19500;
-        // this.time_of_day = 17.1;
-        // skyguie has HIP44901 striaght up
-        // RA of 137.218 That is UTC May 23 2023 at 17:06
-        // We have RA of 135.498 with our magic constant of + 176.51305887/360-127.0/360;
-        
-        // this.days_since_epoch = 19711;
-        // this.time_of_day = 18.377;
-        // skyguie has HIP1415 striaght up
-        // RA of 4.42944015 That is UTC Dec 20 2023 at 18:22:39 (no dst)
-        // We have RA of 2.9675 with our magic constant of + 176.51305887/360-127.0/360;
-
-        //
-        // (211+(18.377 - 0.46) / 24) days has an RA delta of 4.42944-247.180
-        // 211 days + 0.74654166666667  rotation = 360*211+117.24943999999999
-        //
-        // This says rotation per day = (360*211+117.24943999999999) / 211.74654166666667
-        //  = 359.28449570506564
-        //
-        // But it might have wrapped 360 degrees once more?
-        //
-        // This says rotation per day = (360*212+117.24943999999999) / 211.74654166666667
-        //  = 360.98464153586133
-        //
-        // The earth actually rotates 360 * 366.25 every year,
-        // so 360*366.25/365.25 degrees per UTC day = 360.98562628336754 degrees per UTC day
 
        
         const me = this;
@@ -85,7 +41,6 @@ export class MapCanvas {
         this.redraw_canvas();
     }
     derive_data() {
-        this.up = this.star_catalog.up;
         this.styling = this.star_catalog.styling.map;
     }        
 
@@ -228,17 +183,16 @@ export class MapCanvas {
             return;
         }
 
-
-        const q_grid = this.star_catalog.q_looking_ns.conjugate();
+        const q_grid = this.vp.q_looking_ns.conjugate();
 
         const l = new Line(ctx, this.width, this.height);
         ctx.strokeStyle = this.styling.azimuthal_grid[0];
         for (var de=-80; de<0; de+=10) {
-            const de_c = Math.cos(de * this.deg2rad);
-            const de_s = Math.sin(de * this.deg2rad);
+            const de_c = Math.cos(de * this.vp.deg2rad);
+            const de_s = Math.sin(de * this.vp.deg2rad);
             l.new_segment();
             for (var ra=0; ra<=360; ra+=1) {
-                const ra_r = ra * this.deg2rad;
+                const ra_r = ra * this.vp.deg2rad;
                 const v = new WasmVec3f64( de_c*Math.cos(ra_r), de_c*Math.sin(ra_r), de_s)
                 const cxy = this.cxy_of_vector(q_grid.apply3(v));
                 l.add_pt(cxy);
@@ -247,11 +201,11 @@ export class MapCanvas {
         l.finish();
         ctx.strokeStyle = this.styling.azimuthal_grid[1];
         for (var de=0; de<=80; de+=10) {
-            const de_c = Math.cos(de * this.deg2rad);
-            const de_s = Math.sin(de * this.deg2rad);
+            const de_c = Math.cos(de * this.vp.deg2rad);
+            const de_s = Math.sin(de * this.vp.deg2rad);
             l.new_segment();
             for (var ra=0; ra<=360; ra+=1) {
-                const ra_r = ra * this.deg2rad;
+                const ra_r = ra * this.vp.deg2rad;
                 const v = new WasmVec3f64( de_c*Math.cos(ra_r), de_c*Math.sin(ra_r), de_s)
                 const cxy = this.cxy_of_vector(q_grid.apply3(v));
                 l.add_pt(cxy);
@@ -260,12 +214,12 @@ export class MapCanvas {
         l.finish();
         ctx.strokeStyle = this.styling.azimuthal_grid[0];
         for (var ra=0; ra<=360; ra+=15) {
-            const ra_c = Math.cos(ra * this.deg2rad);
-            const ra_s = Math.sin(ra * this.deg2rad);
+            const ra_c = Math.cos(ra * this.vp.deg2rad);
+            const ra_s = Math.sin(ra * this.vp.deg2rad);
             l.new_segment();
             for (var de=-80; de<=80; de+=1) {
-                const de_c = Math.cos(de * this.deg2rad);
-                const de_s = Math.sin(de * this.deg2rad);
+                const de_c = Math.cos(de * this.vp.deg2rad);
+                const de_s = Math.sin(de * this.vp.deg2rad);
                 const v = new WasmVec3f64(ra_c*de_c, ra_s*de_c, de_s);
                 const cxy = this.cxy_of_vector(q_grid.apply3(v));
                 l.add_pt(cxy);

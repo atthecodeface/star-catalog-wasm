@@ -27,6 +27,24 @@ function fract(x) {
 ///
 /// Properties are:
 ///
+///  vec_of_ra_de - function to map RA/DE to a WasmVec
+///
+///  deg2rad = Math.PI / 180
+///
+///  rad2deg = 180 / Math.PI
+///
+///  lat  - latitude in degrees
+///
+///  lon  - longitude in degrees
+///
+///  days_since_epoch  - number of days since Jan 1 1970
+///
+///  time_of_day - time since midnight in hours
+///
+///  earth_division - number of subdivisions for icosphere (max 8)
+///
+///  earth_webgl - true if to use WebGl for the earth canvas
+///
 ///   up - vector from the center of the earth out through the feet of the observer (hence uses ra and de only)
 ///
 ///   q_looking_ns - quaternion mapping ECEF XYZ direction to
@@ -51,9 +69,56 @@ function fract(x) {
 ///  vector_y - unit vector (0,1,0)
 ///
 ///  vector_z - unit vector (0,0,1)
+///
+/// Background
+///
+/// Epoch will be Jan 1 1970
+///
+/// What the RA is for Lon 0 at 00:00:00 on Jan 1 1970, don't know yet
+///
+/// this.days_since_epoch = 19500;
+/// this.time_of_day = 0.46;
+/// skyguie has HIP80710 striaght up
+/// RA of 247.180 That is UTC May 23 2023 at 00:27:38
+/// We have RA of 248.81 with our magic constant of + 176.51305887/360-127.0/360;
+///
+/// this.days_since_epoch = 19500;
+/// this.time_of_day = 1.92;
+/// skyguie has HIP87833 striaght up
+/// RA of 269.1515 That is UTC May 23 2023 at 01:55:11
+/// We have RA of 270.4547 with our magic constant of + 176.51305887/360-127.0/360;
+///
+/// this.days_since_epoch = 19500;
+/// this.time_of_day = 17.1;
+/// skyguie has HIP44901 striaght up
+/// RA of 137.218 That is UTC May 23 2023 at 17:06
+/// We have RA of 135.498 with our magic constant of + 176.51305887/360-127.0/360;
+///        
+/// this.days_since_epoch = 19711;
+/// this.time_of_day = 18.377;
+/// skyguie has HIP1415 striaght up
+/// RA of 4.42944015 That is UTC Dec 20 2023 at 18:22:39 (no dst)
+/// We have RA of 2.9675 with our magic constant of + 176.51305887/360-127.0/360;
+///
+///
+/// (211+(18.377 - 0.46) / 24) days has an RA delta of 4.42944-247.180
+/// 211 days + 0.74654166666667  rotation = 360*211+117.24943999999999
+///
+/// This says rotation per day = (360*211+117.24943999999999) / 211.74654166666667
+///  = 359.28449570506564
+///
+/// But it might have wrapped 360 degrees once more?
+///
+/// This says rotation per day = (360*212+117.24943999999999) / 211.74654166666667
+///  = 360.98464153586133
+///
+/// The earth actually rotates 360 * 366.25 every year,
+/// so 360*366.25/365.25 degrees per UTC day = 360.98562628336754 degrees per UTC day
 export class ViewProperties {
     //cp constructor
-    constructor() {
+    constructor(star_catalog) {
+        this.star_catalog = star_catalog;
+        
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
 
         this.deg2rad = Math.PI / 180;
@@ -85,7 +150,19 @@ export class ViewProperties {
     /// Derive data for the internals based on the time, date, lat and lon
     ///
     derive_data() {
+
+        for (const style of ["show_azimuthal", "show_equatorial"]) {
+            const enable_style = (document.querySelector(`input[name=${style}]:checked`) != null);
+            this.star_catalog.styling.sky[style] = enable_style;
+            this.star_catalog.styling.map[style] = enable_style;
+        }
+
         this.viewer_q_i = this.viewer_q.conjugate();
+
+        this.view_to_ecef_q = this.viewer_q;
+        this.ecef_to_view_q = this.viewer_q_i;
+
+        this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
 
         this.time_of_day = 24 * fract(this.time_of_day / 24.0);
         if (this.lat > 90) {this.lat = 90;}
@@ -110,11 +187,23 @@ export class ViewProperties {
         }
         const v2 = this.up.cross_product(v1).normalize();
         const up_and_ns = this.up.cross_product(v2).normalize();
+
         this.q_looking_ns = WasmQuatf64.unit().rotate_x(Math.PI/2 - de).rotate_z(Math.PI/2-ra);
 
+        const location_up = this.up;
+        const xyz = this.view_to_ecef_q.apply3(this.vector_x).array;
+
+        const angle = Math.atan2(xyz[1], xyz[0]) / this.deg2rad;
+        console.log(xyz[0], xyz[1], xyz[2]);
+        const elevation = Math.asin(xyz[2] / (xyz[0]*xyz[0] + xyz[1]*xyz[1]) ) / this.deg2rad;
+
+        this.compass_direction = angle;
+        this.compass_elevation = 0;
+        
         this.update_html_elements();
     }
 
+    //mi update_html_elements
     update_html_elements() {
         html.if_ele_id("lat", this.lat, function(e,v) {
             e.innerText = `Lat: ${v.toFixed(1)}`;
@@ -141,8 +230,7 @@ export class ViewProperties {
         const date = new Date(Date.now());
         date.setUTCHours(0,0,0);
         this.days_since_epoch = Math.round(date.valueOf() / (24*60*60*1000));
-        this.derive_data();
-        this.update_view();
+        this.star_catalog.set_view_needs_update();
     }
     
     //mp time_set
@@ -152,8 +240,7 @@ export class ViewProperties {
         date.setUTCMonth(0,1);
         date.setUTCFullYear(1970);
         this.time_of_day = date.valueOf() / (60*60*1000);
-        this.derive_data();
-        this.update_view();
+        this.star_catalog.set_view_needs_update();
     }
 
     //mp update_latlon
@@ -162,37 +249,19 @@ export class ViewProperties {
         window.log.add_log("info", "view_prop", "update", `Set Lat/Lon to ${180/Math.PI*lat_lon[0]},${180/Math.PI*lat_lon[1]}`);
         this.lat = lat_lon[0];
         this.lon = lat_lon[1];
+        this.star_catalog.set_view_needs_update();
     }
 
     //mp view_q_post_mul
     view_q_post_mul(q) {
         this.viewer_q = this.viewer_q.mul(q);
-        this.set_view_needs_update();
+        this.star_catalog.set_view_needs_update();
     }
 
     //mp view_q_pre_mul
     view_q_pre_mul(q) {
         this.viewer_q = q.mul(this.viewer_q);
-        this.set_view_needs_update();
+        this.star_catalog.set_view_needs_update();
     }
 
-    //mp sky_view_vector_of_fxy
-    /// Map a frame XY into a star unit direction vector
-    /// sky view window
-    sky_view_vector_of_fxy(fxy) {
-        const v = this.sky_canvas.vector_of_fxy(fxy);
-        return this.viewer_q.apply3(v);
-    }
-
-    //mp sky_view_brightness_set
-    /// Set the maximum magnitude of the stars shown in the sky view
-    sky_view_brightness_set() {
-        this.sky_canvas.brightness_set();
-    }
-
-    //mp sky_view_zoom_set
-    /// Set the zoom of the sky view window
-    sky_view_zoom_set() {
-        this.sky_canvas.zoom_set();
-    }
 }
