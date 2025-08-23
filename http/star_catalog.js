@@ -18,6 +18,46 @@ function fract(x) {
 
 //a StarCatalog
 //c StarCatalog
+/// There are *three* XYZ coordinate systems:
+///
+///  1. ECEF - earth centered, earth fixed; the stars are in this
+///      system. +z is through the north pole, +x is through Greenwich
+///
+///  2. Observer position - From a given lat/lon and time; +z is
+///     from the center of the earth through the observer's feet,
+///     and it rotates around the earth's axis over time; +x is
+///     such that the earth's axis lies in the X-Z plane; +y is
+///     such tha XYZ form a right-handed set.
+///
+///  3. View orientation - with X being to the right of the view,
+///     Y up, and Z out of the screen.
+///
+/// Properties are:
+///
+///   up - vector from the center of the earth out through the feet of the observer (hence uses ra and de only)
+///
+///   q_looking_ns - quaternion mapping ECEF XYZ direction to
+///      observer XYZ to ECEF XYZ direction; effectively a camera
+///      at the observer horizontally pointed north. Apply this to
+///      a star determine where it is relative to the observer;
+///      apply the conjugate to map an observer position to ECEF,
+///      such as for the azimuthal grid. Apply the conjugate to
+///      (1,0,0) to show the compass heading and elevation
+///
+///  viewer_q - quaternion mapping the viewer's camera to ECEF. Apply
+///     this to a viewer vector (such as where a star appears in the
+///     viewer frame) to determine a direction in ECEF (such as where
+///     that star actually is in the catalog)
+///   
+///  viewer_q_i - quaternion mapping ECEV to the viewer's
+///     camera. Apply this to a star direction vector to determine
+///     where in the view to draw the star.
+///
+/// vector_x - unit vector (1,0,0)
+///
+/// vector_y - unit vector (0,1,0)
+///
+/// vector_z - unit vector (0,0,1)
 class StarCatalog {
     //cp constructor
     constructor() {
@@ -94,33 +134,6 @@ class StarCatalog {
     //mp derive_data
     /// Derive data for the internals based on the time, date, lat and lon
     ///
-    /// There are *three* XYZ coordinate systems:
-    ///
-    ///  1. ECEF - earth centered, earth fixed; the stars are in this
-    ///      system. +z is through the north pole, +x is through Greenwich
-    ///
-    ///  2. Observer position - From a given lat/lon and time; +z is
-    ///     from the center of the earth through the observer's feet,
-    ///     and it rotates around the earth's axis over time; +x is
-    ///     such that the earth's axis lies in the X-Z plane; +y is
-    ///     such tha XYZ form a right-handed set.
-    ///
-    ///  3. View orientation - with X being to the right of the view,
-    ///     Y up, and Z out of the screen.
-    ///
-    /// Properties are:
-    ///
-    ///   up - vector from the center of the earth out through the feet of the observer (hence uses ra and de only)
-    ///
-    ///   q_looking_ns - quaternion mapping ECEF XYZ direction to
-    ///      observer XYZ to ECEF XYZ direction; effectively a camera
-    ///      at the observer horizontally pointed north. Apply this to
-    ///      a star determine where it is relative to the observer;
-    ///      apply the conjugate to map an observer position to ECEF,
-    ///      such as for the azimuthal grid. Apply the conjugate to
-    ///      (1,0,0) to show the compass heading and elevation
-    ///
-    ///   
     derive_data() {
         this.viewer_q_i = this.viewer_q.conjugate();
 

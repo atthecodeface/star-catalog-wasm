@@ -167,9 +167,9 @@ export class SkyCanvas {
     
     //mi mouse_click
     mouse_click(cxy) {
-        this.q = this.star_catalog.viewer_q;
+        const view_to_ecef_q = this.star_catalog.viewer_q;
         const v = this.vector_of_cxy(cxy);
-        const qv = this.q.apply3(v).array;
+        const qv = view_to_ecef_q.apply3(v).array;
         const ra = Math.atan2(qv[1],qv[0]);
         const de = Math.asin(qv[2]);
         this.catalog.clear_filter();
@@ -212,13 +212,14 @@ export class SkyCanvas {
 
     //mi center
     center(ra_de) {
-        console.log("sky_canvas: center:", ra_de);
-        this.q = this.star_catalog.viewer_q;
+        // console.log("sky_canvas: center:", ra_de);
+        const view_to_ecef_q = this.star_catalog.viewer_q;
+        
         const ra = ra_de[0];
         const de = ra_de[1];
+
         // Get star space vectors
-        const vv = new WasmVec3f64(1,0,0);
-        const qv = this.q.apply3(vv);
+        const qv = view_to_ecef_q.apply3(this.star_catalog.vector_x);
         const new_qv = this.star_catalog.vec_of_ra_de(ra, de);
         const q = WasmQuatf64.rotation_of_vec_to_vec(qv, new_qv);
 
@@ -228,13 +229,16 @@ export class SkyCanvas {
 
     //mi draw_star
     draw_star(ctx, star) {
-        this.q = this.star_catalog.viewer_q;
-        this.q_i = this.star_catalog.viewer_q_i;
+        const q_i = this.star_catalog.viewer_q_i;
         const m = star.magnitude;
         const ra = star.right_ascension;
         const de = star.declination;
         const rgb = star.rgb.array;
-        const qv = this.q_i.apply3(star.vector);
+
+        // Determine viewer direction vector for the star
+        const qv = q_i.apply3(star.vector);
+
+        // Determine the canvas XY of the star
         const cxy = this.cxy_of_vector(qv);
         if (cxy == null) {return; }
         const cx = cxy[0];
@@ -316,8 +320,9 @@ export class SkyCanvas {
 
     //mi redraw_canvas
     redraw_canvas() {
-        this.q = this.star_catalog.viewer_q;
-        this.q_i = this.star_catalog.viewer_q_i;
+        const view_to_ecef_q = this.star_catalog.viewer_q;
+        const ecef_to_view_q = this.star_catalog.viewer_q_i;
+        
         const ctx = this.canvas.getContext("2d");
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -326,7 +331,7 @@ export class SkyCanvas {
         if (this.selected != null) {
             const star = this.catalog.star(this.selected);
             ctx.strokeStyle = "White";
-            const qv = this.q_i.apply3(star.vector);
+            const qv = ecef_to_view_q.apply3(star.vector);
             const cxy = this.cxy_of_vector(qv);
             if (cxy != null) {
                 const cx = cxy[0];
@@ -341,14 +346,13 @@ export class SkyCanvas {
         this.catalog.filter_max_magnitude(this.brightness);
 
         if (this.styling.show_azimuthal) {
-            this.draw_grid(ctx, this.q_i.mul(this.star_catalog.q_looking_ns.conjugate()), this.styling.azimuthal_grid);
+            this.draw_grid(ctx, ecef_to_view_q.mul(this.star_catalog.q_looking_ns.conjugate()), this.styling.azimuthal_grid);
         }
         if (this.styling.show_equatorial) {
-            this.draw_grid(ctx, this.q_i, this.styling.equatorial_grid);
+            this.draw_grid(ctx, ecef_to_view_q, this.styling.equatorial_grid);
         }
 
-        const vv = new WasmVec3f64(1,0,0);
-        const qv = this.q.apply3(vv);
+        const qv = view_to_ecef_q.apply3(this.star_catalog.vector_x);
         var first = 0;
         var steps = 0;
         var adjust_brightess = false;
