@@ -134,9 +134,7 @@ export class ViewProperties {
         this.days_since_epoch = 19711;
         this.time_of_day = 18.377;
 
-        // this.viewer_q => view_to_ecef_q
-        // this.viewer_q_i => ecef_to_view_q
-        this.viewer_q = WasmQuatf64.unit();
+        this.view_to_ecef_q = WasmQuatf64.unit();
 
         this.earth_division = 8;
         this.earth_webgl = true;
@@ -146,24 +144,10 @@ export class ViewProperties {
         this.update_latlon([this.lat, this.lon]);
     }
 
-    //mp derive_data
+    //mp derive_de_ra
     /// Derive data for the internals based on the time, date, lat and lon
     ///
-    derive_data() {
-
-        for (const style of ["show_azimuthal", "show_equatorial"]) {
-            const enable_style = (document.querySelector(`input[name=${style}]:checked`) != null);
-            this.star_catalog.styling.sky[style] = enable_style;
-            this.star_catalog.styling.map[style] = enable_style;
-        }
-
-        this.viewer_q_i = this.viewer_q.conjugate();
-
-        this.view_to_ecef_q = this.viewer_q;
-        this.ecef_to_view_q = this.viewer_q_i;
-
-        this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
-
+    derive_de_ra() {
         this.time_of_day = 24 * fract(this.time_of_day / 24.0);
         if (this.lat > 90) {this.lat = 90;}
         if (this.lat < -90) {this.lat = -90;}
@@ -175,8 +159,27 @@ export class ViewProperties {
         // This magic constant seems to be about right
         const OFFSET = 100.4157224224/360;
         const ra_time = this.lon / 360 +  fract(ra_of_days) + this.time_of_day / 24 * 366.25/365.35 + OFFSET;
-        const ra = fract(ra_time) * 2*Math.PI;
-        this.up = this.vec_of_ra_de(ra, de);
+
+        this.ra = fract(ra_time) * 2*Math.PI;
+        this.de = de;
+    }
+
+    //mp derive_data
+    /// Derive data for the internals based on the time, date, lat and lon
+    ///
+    derive_data() {
+        for (const style of ["show_azimuthal", "show_equatorial"]) {
+            const enable_style = (document.querySelector(`input[name=${style}]:checked`) != null);
+            this.star_catalog.styling.sky[style] = enable_style;
+            this.star_catalog.styling.map[style] = enable_style;
+        }
+
+        this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
+
+        this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
+
+        this.derive_de_ra();
+        this.up = this.vec_of_ra_de(this.ra, this.de);
 
         // Make v1 be star north by default
         var v1 = new WasmVec3f64(1,0,0);
@@ -188,13 +191,13 @@ export class ViewProperties {
         const v2 = this.up.cross_product(v1).normalize();
         const up_and_ns = this.up.cross_product(v2).normalize();
 
-        this.q_looking_ns = WasmQuatf64.unit().rotate_x(Math.PI/2 - de).rotate_z(Math.PI/2-ra);
+        this.q_looking_ns = WasmQuatf64.unit().rotate_x(Math.PI/2 - this.de).rotate_z(Math.PI/2-this.ra);
 
         const location_up = this.up;
         const xyz = this.view_to_ecef_q.apply3(this.vector_x).array;
 
         const angle = Math.atan2(xyz[1], xyz[0]) / this.deg2rad;
-        console.log(xyz[0], xyz[1], xyz[2]);
+
         const elevation = Math.asin(xyz[2] / (xyz[0]*xyz[0] + xyz[1]*xyz[1]) ) / this.deg2rad;
 
         this.compass_direction = angle;
@@ -254,13 +257,13 @@ export class ViewProperties {
 
     //mp view_q_post_mul
     view_q_post_mul(q) {
-        this.viewer_q = this.viewer_q.mul(q);
+        this.view_to_ecef_q = this.view_to_ecef_q.mul(q);
         this.star_catalog.set_view_needs_update();
     }
 
     //mp view_q_pre_mul
     view_q_pre_mul(q) {
-        this.viewer_q = q.mul(this.viewer_q);
+        this.view_to_ecef_q = q.mul(this.view_to_ecef_q);
         this.star_catalog.set_view_needs_update();
     }
 

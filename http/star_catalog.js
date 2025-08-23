@@ -186,10 +186,9 @@ class StarCatalog {
 
     //mp sky_view_vector_of_fxy
     /// Map a frame XY into a star unit direction vector
-    /// sky view window
     sky_view_vector_of_fxy(fxy) {
         const v = this.sky_canvas.vector_of_fxy(fxy);
-        return this.vp.viewer_q.apply3(v);
+        return this.vp.view_to_ecef_q.apply3(v);
     }
 
     //mp sky_view_brightness_set
