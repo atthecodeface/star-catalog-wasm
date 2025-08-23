@@ -1,15 +1,7 @@
 //a Imports
-import init, {WasmCatalog, WasmStar, WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
-import {tabbed_configure} from "./tabbed.js";
-import {Log} from "./log.js";
+import {WasmCatalog, WasmStar, WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import * as utils from "./utils.js";
-import * as map from "./map_canvas.js";
-import * as sky from "./sky_canvas.js";
-import * as earth from "./earth.js";
-import * as compass from "./compass.js";
-import {Styling} from "./styling.js";
-import {ViewProperties} from "./view_properties.js";
 
 //a Useful functions
 //fi fract
@@ -17,8 +9,8 @@ function fract(x) {
     return x - Math.floor(x);
 }
 
-//a StarCatalog
-//c StarCatalog
+//a ViewProperties
+//c ViewProperties
 /// There are *three* XYZ coordinate systems:
 ///
 ///  1. ECEF - earth centered, earth fixed; the stars are in this
@@ -59,17 +51,10 @@ function fract(x) {
 ///  vector_y - unit vector (0,1,0)
 ///
 ///  vector_z - unit vector (0,0,1)
-class StarCatalog {
+export class ViewProperties {
     //cp constructor
     constructor() {
-        this.WasmCatalog = WasmCatalog;
-        this.WasmStar = WasmStar;
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
-        this.catalog = new WasmCatalog("hipp_bright");
-
-        this.styling = new Styling();
-        
-        this.view_needs_update = false;
 
         this.deg2rad = Math.PI / 180;
         this.rad2deg = 180 / Math.PI;
@@ -84,49 +69,16 @@ class StarCatalog {
         this.days_since_epoch = 19711;
         this.time_of_day = 18.377;
 
+        // this.viewer_q => view_to_ecef_q
+        // this.viewer_q_i => ecef_to_view_q
         this.viewer_q = WasmQuatf64.unit();
+
+        this.earth_division = 8;
+        this.earth_webgl = true;
         this.date_set();
         this.time_set();
+
         this.update_latlon([this.lat, this.lon]);
-        const earth_division = 8;
-        const earth_webgl = true;
-
-        this.sky_canvas = new sky.SkyCanvas(this, this.catalog, "SkyCanvas",800,400);
-        this.map_canvas = new map.MapCanvas(this, this.catalog, "MapCanvas",800,300);
-        this.earth_canvas = new earth.Earth(this, "EarthCanvas", 800, 400, earth_webgl, earth_division);
-        this.sky_view_compass = new compass.CompassCanvas(this, "SkyViewCompass", 200, 150 );
-
-        this.selected_css_changed();        
-        this.set_view_needs_update();
-    }
-
-    //mp set_styling
-    /// Invoked by events on the page to change the contents; such as selection of equatorial grid 'on'
-    set_styling() {
-        this.set_view_needs_update();
-    }
-
-    //mp set_view_needs_update
-    /// Mark the view as needing an update
-    set_view_needs_update() {
-        if (!this.view_needs_update) {
-            this.view_needs_update = true;
-            setTimeout(() => this.update_view());
-        }
-    }
-
-    //mp update_view
-    /// Update the view, because of a view change, time change, etc
-    update_view() {
-        if (!this.view_needs_update) {
-            return;
-        }
-        this.derive_data();
-        this.sky_canvas.update();
-        this.map_canvas.update();
-        this.sky_view_compass.update();
-        this.earth_canvas.update();
-        this.view_needs_update = false;
     }
 
     //mp derive_data
@@ -134,11 +86,6 @@ class StarCatalog {
     ///
     derive_data() {
         this.viewer_q_i = this.viewer_q.conjugate();
-
-        for (const style of ["show_azimuthal", "show_equatorial"]) {
-            this.styling.sky[style] = (document.querySelector(`input[name=${style}]:checked`) != null);
-            this.styling.map[style] = (document.querySelector(`input[name=${style}]:checked`) != null);
-        }
 
         this.time_of_day = 24 * fract(this.time_of_day / 24.0);
         if (this.lat > 90) {this.lat = 90;}
@@ -165,6 +112,10 @@ class StarCatalog {
         const up_and_ns = this.up.cross_product(v2).normalize();
         this.q_looking_ns = WasmQuatf64.unit().rotate_x(Math.PI/2 - de).rotate_z(Math.PI/2-ra);
 
+        this.update_html_elements();
+    }
+
+    update_html_elements() {
         html.if_ele_id("lat", this.lat, function(e,v) {
             e.innerText = `Lat: ${v.toFixed(1)}`;
         });
@@ -184,37 +135,6 @@ class StarCatalog {
         });
     }        
 
-    //mp tab_selected
-    tab_selected(tab_id) {
-        if (tab_id=="#tab-location") {
-            console.log("Opened tab-location");
-        }
-    }
-
-    //mp selected_css_toggle
-    /// Invoked by the web page when day/night mode is toggled
-    selected_css_toggle() {
-        const checkbox = document.querySelector('input[name=day_night]');
-        checkbox.checked = !checkbox.checked;
-        this.selected_css_changed();
-    }
-
-    //mp selected_css_changed
-    /// Invoked by the web page when day/night mode is set, and
-    /// initially to configure the styling properly.
-    selected_css_changed() {
-        const checkbox = document.querySelector('input[name=day_night]');
-        const label = document.querySelector('#day_night_label');
-        this.selected_css = "night";
-        label.innerText = "Day mode";
-        if (checkbox.checked) {
-            this.selected_css = "day";
-            label.innerText = "Night mode";
-        }
-        this.styling.set(this.selected_css);
-        this.set_view_needs_update();
-    }
-    
     //mp date_set
     /// Set the date to *today*
     date_set() {
@@ -239,10 +159,9 @@ class StarCatalog {
     //mp update_latlon
     /// Update the view, because of a view change, time change, etc
     update_latlon(lat_lon) {
-        window.log.add_log("info", "star", "update", `Set Lat/Lon to ${180/Math.PI*lat_lon[0]},${180/Math.PI*lat_lon[1]}`);
+        window.log.add_log("info", "view_prop", "update", `Set Lat/Lon to ${180/Math.PI*lat_lon[0]},${180/Math.PI*lat_lon[1]}`);
         this.lat = lat_lon[0];
         this.lon = lat_lon[1];
-        this.set_view_needs_update();
     }
 
     //mp view_q_post_mul
@@ -255,12 +174,6 @@ class StarCatalog {
     view_q_pre_mul(q) {
         this.viewer_q = q.mul(this.viewer_q);
         this.set_view_needs_update();
-    }
-
-    //mp center_sky_view
-    /// Center the sky view on a specific right ascension / declination
-    center_sky_view(ra_de) {
-        this.sky_canvas.center(ra_de);
     }
 
     //mp sky_view_vector_of_fxy
@@ -283,18 +196,3 @@ class StarCatalog {
         this.sky_canvas.zoom_set();
     }
 }
-
-//a Top level on load...
-window.star_catalog = null;
-function complete_init() {
-    window.log = new Log(document.getElementById("Log"));
-    window.star_catalog = new StarCatalog();
-}
-
-window.addEventListener("load", (e) => {
-    init().then(() => {
-        tabbed_configure("#tab-list", 
-                         (id) => {if (window.star_catalog !== null) {window.star_catalog.tab_selected(id);}});
-        complete_init();
-    }
-)});
