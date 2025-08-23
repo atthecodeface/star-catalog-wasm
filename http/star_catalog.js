@@ -6,8 +6,9 @@ import * as html from "./html.js";
 import * as utils from "./utils.js";
 import * as map from "./map_canvas.js";
 import * as sky from "./sky_canvas.js";
-import * as earth from "./earth.js";
-import * as compass from "./compass.js";
+import {Earth} from "./earth.js";
+import {CompassCanvas} from "./compass.js";
+import {ElevationCanvas} from "./elevation.js";
 import {Styling} from "./styling.js";
 import {ViewProperties} from "./view_properties.js";
 
@@ -19,46 +20,6 @@ function fract(x) {
 
 //a StarCatalog
 //c StarCatalog
-/// There are *three* XYZ coordinate systems:
-///
-///  1. ECEF - earth centered, earth fixed; the stars are in this
-///      system. +z is through the north pole, +x is through Greenwich
-///
-///  2. Observer position - From a given lat/lon and time; +z is
-///     from the center of the earth through the observer's feet,
-///     and it rotates around the earth's axis over time; +x is
-///     such that the earth's axis lies in the X-Z plane; +y is
-///     such tha XYZ form a right-handed set.
-///
-///  3. View orientation - with X being to the right of the view,
-///     Y up, and Z out of the screen.
-///
-/// Properties are:
-///
-///   up - vector from the center of the earth out through the feet of the observer (hence uses ra and de only)
-///
-///   q_looking_ns - quaternion mapping ECEF XYZ direction to
-///      observer XYZ to ECEF XYZ direction; effectively a camera
-///      at the observer horizontally pointed north. Apply this to
-///      a star determine where it is relative to the observer;
-///      apply the conjugate to map an observer position to ECEF,
-///      such as for the azimuthal grid. Apply the conjugate to
-///      (1,0,0) to show the compass heading and elevation
-///
-///  viewer_q - quaternion mapping the viewer's camera to ECEF. Apply
-///     this to a viewer vector (such as where a star appears in the
-///     viewer frame) to determine a direction in ECEF (such as where
-///     that star actually is in the catalog)
-///   
-///  viewer_q_i - quaternion mapping ECEV to the viewer's
-///     camera. Apply this to a star direction vector to determine
-///     where in the view to draw the star.
-///
-///  vector_x - unit vector (1,0,0)
-///
-///  vector_y - unit vector (0,1,0)
-///
-///  vector_z - unit vector (0,0,1)
 class StarCatalog {
     //cp constructor
     constructor() {
@@ -75,8 +36,9 @@ class StarCatalog {
 
         this.sky_canvas = new sky.SkyCanvas(this, this.catalog, "SkyCanvas",800,400);
         this.map_canvas = new map.MapCanvas(this, this.catalog, "MapCanvas",800,300);
-        this.earth_canvas = new earth.Earth(this, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
-        this.sky_view_compass = new compass.CompassCanvas(this, "SkyViewCompass", 200, 150 );
+        this.earth_canvas = new Earth(this, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
+        this.sky_view_compass = new CompassCanvas(this, "SkyViewCompass", 200, 150 );
+        this.sky_view_elevation = new ElevationCanvas(this, "SkyViewElevation", 50, 150 );
 
         this.selected_css_changed();        
         this.set_view_needs_update();
@@ -91,10 +53,9 @@ class StarCatalog {
     //mp set_view_needs_update
     /// Mark the view as needing an update
     set_view_needs_update() {
-        console.log(this.view_needs_update)
         if (!this.view_needs_update) {
             this.view_needs_update = true;
-            setTimeout(() => { console.log(this); this.update_view() } );
+            setTimeout(() => { this.update_view() } );
         }
     }
 
@@ -109,6 +70,7 @@ class StarCatalog {
         this.sky_canvas.update();
         this.map_canvas.update();
         this.sky_view_compass.update();
+        this.sky_view_elevation.update();
         this.earth_canvas.update();
 
         this.view_needs_update = false;
@@ -116,8 +78,15 @@ class StarCatalog {
 
     //mp tab_selected
     tab_selected(tab_id) {
-        if (tab_id=="#tab-location") {
-            console.log("Opened tab-location");
+        const e = document.getElementById("controls");
+        if (!e) {
+            return;
+        }
+        console.log(e);
+        if ((tab_id=="#tab-skyview") || (tab_id=="#tab-skymap")) {
+            e.hidden = false;
+        } else {
+            e.hidden = true;
         }
     }
 
@@ -148,33 +117,33 @@ class StarCatalog {
     //mp date_set
     /// Set the date to *today*
     date_set() {
-        vp.date_set();
+        this.vp.date_set();
         this.set_view_needs_update();
     }
     
     //mp time_set
     /// Set the time-of-day to *now*
     time_set() {
-        vp.time_set();
+        this.vp.time_set();
         this.set_view_needs_update();
     }
 
     //mp update_latlon
     /// Update the view, because of a view change, time change, etc
     update_latlon(lat_lon) {
-        vp.update_latlon(lat_lon);
+        this.vp.update_latlon(lat_lon);
         this.set_view_needs_update();
     }
 
     //mp view_q_post_mul
     view_q_post_mul(q) {
-        vp.view_q_post_mul(q);
+        this.vp.view_q_post_mul(q);
         this.set_view_needs_update();
     }
 
     //mp view_q_pre_mul
     view_q_pre_mul(q) {
-        vp.view_q_pre_mul(q);
+        this.vp.view_q_pre_mul(q);
         this.set_view_needs_update();
     }
 
@@ -214,7 +183,7 @@ function complete_init() {
 window.addEventListener("load", (e) => {
     init().then(() => {
         tabbed_configure("#tab-list", 
-                         (id) => {if (window.star_catalog !== null) {window.star_catalog.tab_selected(id);}});
+                         (id) => {if (window.star_catalog) {window.star_catalog.tab_selected(id);}});
         complete_init();
     }
 )});

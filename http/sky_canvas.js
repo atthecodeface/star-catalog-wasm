@@ -27,7 +27,6 @@ export class SkyCanvas {
 
         this.brightness = 5.0;
 
-        this.selected = null;
         this.mouse = new mouse.Mouse(this, this.canvas);
 
         this.derive_data();
@@ -49,7 +48,7 @@ export class SkyCanvas {
         html.if_ele_id("focal_length", this.tan_hfovh, function(e,v) {
             e.innerText = `${(18 / v).toFixed(2)}mm equiv`;
         });
-        html.if_ele_id("fov", this.fovh*this.rad2deg, function(e,v) {
+        html.if_ele_id("fov", this.fovh*this.vp.rad2deg, function(e,v) {
             e.innerText = `${v.toFixed(2)} degrees`;
         });
         html.if_ele_id("brightness", this.brightness, function(e,v) {
@@ -58,7 +57,7 @@ export class SkyCanvas {
         html.if_ele_id("max_mag", this.brightness, function(e,v) {
             e.innerText = `Max magnitude: ${v.toFixed(2)}`;
         });
-        html.if_ele_id("zoom", this.fovh * this.rad2deg, function(e,v) {
+        html.if_ele_id("zoom", this.fovh * this.vp.rad2deg, function(e,v) {
             e.value = v;
         });
 
@@ -109,21 +108,8 @@ export class SkyCanvas {
     //mp select
     select(s) {
         window.log.add_log(0, "sky", "select", `Selected ${s}`);
-        this.selected = s;
-        if (this.selected != null) {
-            const star = this.catalog.star(this.selected);
-            const e = document.getElementById("star_info");
-            if (e) {
-                html.clear(e);
-                e.append(html.table([],[`Id: ${star.id}`,
-                                        `Mag: ${(star.magnitude).toFixed(2)}`,
-                                        `Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`,
-                                        `De: ${(star.declination * this.rad2deg).toFixed(2)}`,
-                                       ], []));
-                                             
-            }
-        }
-        
+        this.vp.set_selected_star(s);
+       
         this.redraw_canvas();
     }
 
@@ -263,11 +249,11 @@ export class SkyCanvas {
         const l = new Line(ctx, this.width, this.height);
         const v = new WasmVec3f64(0,0,0);
         for (var de=-80; de<=80; de+=10) {
-            const de_c = Math.cos(de * this.deg2rad);
-            const de_s = Math.sin(de * this.deg2rad);
+            const de_c = Math.cos(de * this.vp.deg2rad);
+            const de_s = Math.sin(de * this.vp.deg2rad);
             l.new_segment();
             for (var ra=0; ra<=360; ra+=1) {
-                const ra_r = ra * this.deg2rad;
+                const ra_r = ra * this.vp.deg2rad;
                 v.set( [de_c*Math.cos(ra_r), de_c*Math.sin(ra_r), de_s]);
                 const xyz = q_grid.apply3(v);
                 const cxy = this.cxy_of_vector(xyz);
@@ -275,7 +261,7 @@ export class SkyCanvas {
             }
             l.new_segment();
             for (var ra=0; ra<=360; ra+=1) {
-                const ra_r = ra * this.deg2rad;
+                const ra_r = ra * this.vp.deg2rad;
                 v.set( [de_c*Math.cos(ra_r), de_c*Math.sin(ra_r), de_s]);
                 const xyz = q_grid.apply3(v);
                 const cxy = this.cxy_of_vector(xyz);
@@ -283,12 +269,12 @@ export class SkyCanvas {
             }
         }
         for (var ra=0; ra<=360; ra+=15) {
-            const ra_c = Math.cos(ra * this.deg2rad);
-            const ra_s = Math.sin(ra * this.deg2rad);
+            const ra_c = Math.cos(ra * this.vp.deg2rad);
+            const ra_s = Math.sin(ra * this.vp.deg2rad);
             l.new_segment();
             for (var de=-80; de<=80; de+=1) {
-                const de_c = Math.cos(de * this.deg2rad);
-                const de_s = Math.sin(de * this.deg2rad);
+                const de_c = Math.cos(de * this.vp.deg2rad);
+                const de_s = Math.sin(de * this.vp.deg2rad);
                 v.set( [de_c*ra_c, de_c*ra_s, de_s]);
                 const xyz = q_grid.apply3(v);
                 const cxy = this.cxy_of_vector(xyz);
@@ -323,8 +309,8 @@ export class SkyCanvas {
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.draw_border(ctx);
-        if (this.selected != null) {
-            const star = this.catalog.star(this.selected);
+        if (this.vp.selected_star != null) {
+            const star = this.catalog.star(this.vp.selected_star);
             ctx.strokeStyle = "White";
             const qv = this.vp.ecef_to_view_q.apply3(star.vector);
             const cxy = this.cxy_of_vector(qv);
@@ -378,7 +364,7 @@ export class SkyCanvas {
     zoom_set() {
         const e = document.getElementById("zoom");
         if (e) {
-            this.fovh = e.value * this.deg2rad;
+            this.fovh = e.value * this.vp.deg2rad;
             this.star_catalog.set_view_needs_update();
         }
     }

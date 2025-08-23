@@ -45,7 +45,15 @@ function fract(x) {
 ///
 ///  earth_webgl - true if to use WebGl for the earth canvas
 ///
-///   up - vector from the center of the earth out through the feet of the observer (hence uses ra and de only)
+///  vector_x - unit vector (1,0,0)
+///
+///  vector_y - unit vector (0,1,0)
+///
+///  vector_z - unit vector (0,0,1)
+///
+///  up (derived) - vector from the center of the earth out through
+///                 the feet of the observer (hence uses ra and de
+///                 and is dependent on day/time/lat/lon)
 ///
 ///   q_looking_ns - quaternion mapping ECEF XYZ direction to
 ///      observer XYZ to ECEF XYZ direction; effectively a camera
@@ -55,20 +63,14 @@ function fract(x) {
 ///      such as for the azimuthal grid. Apply the conjugate to
 ///      (1,0,0) to show the compass heading and elevation
 ///
-///  viewer_q - quaternion mapping the viewer's camera to ECEF. Apply
+///  view_to_ecef_q - quaternion mapping the viewer's camera to ECEF. Apply
 ///     this to a viewer vector (such as where a star appears in the
 ///     viewer frame) to determine a direction in ECEF (such as where
 ///     that star actually is in the catalog)
 ///   
-///  viewer_q_i - quaternion mapping ECEV to the viewer's
+///  ecef_to_view_q (derived) - quaternion mapping ECEV to the viewer's
 ///     camera. Apply this to a star direction vector to determine
 ///     where in the view to draw the star.
-///
-///  vector_x - unit vector (1,0,0)
-///
-///  vector_y - unit vector (0,1,0)
-///
-///  vector_z - unit vector (0,0,1)
 ///
 /// Background
 ///
@@ -141,9 +143,37 @@ export class ViewProperties {
         this.date_set();
         this.time_set();
 
+        this.selected_star = null;
+
         this.update_latlon([this.lat, this.lon]);
     }
 
+    //mp set_selected_star
+    set_selected_star(star) {
+        if (star) {
+            this.selected_star = star;
+            this.update_html_star_info();
+        }
+        this.star_catalog.set_view_needs_update();
+    }
+
+    //mp update_html_star_info
+    update_html_star_info() {
+        if (this.selected_star) {
+            const star = this.star_catalog.catalog.star(this.selected_star);
+            const e = document.getElementById("star_info");
+            if (e) {
+                html.clear(e);
+                e.append(html.table([],[], [[`Id: ${star.id}`,
+                                             `Mag: ${(star.magnitude).toFixed(2)}`,], [
+                                        `Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`,
+                                        `De: ${(star.declination * this.rad2deg).toFixed(2)}`,
+                                       ]]));
+                                             
+            }
+        }
+    }
+    
     //mp derive_de_ra
     /// Derive data for the internals based on the time, date, lat and lon
     ///
@@ -182,26 +212,74 @@ export class ViewProperties {
         this.up = this.vec_of_ra_de(this.ra, this.de);
 
         // Make v1 be star north by default
-        var v1 = new WasmVec3f64(1,0,0);
+        var v1 = this.vector_z;
         const cos_ns = this.up.dot(v1);
         // If at a pole, then at least make it non fragile
-        if ((cos_ns > 0.99)  || (cos_ns < -0.99)) {
-            v1 = new WasmVec3f64(0,1,0);
+        if ((cos_ns > 0.999)  || (cos_ns < -0.999)) {
+            v1 = this.vector_y;
         }
-        const v2 = this.up.cross_product(v1).normalize();
+        const v2 = this.up.cross_product(v1).normalize(); // v2 is in theory ew
         const up_and_ns = this.up.cross_product(v2).normalize();
+        const up_and_ew = this.up.cross_product(up_and_ns).normalize();
+        this.observer_up_ecef_v = this.up;
+        this.observer_ns_ecef_v = up_and_ns;
+        this.observer_ew_ecef_v = up_and_ew;
 
+        // apply this to an ECEF direction vector to get an observer vector
         this.q_looking_ns = WasmQuatf64.unit().rotate_x(Math.PI/2 - this.de).rotate_z(Math.PI/2-this.ra);
 
-        const location_up = this.up;
-        const xyz = this.view_to_ecef_q.apply3(this.vector_x).array;
+        // apply this to an observer vector to get an ECEF direction vector
+        //
+        // So applying this to (1,0,0) gives the ECEF direction that
+        // is north-ward parallel to the horizon; apply this to
+        // (0,0,1) to get the direction up from feet through the head
+        // this.observer_to_ecef_q = this.ecef_to_observer_q.conjugate();
+        this.observer_to_ecef_q = WasmQuatf64.unit().rotate_z(this.ra - Math.PI/2).rotate_x(this.de - Math.PI/2);
 
-        const angle = Math.atan2(xyz[1], xyz[0]) / this.deg2rad;
+        // apply this to an ECEF direction vector to get an observer vector
+        this.ecef_to_observer_q = this.observer_to_ecef_q.conjugate();
 
-        const elevation = Math.asin(xyz[2] / (xyz[0]*xyz[0] + xyz[1]*xyz[1]) ) / this.deg2rad;
+        // Mapping the observer ECEF 'up' direction should yield (0,0,1)
+        // The X and Y should have 0 Z components
+        //
+        // console.log(this.ecef_to_observer_q.apply3(this.observer_up_ecef_v).array);
+        // console.log(this.ecef_to_observer_q.apply3(this.observer_ns_ecef_v).array);
+        // console.log(this.ecef_to_observer_q.apply3(this.observer_ew_ecef_v).array);
 
-        this.compass_direction = angle;
-        this.compass_elevation = 0;
+        // The observed compass direction, elevation of the center of the
+        // *viewer* requires mapping the viewer to the observer space
+        // - so map the view_ecef_center_dir to observer
+        //
+        // The observed elevation is asin(z); the observed compass is atan2(y,x)
+        this.view_observer_center_dir = this.ecef_to_observer_q.apply3(this.view_ecef_center_dir);
+
+        const xyz = this.view_observer_center_dir.array;
+
+        this.observer_compass = -Math.atan2(xyz[0], -xyz[1]) * this.rad2deg;
+        this.observer_elevation = Math.asin(xyz[2]) * this.rad2deg;
+
+        // Another way to get the elevation - dot product the view ECEF with the observer UP ECEF
+        // const ele = (Math.PI/2 - Math.acos(this.view_ecef_center_dir.dot(this.observer_up_ecef_v))) * this.rad2deg;
+        // console.log(ele,y,z);
+
+        // The 'twist' of the viewer is essentially how much they have rotated their head
+        //
+        // Starting staring towards north the observer rotates by the
+        // compass about Z, then rotates by the elevation arbout Y,
+        // and *then* must apply the rotation
+        //
+        // To determine the rotation we can generate the observer
+        // 'untwisted head' quaternion, and 'subtract' that from the
+        // viewer quaternion
+        //
+        // First generate ecef_to_observer_rotated_and_elevated, then divide it out of view_to_ecef_q
+        // const qz = WasmQuatf64.unit().rotate_z(-Math.atan2(xyz[1], xyz[0]));
+        // const qy = WasmQuatf64.unit().rotate_y(-Math.asin(xyz[2]));
+        // const ecef_to_observer_rotated_and_elevated_q = qz.mul(qy.mul(this.ecef_to_observer_q));
+        // const ecef_to_observer_rotated_and_elevated_q = this.ecef_to_observer_q.mul(qy).mul(qz);
+        // const view_to_observer_rotated_and_elevated_q = this.view_to_ecef_q.mul(ecef_to_observer_rotated_and_elevated_q);
+        // const mapped_x = view_to_observer_rotated_and_elevated_q.apply3(this.vector_x);
+        // console.log(mapped_x.array);
         
         this.update_html_elements();
     }
@@ -213,6 +291,9 @@ export class ViewProperties {
         });
         html.if_ele_id("lon", this.lon, function(e,v) {
             e.innerText = `Lon: ${v.toFixed(1)}`;
+        });
+        html.if_ele_id("ele", this.observer_elevation, function(e,v) {
+            e.innerText = `Elev: ${v.toFixed(1)}`;
         });
         html.if_ele_id("time", this.time_of_day, function(e,v) {
             const hour = Math.floor(v);
@@ -255,6 +336,36 @@ export class ViewProperties {
         this.star_catalog.set_view_needs_update();
     }
 
+    //mp view_compass_rotate
+    // Rotate by the specified radians
+    view_compass_rotate(rad) {
+        const compass = (this.observer_compass * 1 + 90.0) * this.deg2rad - rad;;
+        const elevation = (this.observer_elevation * 1 + 0 ) * this.deg2rad;
+
+        // console.log("Before:", this.view_to_ecef_q.apply3(this.vector_x).array);
+
+        this.view_to_ecef_q = WasmQuatf64.unit().rotate_y(elevation).rotate_z(compass).mul(this.ecef_to_observer_q).conjugate();
+
+        // console.log("Unchanged compass/elevation should be the same:", this.view_to_ecef_q.apply3(this.vector_x).array);
+        this.derive_data();
+        this.star_catalog.set_view_needs_update();
+    }
+    
+    //mp view_elevation_rotate
+    // Rotate by the specified radians
+    view_elevation_rotate(rad) {
+        const compass = (this.observer_compass * 1 + 90.0) * this.deg2rad;
+        const elevation = (this.observer_elevation * 1 + 0 ) * this.deg2rad - rad;
+
+        // console.log("Before:", this.view_to_ecef_q.apply3(this.vector_x).array);
+
+        this.view_to_ecef_q = WasmQuatf64.unit().rotate_y(elevation).rotate_z(compass).mul(this.ecef_to_observer_q).conjugate();
+
+        // console.log("Unchanged compass/elevation should be the same:", this.view_to_ecef_q.apply3(this.vector_x).array);
+        this.derive_data();
+        this.star_catalog.set_view_needs_update();
+    }
+    
     //mp view_q_post_mul
     view_q_post_mul(q) {
         this.view_to_ecef_q = this.view_to_ecef_q.mul(q);

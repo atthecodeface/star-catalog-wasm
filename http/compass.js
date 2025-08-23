@@ -36,6 +36,7 @@ export class CompassCanvas {
         const base_color = "#211";
         const cx = this.width/2; 
         const cy = this.height/2;
+        const y_squash = 0.3;
         
         ctx.fillStyle = "black";
         ctx.fillRect(0,0,this.width, this.height);
@@ -45,7 +46,7 @@ export class CompassCanvas {
         ctx.lineWidth = 8.0;
         ctx.fillStyle = base_color;
         for (let i=20; i>=0; i-= 4) {
-            ctx.setTransform(1,0,0,0.6,cx,cy+i);
+            ctx.setTransform(1,0,0,y_squash,cx,cy+i);
             ctx.beginPath();
             ctx.arc(0,0, radius, 0, 2 * Math.PI);
             if (i==0) {
@@ -64,9 +65,9 @@ export class CompassCanvas {
         ctx.stroke();
 
         const d2r = Math.PI / 180;
-        const c = Math.cos((this.vp.compass_direction + 90) * d2r );
-        const s = Math.sin((this.vp.compass_direction + 90) * d2r );
-        ctx.setTransform(c,-s*0.6,s,c*0.6,cx,cy);
+        const c = Math.cos((this.vp.observer_compass + 90) * d2r );
+        const s = Math.sin((this.vp.observer_compass + 90) * d2r );
+        ctx.setTransform(c,-s*y_squash,s,c*y_squash,cx,cy);
 
         ctx.strokeStyle = color;
         ctx.lineWidth = 4.0;
@@ -120,12 +121,8 @@ export class CompassCanvas {
     drag_to(e) {
         let dx = (e[0] - this.drag_xy[0]) / this.width;
         this.drag_xy = e;
-        let axis = this.vp.up.cross_product(this.vp.up.cross_product(new WasmVec3f64(0,0,1)));
-        console.log(this.vp.up.array);
-        axis = new WasmVec3f64(0,1,0);
-        axis = this.vp.up;
-        const q = WasmQuatf64.of_axis_angle(axis, dx*Math.PI);
-        this.star_catalog.sky_canvas.post_mult_q(q);
+
+        this.vp.view_compass_rotate(dx*Math.PI)
         
     }
 

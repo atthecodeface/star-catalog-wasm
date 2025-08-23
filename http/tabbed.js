@@ -15,7 +15,7 @@ class Tab {
         } );
     }
     id() {
-        this.div_id
+        return this.div_id;
     }
     has_hash(hash) {
         return this.div_id == hash;
@@ -91,6 +91,7 @@ class Tabs {
             this.tabs[i].set_hidden(i != tab_number);
         }
         this.selected_tab_number = tab_number;
+        console.log(this.callback, this.tabs[this.selected_tab_number], this.tabs[this.selected_tab_number].id());
         this.callback(this.tabs[this.selected_tab_number].id());
         return this.selected_tab_number;
     }

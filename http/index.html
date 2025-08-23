@@ -219,28 +219,9 @@
           </td>
         </tr>
       </table>
-      <table>
-        <tr>
-          <td>
-            <table>
-              <tr>
-                <td>
-                  <label for="brightness" class="dn" id="max_mag">Max magnitude</label>
-                  <input type="range" class="range dn" id="brightness"  style="width:150px;" name="brightness" step="0.2" min="1" max="12" oninput="window.star_catalog.sky_view_brightness_set();"/>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <div id="star_info"></div>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-      
     </div>
-    
+
+   
     <div id="tab-skymap">
       <table>
         <tr>
@@ -248,42 +229,6 @@
             <div id='MapCanvas'></div>
           </td>
         </tr>
-        <tr>
-          <td>
-            <table>
-              <tr>
-                <td>
-                  <input class="dn" type="checkbox" name="show_azimuthal" onclick="window.star_catalog.set_styling();"/>
-                  <label for="show_azimuthal">Azimuthal</label>
-                </td>
-                <td>
-                  <input class="dn" type="checkbox" name="show_equatorial" onclick="window.star_catalog.set_styling();"/>
-                  <label for="show_equatorial">Equatorial</label>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label for="zoom" class="dn">Field of view</label>
-                  <input type="range" class="range dn" id="zoom" name="zoom"  style="width:150px;" step="0.5" min="1" max="120" oninput="window.star_catalog.sky_view_zoom_set();"/>
-                </td>
-                <td id="focal_length">
-                </td>
-                <td id="fov">
-                </td>
-              </tr>
-            </table>
-          </td>
-          <td>
-            <table>
-              <tr>
-                <td>
-                  <div id="SkyViewCompass"/>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        
       </table>
     </div>
     
@@ -336,6 +281,77 @@
           </td>
         </tr>
       </table>
+    </div>
+
+
+    <div id="controls"/>
+      <table>
+        <tr>
+          <td>
+            <table>
+              <tr>
+                <td>
+                  <label for="brightness" class="dn" id="max_mag">Max magnitude</label><br>
+                  <input type="range" class="range dn" id="brightness"  style="width:150px;" name="brightness" step="0.2" min="1" max="12" oninput="window.star_catalog.sky_view_brightness_set();"/>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <label for="zoom" class="dn">Field of view</label><br>
+                  <input type="range" class="range dn" id="zoom" name="zoom"  style="width:150px;" step="0.5" min="1" max="120" oninput="window.star_catalog.sky_view_zoom_set();"/>
+                </td>
+              </tr>
+             
+            </table>
+          </td>
+          <td>
+            <div id="SkyViewCompass"/>
+          </td>
+          <td>
+            <div id="SkyViewElevation"/>
+          </td>
+          <td>
+            <table>
+              <tr>
+                <td>
+                  <input class="dn" type="checkbox" name="show_azimuthal" onclick="window.star_catalog.set_styling();"/>
+                  <label for="show_azimuthal">Azimuthal</label>
+                </td>
+              </tr>
+              <tr>
+          
+                <td>
+                  <input class="dn" type="checkbox" name="show_equatorial" onclick="window.star_catalog.set_styling();"/>
+                  <label for="show_equatorial">Equatorial</label>
+                </td>
+              </tr>
+            </table>
+          </td>
+          <td>
+            <table>
+              <tr>
+                <td id="focal_length">
+                </td>
+              </tr>
+              <tr>
+                <td id="fov">
+                </td>
+              </tr>
+            </table>
+          </td>
+          <td>
+            <table>
+              <tr>
+                <td>
+                  <div id="star_info"></div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        
+      </table>
+      
     </div>
   </body>
 </html>

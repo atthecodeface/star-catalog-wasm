@@ -72,6 +72,7 @@ export class Earth {
     constructor(star_catalog, canvas_div_id, width, height, use_webgl, division) {
 
         this.star_catalog = star_catalog;
+        this.vp = this.star_catalog.vp;
         
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
@@ -98,8 +99,8 @@ export class Earth {
         this.icos.subdivide(division);
 
         this.view_scale = 0.9;
-        this.lat = this.star_catalog.lat;
-        this.lon = this.star_catalog.lon;
+        this.center_on_lat = this.vp.lat;
+        this.center_on_lon = this.vp.lon;
 
         this.texture_image = new Image();
         this.texture_loaded = false;
@@ -125,8 +126,8 @@ export class Earth {
     drag_to(cxy0, cxy1) {
         const dcx = (cxy0[0] - cxy1[0]);
         const dcy = (cxy0[1] - cxy1[1]);
-        this.lat -= dcy;
-        this.lon -= dcx;
+        this.center_on_lat -= dcy;
+        this.center_on_lon -= dcx;
         this.draw();
     }
     
@@ -145,9 +146,9 @@ export class Earth {
 
     zoom(factor) {
         if (factor<1.0) {
-            this.lon -= 1.0/factor;
+            this.center_on_lon -= 1.0/factor;
         } else {
-            this.lon += factor;
+            this.center_on_lon += factor;
         }
         this.draw();
     }
@@ -350,7 +351,7 @@ export class Earth {
         }
         if (this.u_model != null) {
             const x = WasmMat4f32.identity();
-            this.q_ll.set_rotation4(x);
+            this.triangle_q_ll.set_rotation4(x);
             matrix.set(x.transpose().array,0);
             this.webgl.uniformMatrix4fv( this.u_model,
                                          false,
@@ -362,19 +363,19 @@ export class Earth {
     derive_data() {
         this.styling = this.star_catalog.styling.earth;
 
-        if (this.lat < -80) { this.lat = -80; }
-        if (this.lat > 80) { this.lat = 80; }
-        if (this.lon < -180) { this.lon += 360; }
-        if (this.lon >  180) { this.lon -= 360; }
+        if (this.center_on_lat < -80) { this.center_on_lat = -80; }
+        if (this.center_on_lat > 80) { this.center_on_lat = 80; }
+        if (this.center_on_lon < -180) { this.center_on_lon += 360; }
+        if (this.center_on_lon >  180) { this.center_on_lon -= 360; }
         {
-            const qy = WasmQuatf32.unit().rotate_y(this.lat * this.deg2rad);
-            const qz = WasmQuatf32.unit().rotate_z(this.lon * this.deg2rad);
+            const qy = WasmQuatf32.unit().rotate_y(this.center_on_lat * this.vp.deg2rad);
+            const qz = WasmQuatf32.unit().rotate_z(this.center_on_lon * this.vp.deg2rad);
             this.q = qy.mul(qz);
         }
         {
-            const qy = WasmQuatf32.unit().rotate_y(-this.star_catalog.lat * this.deg2rad);
-            const qz = WasmQuatf32.unit().rotate_z(this.star_catalog.lon * this.deg2rad);
-            this.q_ll = qz.mul(qy);
+            const qy = WasmQuatf32.unit().rotate_y(-this.vp.lat * this.vp.deg2rad);
+            const qz = WasmQuatf32.unit().rotate_z(this.vp.lon * this.vp.deg2rad);
+            this.triangle_q_ll = qz.mul(qy);
         }
     }
     
