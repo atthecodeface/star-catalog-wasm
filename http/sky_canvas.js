@@ -239,47 +239,59 @@ export class SkyCanvas {
         }
     }
 
-    //mi draw_grid
+    //mi add_declination_circle
+    add_declination_circle(q, l, v, de, step_size) {
+        const de_c = Math.cos(de * this.vp.deg2rad);
+        const de_s = Math.sin(de * this.vp.deg2rad);
+        l.new_segment();
+        for (var ra=0; ra<=360; ra += step_size) {
+            const ra_r = ra * this.vp.deg2rad;
+            v.set([de_c*Math.cos(ra_r), de_c*Math.sin(ra_r), de_s]);
+            l.add_pt(this.cxy_of_vector(q.apply3(v)));
+        }
+    }
+
+    //mi add_ra_great_circle - for azimuthal grid
+    add_ra_great_circle(q, l, v, ra, step_size) {
+        const ra_c = Math.cos(ra * this.vp.deg2rad);
+        const ra_s = Math.sin(ra * this.vp.deg2rad);
+        l.new_segment();
+        for (var de=-80; de<=80; de+=1) {
+            const de_c = Math.cos(de * this.vp.deg2rad);
+            const de_s = Math.sin(de * this.vp.deg2rad);
+            v.set([ra_c*de_c, ra_s*de_c, de_s]);
+            l.add_pt(this.cxy_of_vector(q.apply3(v)));
+        }
+    }
+        
+    //mi draw_grid - draw a grid given a styling and ecef-to-view quaternion
     draw_grid(ctx, q_grid, styling) {
         if (styling == null) {
             return;
         }
 
-        ctx.strokeStyle = styling;
         const l = new Line(ctx, this.width, this.height);
         const v = new WasmVec3f64(0,0,0);
-        for (var de=-80; de<=80; de+=10) {
-            const de_c = Math.cos(de * this.vp.deg2rad);
-            const de_s = Math.sin(de * this.vp.deg2rad);
-            l.new_segment();
-            for (var ra=0; ra<=360; ra+=1) {
-                const ra_r = ra * this.vp.deg2rad;
-                v.set( [de_c*Math.cos(ra_r), de_c*Math.sin(ra_r), de_s]);
-                const xyz = q_grid.apply3(v);
-                const cxy = this.cxy_of_vector(xyz);
-                l.add_pt(cxy);
-            }
-            l.new_segment();
-            for (var ra=0; ra<=360; ra+=1) {
-                const ra_r = ra * this.vp.deg2rad;
-                v.set( [de_c*Math.cos(ra_r), de_c*Math.sin(ra_r), de_s]);
-                const xyz = q_grid.apply3(v);
-                const cxy = this.cxy_of_vector(xyz);
-                l.add_pt(cxy);
-            }
+        ctx.strokeStyle = styling[1];
+        this.add_declination_circle(q_grid, l, v, 0, 1);
+        l.finish();
+        ctx.strokeStyle = styling[0];
+        for (var de=10; de<=80; de+=10) {
+            this.add_declination_circle(q_grid, l, v, de, 1);
+            this.add_declination_circle(q_grid, l, v, -de, 1);
         }
-        for (var ra=0; ra<=360; ra+=15) {
-            const ra_c = Math.cos(ra * this.vp.deg2rad);
-            const ra_s = Math.sin(ra * this.vp.deg2rad);
-            l.new_segment();
-            for (var de=-80; de<=80; de+=1) {
-                const de_c = Math.cos(de * this.vp.deg2rad);
-                const de_s = Math.sin(de * this.vp.deg2rad);
-                v.set( [de_c*ra_c, de_c*ra_s, de_s]);
-                const xyz = q_grid.apply3(v);
-                const cxy = this.cxy_of_vector(xyz);
-                l.add_pt(cxy);
-            }
+        l.finish();
+
+        ctx.strokeStyle = styling[2];
+        this.add_ra_great_circle(q_grid, l, v, 0, 1);
+        l.finish();
+        ctx.strokeStyle = styling[3];
+        this.add_ra_great_circle(q_grid, l, v, 180, 1);
+        l.finish();
+        ctx.strokeStyle = styling[0];
+        for (var ra=15; ra<175; ra+=15) {
+            this.add_ra_great_circle(q_grid,l,v,ra,1);
+            this.add_ra_great_circle(q_grid,l,v,ra+180,1);
         }
         l.finish();
     }
@@ -327,7 +339,7 @@ export class SkyCanvas {
         this.catalog.filter_max_magnitude(this.brightness);
 
         if (this.styling.show_azimuthal) {
-            this.draw_grid(ctx, this.vp.ecef_to_view_q.mul(this.vp.q_looking_ns.conjugate()), this.styling.azimuthal_grid);
+            this.draw_grid(ctx, this.vp.ecef_to_view_q.mul(this.vp.observer_to_ecef_q), this.styling.azimuthal_grid);
         }
         if (this.styling.show_equatorial) {
             this.draw_grid(ctx, this.vp.ecef_to_view_q, this.styling.equatorial_grid);

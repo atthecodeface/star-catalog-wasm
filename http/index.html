@@ -155,7 +155,6 @@
         <li><a href="#tab-skyview">Sky View</a></li>
         <li><a href="#tab-skymap">Sky Map</a></li>
         <li><a href="#tab-location">Location/Date/Time</a></li>
-        <li><a href="#tab-settings">Settings</a></li>
         <li><a href="#tab-log">Log</a></li>
         <li>
             <input class="dn" type="checkbox" id="day_night_checkbox" name="day_night" onclick="window.star_catalog.selected_css_changed();"/>
@@ -175,23 +174,23 @@
             it can be zoomed, panned and rotated. An individual star can be
             selected.
 
-            The view is not affected by the 'time', 'date', and 'location' settings.
+            Most of the view is not affected by the <b>observer
+            position</b> which is derived from the 'time', 'date', and
+            'location' settings.
 
-            The equatorial grid and/or azimuthal grid can be overlaid
-            on top of the view (the azimuthal grid <b>is</b> affected
-            by the location and time/date).
+            The top of the sky view has a green line; the left and
+            right edges are blue, and the bottom is red. This window
+            is shown on the <i>sky map</i>.
 
-            The top of the sky view has a green line; the left and right edges are blue, and the bottom is red. This window is shown on the <i>sky map</i>.
-
+            The sky view exposes the controls - see below.
           </dd>
           <dt>Sky map</dt>
           <dd>
-            The sky map is *all* of the stars, using a <a href="https://en.wikipedia.org/wiki/Map_projection#Normal_cylindrical">equirectangular cylindrical projection</a>.
+            The sky map is *all* of the stars above a certain
+            magnitude, using
+            a <a href="https://en.wikipedia.org/wiki/Map_projection#Normal_cylindrical">equirectangular
+            cylindrical projection</a>.
             
-            An 'equatorial' grid can be overlayed on top of the map, showing the equator, the 30th and 60th parallels, and great circles for every 30 degrees of longitude.
-            
-            An 'azimuthal' grid can be overlayed on top of the map, showing the grid as seen by <i>you</i> at your location and time (if the location and time are set to <i>your</i> location and time!). The rectangular 'sky view'
-
             The rectangular <i>sky view windows</i> is shown on the
             sky map; this usually does not appear as a rectangle
             (unless the field of view is small), but distorted. The
@@ -200,15 +199,58 @@
 
             Clicking on the map will centre the sky view window on the that location.
                 
+            The sky map exposes the controls - see below.
           </dd>
           <dt>Location</dt>
           <dd>
+          The location tab allows the setting of the location, by
+          using a 3D model of the earth to select latitude and
+          longitude. This is used for the <b>observer position</b> -
+          which impacts the concept of 'up', and the direction of the
+          compass, for example.
+
+          It also permits the setting of the date and time to
+          'today'. More control is probably required...
+                                                               
           </dd>
-          <dt>Sky map</dt>
+          <dt>Log</dt>
           <dd>
+            Many of the imporant user interface interactions are
+            logged, so that the user can see (for example) which stars
+            were selected in the past, or the direction the sky view
+            was changed to. These events appear in the log.
           </dd>
         </dl>
       <p>
+            <h2> Controls</h2>
+
+            The equatorial grid and/or azimuthal grid can be overlaid
+            on top of the view (the azimuthal grid <b>is</b> affected
+            by the <b>observer position</b>.
+
+            The controls include a compass and an elevation setting:
+            the compass can be swiped horizontally to move the view,
+            setting 'up' to be vertically up from the <b>observer
+            position</b>; the elevation can be swiped vertically to
+            change the elevation of the view, again setting 'up' in a
+            similar manner.
+
+            <h2>Equatorial grid</h2>
+            An 'equatorial' grid can be overlayed on top of the map,
+            showing the equator, the 30th and 60th parallels, and
+            great circles for every 30 degrees of longitude.
+
+            <h2>Azimuthal grid</h2>
+            
+            An 'azimuthal' grid can be overlayed on top of the sky
+            view and map, showing the grid as seen by the <b>observer
+              position</b> (given by the location and time).
+
+            This grid shows the great circles (for every 15 degrees of
+            the compass, with north/south highlighted) that pass
+            through the location of the observer, the horizon and
+            circles of constant elevation (for every 30 degrees of elevation).
+
     </div>
 
     <div id="tab-skyview">
@@ -272,20 +314,19 @@
       </table>
     </div>
     
-    <div id="tab-settings">
-      <table>
-        <tr>
+    <div id="controls"/>
+    <table>
+      <tr>
           <td>
             <table>
+              <tr>
+                <td>
+                  <div id="star_info"></div>
+                </td>
+              </tr>
             </table>
           </td>
         </tr>
-      </table>
-    </div>
-
-
-    <div id="controls"/>
-      <table>
         <tr>
           <td>
             <table>
@@ -305,10 +346,13 @@
             </table>
           </td>
           <td>
-            <div id="SkyViewCompass"/>
+            <div id="ControlCompass"/>
           </td>
           <td>
-            <div id="SkyViewElevation"/>
+            <div id="ControlElevation"/>
+          </td>
+          <td>
+            <div id="ControlClock"/>
           </td>
           <td>
             <table>
@@ -327,6 +371,8 @@
               </tr>
             </table>
           </td>
+        </tr>
+        <tr>
           <td>
             <table>
               <tr>
@@ -335,15 +381,6 @@
               </tr>
               <tr>
                 <td id="fov">
-                </td>
-              </tr>
-            </table>
-          </td>
-          <td>
-            <table>
-              <tr>
-                <td>
-                  <div id="star_info"></div>
                 </td>
               </tr>
             </table>

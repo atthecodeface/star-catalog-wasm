@@ -157,23 +157,6 @@ export class ViewProperties {
         this.star_catalog.set_view_needs_update();
     }
 
-    //mp update_html_star_info
-    update_html_star_info() {
-        if (this.selected_star) {
-            const star = this.star_catalog.catalog.star(this.selected_star);
-            const e = document.getElementById("star_info");
-            if (e) {
-                html.clear(e);
-                e.append(html.table([],[], [[`Id: ${star.id}`,
-                                             `Mag: ${(star.magnitude).toFixed(2)}`,], [
-                                        `Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`,
-                                        `De: ${(star.declination * this.rad2deg).toFixed(2)}`,
-                                       ]]));
-                                             
-            }
-        }
-    }
-    
     //mp derive_de_ra
     /// Derive data for the internals based on the time, date, lat and lon
     ///
@@ -284,6 +267,24 @@ export class ViewProperties {
         this.update_html_elements();
     }
 
+    //mp update_html_star_info
+    update_html_star_info() {
+        if (this.selected_star) {
+            const star = this.star_catalog.catalog.star(this.selected_star);
+            const e = document.getElementById("star_info");
+            if (e) {
+                html.clear(e);
+                e.append(html.table([],[], [[`Id: ${star.id}`,
+                                             `Mag: ${(star.magnitude).toFixed(2)}`,
+                                            // ], [
+                                                 `Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`,
+                                                 `De: ${(star.declination * this.rad2deg).toFixed(2)}`,
+                                       ]]));
+                                             
+            }
+        }
+    }
+    
     //mi update_html_elements
     update_html_elements() {
         html.if_ele_id("lat", this.lat, function(e,v) {

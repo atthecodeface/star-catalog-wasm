@@ -3,15 +3,18 @@
 /// The styles required for night mode
 class StylingNight {
 
-    sky = {azimuthal_grid: "#772222",
-           equatorial_grid: "#771155",
-           ecliptic: "#552255",
-           meridian: "#552255",
+    // sky view
+    //
+    // grid colors are: base, ecliptic, RA=0, Ra=180
+    sky = {azimuthal_grid: ["#522", "#a33", "#a33", "#743"],
+           equatorial_grid: ["#515", "#c37", "#c35", "#725"],
            view_border: ["Red", "Blue", "Green", "Blue"],
           };
 
-    map = {azimuthal_grid: ["#552222", "#993333",],
-           equatorial_grid: "#771155",
+    map = {azimuthal_grid: ["#522", "#933",],
+           equatorial_grid: "#715", 
+           ecliptic: "#fff",
+           meridian: ["#cfc", "#c33"],
            view_border: ["Red", "Blue", "Green", "Blue"],
           };
 
@@ -65,8 +68,6 @@ export class Styling {
         this.sky["show_azimuthal"] = true;
         this.map["show_equatorial"] = true;
         this.map["show_azimuthal"] = true;
-
-        console.log(this);
     }
 
     //mp set

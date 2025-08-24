@@ -1,0 +1,139 @@
+import {WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
+import * as html from "./html.js";
+import {Line} from "./line.js";
+import {Mouse} from "./mouse.js";
+
+//a ClockCanvas
+export class ClockCanvas {
+    //fp constructor
+    constructor(star_catalog, canvas_div_id, width, height) {
+        this.star_catalog = star_catalog;
+        this.vp = this.star_catalog.vp;
+
+        this.div = document.getElementById(canvas_div_id);
+        this.canvas = document.createElement("canvas");
+        this.div.appendChild(this.canvas);
+       
+        this.width = width;
+        this.height = height;
+
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.ctx = this.canvas.getContext("2d");
+
+        this.mouse = new Mouse(this, this.canvas);
+        
+        window.log.add_log(0, "project", "load", `Created clock canvas`);
+        this.redraw();
+    }
+
+    //mp redraw
+    redraw() {
+        const ctx = this.ctx;
+        ctx.save()
+
+        const color = "#611";
+        const base_color = "#211";
+        const cx = this.width/2; 
+        const cy = this.height/2;
+        const y_squash = 0.3;
+        
+        ctx.fillStyle = "black";
+        ctx.fillRect(0,0,this.width, this.height);
+
+        const radius = this.width*0.45;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 8.0;
+        ctx.fillStyle = base_color;
+        for (let i=20; i>=0; i-= 4) {
+            ctx.setTransform(1,0,0,y_squash,cx,cy+i);
+            ctx.beginPath();
+            ctx.arc(0,0, radius, 0, 2 * Math.PI);
+            if (i==0) {
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                ctx.stroke();
+            }
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.lineTo(0,this.height/10);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4.0;
+        ctx.stroke();
+
+        const d2r = Math.PI / 180;
+        const c = Math.cos((this.vp.observer_clock + 90) * d2r );
+        const s = Math.sin((this.vp.observer_clock + 90) * d2r );
+        ctx.setTransform(c,-s*y_squash,s,c*y_squash,cx,cy);
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4.0;
+        for (let angle =0; angle <360; angle += 15 ) {
+            const c = Math.cos(angle * d2r );
+            const s = Math.sin(angle * d2r );
+            ctx.beginPath();
+            let l = 0.8;
+            if ((angle % 90) == 0) {
+                l = 0.65;
+            }
+            if (angle == 0) {
+                l = 0.4;
+            }
+            ctx.moveTo(radius*l*c,radius*l*s,);
+            ctx.lineTo(radius*0.9*c,radius*0.9*s,);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = "";
+        ctx.restore();
+        // ctx.beginPath();
+        // ctx.moveTo(v0[0],v0[1]);
+        // ctx.lineTo(v1[0],v1[1]);
+        // ctx.lineTo(v2[0],v2[1]);
+        // ctx.lineTo(v0[0],v0[1]);
+        // ctx.clip();
+        //}
+    }
+
+    //mp update
+    /// Invoked to purely update the state
+    update() {
+        this.redraw();
+        // this.styling = this.star_catalog.styling.map;
+    }
+
+    //mp zoom
+    zoom(z) {
+        // this.direction = z * 180.0;
+        this.redraw();
+        console.log(this);
+    }
+
+    //mp drag_start
+    drag_start(e) {
+        this.drag_xy = e;
+    }
+
+    //mp drag_to
+    drag_to(e) {
+        let dx = (e[0] - this.drag_xy[0]) / this.width;
+        this.drag_xy = e;
+
+        this.vp.view_clock_rotate(dx*Math.PI)
+        
+    }
+
+    //mp drag_end
+    drag_end(e) {
+        console.log(e);
+    }
+
+    //mp mouse_click
+    mouse_click(e) {
+            console.log(e);
+    }
+}
+

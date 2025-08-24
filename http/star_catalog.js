@@ -1,3 +1,14 @@
+//a To do
+// Link
+// Cache
+// Orbit
+// Star names
+// S
+// Time clock in controls
+// Equatorial horizon and azimuthal horizon in bolder lines
+// Move star information to a line of its own
+// Move FOV text to a line of its own below
+
 //a Imports
 import init, {WasmCatalog, WasmStar, WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 import {tabbed_configure} from "./tabbed.js";
@@ -8,6 +19,7 @@ import * as map from "./map_canvas.js";
 import * as sky from "./sky_canvas.js";
 import {Earth} from "./earth.js";
 import {CompassCanvas} from "./compass.js";
+import {ClockCanvas} from "./clock.js";
 import {ElevationCanvas} from "./elevation.js";
 import {Styling} from "./styling.js";
 import {ViewProperties} from "./view_properties.js";
@@ -37,8 +49,9 @@ class StarCatalog {
         this.sky_canvas = new sky.SkyCanvas(this, this.catalog, "SkyCanvas",800,400);
         this.map_canvas = new map.MapCanvas(this, this.catalog, "MapCanvas",800,300);
         this.earth_canvas = new Earth(this, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
-        this.sky_view_compass = new CompassCanvas(this, "SkyViewCompass", 200, 150 );
-        this.sky_view_elevation = new ElevationCanvas(this, "SkyViewElevation", 50, 150 );
+        this.control_compass = new CompassCanvas(this, "ControlCompass", 200, 100 );
+        this.control_clock = new ClockCanvas(this, "ControlClock", 100, 100 );
+        this.control_elevation = new ElevationCanvas(this, "ControlElevation", 50, 100 );
 
         this.selected_css_changed();        
         this.set_view_needs_update();
@@ -69,8 +82,9 @@ class StarCatalog {
         
         this.sky_canvas.update();
         this.map_canvas.update();
-        this.sky_view_compass.update();
-        this.sky_view_elevation.update();
+        this.control_compass.update();
+        this.control_clock.update();
+        this.control_elevation.update();
         this.earth_canvas.update();
 
         this.view_needs_update = false;
