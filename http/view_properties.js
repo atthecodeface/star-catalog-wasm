@@ -192,24 +192,27 @@ export class ViewProperties {
         this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
 
         this.derive_de_ra();
-        this.up = this.vec_of_ra_de(this.ra, this.de);
+        this.observer_up_ecef_v = this.vec_of_ra_de(this.ra, this.de);
 
-        // Make v1 be star north by default
-        var v1 = this.vector_z;
-        const cos_ns = this.up.dot(v1);
+        // Make v1 be star north - the north pole is +Z
+        //
         // If at a pole, then at least make it non fragile
+        var v1 = this.vector_z;
+        const cos_ns = this.observer_up_ecef_v.dot(v1);
         if ((cos_ns > 0.999)  || (cos_ns < -0.999)) {
             v1 = this.vector_y;
         }
-        const v2 = this.up.cross_product(v1).normalize(); // v2 is in theory ew
-        const up_and_ns = this.up.cross_product(v2).normalize();
-        const up_and_ew = this.up.cross_product(up_and_ns).normalize();
-        this.observer_up_ecef_v = this.up;
-        this.observer_ns_ecef_v = up_and_ns;
-        this.observer_ew_ecef_v = up_and_ew;
 
-        // apply this to an ECEF direction vector to get an observer vector
-        this.q_looking_ns = WasmQuatf64.unit().rotate_x(Math.PI/2 - this.de).rotate_z(Math.PI/2-this.ra);
+        // Create a right-handed set as north, west, p
+        //
+        // we = up x v1 normalized - i.e. up, (north-ish), we are a RHS
+        //
+        // ns = we x up
+        // 
+        this.observer_we_ecef_v = this.observer_up_ecef_v.cross_product(v1).normalize();
+        this.observer_ns_ecef_v = this.observer_we_ecef_v.cross_product(this.observer_up_ecef_v).normalize();
+        //
+        // console.log(this.observer_up_ecef_v.array, this.observer_ns_ecef_v.array, this.observer_we_ecef_v.array);
 
         // apply this to an observer vector to get an ECEF direction vector
         //
@@ -217,17 +220,19 @@ export class ViewProperties {
         // is north-ward parallel to the horizon; apply this to
         // (0,0,1) to get the direction up from feet through the head
         // this.observer_to_ecef_q = this.ecef_to_observer_q.conjugate();
-        this.observer_to_ecef_q = WasmQuatf64.unit().rotate_z(this.ra - Math.PI/2).rotate_x(this.de - Math.PI/2);
+        this.ecef_to_observer_q = WasmQuatf64.unit().rotate_z(Math.PI).rotate_y(this.de - Math.PI/2).rotate_z(-this.ra);
+        this.observer_to_ecef_q = this.ecef_to_observer_q.conjugate();
 
         // apply this to an ECEF direction vector to get an observer vector
-        this.ecef_to_observer_q = this.observer_to_ecef_q.conjugate();
 
+        // Mapping the observer ECEF 'north' direction should yield (1,0,0)
+        // 
+        // Mapping the observer ECEF 'west' direction should yield (0,1,0)
+        // 
         // Mapping the observer ECEF 'up' direction should yield (0,0,1)
-        // The X and Y should have 0 Z components
-        //
-        // console.log(this.ecef_to_observer_q.apply3(this.observer_up_ecef_v).array);
         // console.log(this.ecef_to_observer_q.apply3(this.observer_ns_ecef_v).array);
-        // console.log(this.ecef_to_observer_q.apply3(this.observer_ew_ecef_v).array);
+        // console.log(this.ecef_to_observer_q.apply3(this.observer_we_ecef_v).array);
+        // console.log(this.ecef_to_observer_q.apply3(this.observer_up_ecef_v).array);
 
         // The observed compass direction, elevation of the center of the
         // *viewer* requires mapping the viewer to the observer space
@@ -238,7 +243,11 @@ export class ViewProperties {
 
         const xyz = this.view_observer_center_dir.array;
 
-        this.observer_compass = -Math.atan2(xyz[0], -xyz[1]) * this.rad2deg;
+        // Note that if the view_observer_center_dir is along +Y, then
+        // it is *west* which is 90degrees anticlockwise
+        //
+        // Basically +compass angle is anticlockwise
+        this.observer_compass = -Math.atan2(xyz[1], xyz[0]) * this.rad2deg;
         this.observer_elevation = Math.asin(xyz[2]) * this.rad2deg;
 
         // Another way to get the elevation - dot product the view ECEF with the observer UP ECEF
@@ -337,26 +346,11 @@ export class ViewProperties {
         this.star_catalog.set_view_needs_update();
     }
 
-    //mp view_compass_rotate
+    //mp view_observer_adjust
     // Rotate by the specified radians
-    view_compass_rotate(rad) {
-        const compass = (this.observer_compass * 1 + 90.0) * this.deg2rad - rad;;
-        const elevation = (this.observer_elevation * 1 + 0 ) * this.deg2rad;
-
-        // console.log("Before:", this.view_to_ecef_q.apply3(this.vector_x).array);
-
-        this.view_to_ecef_q = WasmQuatf64.unit().rotate_y(elevation).rotate_z(compass).mul(this.ecef_to_observer_q).conjugate();
-
-        // console.log("Unchanged compass/elevation should be the same:", this.view_to_ecef_q.apply3(this.vector_x).array);
-        this.derive_data();
-        this.star_catalog.set_view_needs_update();
-    }
-    
-    //mp view_elevation_rotate
-    // Rotate by the specified radians
-    view_elevation_rotate(rad) {
-        const compass = (this.observer_compass * 1 + 90.0) * this.deg2rad;
-        const elevation = (this.observer_elevation * 1 + 0 ) * this.deg2rad - rad;
+    view_observer_adjust(delta_c, delta_e) {
+        const compass = (this.observer_compass * 1) * this.deg2rad - delta_c;
+        const elevation = (this.observer_elevation * 1 + 0 ) * this.deg2rad - delta_e;
 
         // console.log("Before:", this.view_to_ecef_q.apply3(this.vector_x).array);
 

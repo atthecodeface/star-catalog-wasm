@@ -28,6 +28,24 @@ export class CompassCanvas {
     }
 
     //mp redraw
+    //
+    // The observer_compass value indicates the angle of view; -45
+    // means the view is North-West
+    //
+    // If the observer compass value is -45, then the actual compass
+    // should be drawn rotated clockwise by 45 degrees
+    //
+    // The compass is drawn with dashes every 15 degrees, with a long
+    // every 90 degress and even longer at 0 degrees
+    //
+    // The canvas has +Y right, +Y down...
+    //
+    // If the compass-in-canvas is written as a circle starting at 0
+    // degrees on the X axis, and goes clockwise (because +canvas Y is
+    // down..., i.e. is drawn cos(theta), sin(theta)) then that needs
+    // to be transformed by rotating it by 90 degrees (to account for
+    // the angle offset) plus the observer compass (since the canvas
+    // is upside down this inverts the rotation)
     redraw() {
         const ctx = this.ctx;
         ctx.save()
@@ -122,8 +140,7 @@ export class CompassCanvas {
         let dx = (e[0] - this.drag_xy[0]) / this.width;
         this.drag_xy = e;
 
-        this.vp.view_compass_rotate(dx*Math.PI)
-        
+        this.vp.view_observer_adjust(dx*Math.PI, 0.0);
     }
 
     //mp drag_end

@@ -93,8 +93,8 @@ export class ElevationCanvas {
         let dy = (e[1] - this.drag_xy[1]) / this.width;
         this.drag_xy = e;
 
-        this.vp.view_elevation_rotate(dy*Math.PI/2)
-        
+        this.vp.view_observer_adjust(0.0, dy*Math.PI/2);
+       
     }
 
     //mp drag_end

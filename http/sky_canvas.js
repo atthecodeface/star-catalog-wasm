@@ -272,20 +272,24 @@ export class SkyCanvas {
 
         const l = new Line(ctx, this.width, this.height);
         const v = new WasmVec3f64(0,0,0);
-        ctx.strokeStyle = styling[1];
+        ctx.strokeStyle = styling[2];
         this.add_declination_circle(q_grid, l, v, 0, 1);
         l.finish();
         ctx.strokeStyle = styling[0];
         for (var de=10; de<=80; de+=10) {
             this.add_declination_circle(q_grid, l, v, de, 1);
+        }
+        l.finish();
+        ctx.strokeStyle = styling[1];
+        for (var de=10; de<=80; de+=10) {
             this.add_declination_circle(q_grid, l, v, -de, 1);
         }
         l.finish();
 
-        ctx.strokeStyle = styling[2];
+        ctx.strokeStyle = styling[3];
         this.add_ra_great_circle(q_grid, l, v, 0, 1);
         l.finish();
-        ctx.strokeStyle = styling[3];
+        ctx.strokeStyle = styling[4];
         this.add_ra_great_circle(q_grid, l, v, 180, 1);
         l.finish();
         ctx.strokeStyle = styling[0];

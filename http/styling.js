@@ -5,16 +5,14 @@ class StylingNight {
 
     // sky view
     //
-    // grid colors are: base, ecliptic, RA=0, Ra=180
-    sky = {azimuthal_grid: ["#522", "#a33", "#a33", "#743"],
-           equatorial_grid: ["#515", "#c37", "#c35", "#725"],
+    // grid colors are: above-horizon, below-horizon/great circles, ecliptic, RA=0, Ra=180
+    sky = {azimuthal_grid: ["#733", "#522", "#c44", "#c44", "#943"],
+           equatorial_grid: ["#515", "#515", "#c37", "#c37", "#925"],
            view_border: ["Red", "Blue", "Green", "Blue"],
           };
 
-    map = {azimuthal_grid: ["#522", "#933",],
-           equatorial_grid: "#715", 
-           ecliptic: "#fff",
-           meridian: ["#cfc", "#c33"],
+    map = {azimuthal_grid: ["#733", "#522", "#c44", "#c44", "#943"],
+           equatorial_grid: ["#515", "#515", "#c37", "#c37", "#925"],
            view_border: ["Red", "Blue", "Green", "Blue"],
           };
 
@@ -30,16 +28,14 @@ class StylingNight {
 /// The styles required for day mode
 class StylingDay {
 
-    sky = {azimuthal_grid: "#ff2222",
-           equatorial_grid: "#229922",
-           ecliptic: "#552255",
-           meridian: "#552255",
+    sky = {azimuthal_grid:  ["#b22", "#b33", "#b88", "#b88", "#b55"],
+           equatorial_grid: ["#292", "#292", "#4f4", "#4f4", "#3c3"],
            view_border: ["Red", "Blue", "Green", "Blue"],
           };
 
-    map = {azimuthal_grid: ["#ff2222", "#ff5555",],
-           equatorial_grid: "#229922",
-           view_border: ["#ff6666", "#6666ff66", "#66ff66", "#6666ff66"],
+    map = {azimuthal_grid: ["#b22", "#b33", "#b88", "#b88", "#b55"],
+           equatorial_grid: ["#292", "#292", "#4f4", "#4f4", "#3c3"],
+           view_border: ["#f77", "#77f", "#7f7", "#77f"],
           };
 
     earth = {color:[1,1,1,1],

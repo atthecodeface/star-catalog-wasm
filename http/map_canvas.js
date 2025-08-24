@@ -165,12 +165,13 @@ export class MapCanvas {
         }
         const l = new Line(ctx, this.width, this.height);
         ctx.lineWidth=2.0;
-        ctx.strokeStyle = this.styling.meridian[0];
+
+        ctx.strokeStyle = this.styling.equatorial_grid[3]
         for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
             l.add_pt(this.cxy_of_ra_de(0*Math.PI,de*Math.PI/2));
         }
         l.finish();
-        ctx.strokeStyle = this.styling.meridian[1];
+        ctx.strokeStyle = this.styling.equatorial_grid[4]
         for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
             l.add_pt(this.cxy_of_ra_de(0.999*Math.PI,de*Math.PI/2));
         }
@@ -179,7 +180,8 @@ export class MapCanvas {
             l.add_pt(this.cxy_of_ra_de(-1*Math.PI,de*Math.PI/2));
         }
         l.finish();
-        ctx.strokeStyle = this.styling.equatorial_grid;
+
+        ctx.strokeStyle = this.styling.equatorial_grid[1]
         ctx.lineWidth=1.0;
         for (var ra=1/6; ra<0.999; ra+=1/6) {
             for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
@@ -191,12 +193,25 @@ export class MapCanvas {
             }
             l.finish();
         }
-        for (var de=-1; de<1.01; de+=1/3) {
+
+        ctx.strokeStyle = this.styling.equatorial_grid[1]
+        for (var de=-1; de<-0.01; de+=1/3) {
+            l.new_segment();
             for (const ra of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
                 l.add_pt(this.cxy_of_ra_de(ra*Math.PI,de*Math.PI/2));
             }
-            l.finish();
+            l.new_segment();
+            for (const ra of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
+                l.add_pt(this.cxy_of_ra_de(ra*Math.PI,-de*Math.PI/2));
+            }
         }
+        l.finish();
+
+        ctx.strokeStyle = this.styling.equatorial_grid[2]
+        for (const ra of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
+            l.add_pt(this.cxy_of_ra_de(ra*Math.PI,0));
+        }
+        l.finish();
     }
     
     //mi add_declination_circle - for azimuthal_grid
@@ -219,7 +234,7 @@ export class MapCanvas {
         for (var de=-80; de<=80; de+=1) {
             const de_c = Math.cos(de * this.vp.deg2rad);
             const de_s = Math.sin(de * this.vp.deg2rad);
-            v.set([ra_s*de_c, -ra_c*de_c, de_s]);
+            v.set([ra_c*de_c, ra_s*de_c, de_s]);
             l.add_pt(this.cxy_of_vector(q.apply3(v)));
         }
     }
@@ -234,31 +249,38 @@ export class MapCanvas {
             return;
         }
 
-        const q_grid = this.vp.q_looking_ns.conjugate();
-
+        const q_grid = this.vp.observer_to_ecef_q;
         const l = new Line(ctx, this.width, this.height);
         const v = new WasmVec3f64(0,0,0);
-        ctx.strokeStyle = this.styling.azimuthal_grid[0];
-        for (var de=-80; de<0; de+=10) {
-            this.add_declination_circle(q_grid, l, v, de, 1);
-        }
-        l.finish();
-        ctx.strokeStyle = this.styling.ecliptic;
+
+        // ecliptic
+        ctx.strokeStyle = this.styling.azimuthal_grid[2];
         this.add_declination_circle(q_grid, l, v, 0, 1);
         l.finish();
-        ctx.strokeStyle = this.styling.azimuthal_grid[1];
+
+        // above horizon
+        ctx.strokeStyle = this.styling.azimuthal_grid[0];
         for (var de=10; de<=80; de+=10) {
             this.add_declination_circle(q_grid, l, v, de, 1);
         }
         l.finish();
 
-        ctx.strokeStyle = this.styling.meridian[0];
+        // below horizon
+        ctx.strokeStyle = this.styling.azimuthal_grid[1];
+        for (var de=-80; de<0; de+=10) {
+            this.add_declination_circle(q_grid, l, v, de, 1);
+        }
+        l.finish();
+
+        ctx.strokeStyle = this.styling.azimuthal_grid[3];
         this.add_ra_great_circle(q_grid, l, v, 0, 1);
         l.finish();
-        ctx.strokeStyle = this.styling.meridian[1];
+        
+        ctx.strokeStyle = this.styling.azimuthal_grid[4];
         this.add_ra_great_circle(q_grid, l, v, 180, 1);
         l.finish();
-        ctx.strokeStyle = this.styling.azimuthal_grid[0];
+        
+        ctx.strokeStyle = this.styling.azimuthal_grid[1];
         for (var ra=15; ra<175; ra+=15) {
             this.add_ra_great_circle(q_grid, l, v, ra, 1);
             this.add_ra_great_circle(q_grid, l, v, ra+180, 1);
