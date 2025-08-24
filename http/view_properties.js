@@ -118,7 +118,7 @@ function fract(x) {
 /// so 360*366.25/365.25 degrees per UTC day = 360.98562628336754 degrees per UTC day
 export class ViewProperties {
     //cp constructor
-    constructor(star_catalog) {
+    constructor(star_catalog, params) {
         this.star_catalog = star_catalog;
         
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
@@ -133,15 +133,45 @@ export class ViewProperties {
         this.lat = 52;
         this.lon = 0;
 
+        let lat_param = parseFloat(params.get("lat"));
+        let lon_param = parseFloat(params.get("lon"));
+        if (lat_param!=null && !isNaN(lat_param)) {
+            this.lat = lat_param;
+        }
+        if (lon_param!=null && !isNaN(lon_param)) {
+            this.lon = lon_param;
+        }
+
         this.days_since_epoch = 19711;
         this.time_of_day = 18.377;
+        this.date_set();
+        this.time_set();
+
+        let day = parseInt(params.get("day"));
+        let time_of_day = parseFloat(params.get("time"));
+        if (day!=null && !isNaN(day)) {
+            this.day = day;
+        }
+        if (time_of_day!=null && !isNaN(time_of_day)) {
+            this.time_of_day = time_of_day;
+        }
 
         this.view_to_ecef_q = WasmQuatf64.unit();
 
+        this.derive_data();
+
+        let compass = parseFloat(params.get("compass"));
+        let elevation = parseFloat(params.get("elevation"));
+        if (compass!=null && !isNaN(compass)) {
+            this.observer_compass = compass;
+        }
+        if (elevation!=null && !isNaN(elevation)) {
+            this.observer_elevation = elevation;;
+        }
+        this.view_observer_set(this.observer_compass * this.deg2rad, this.observer_elevation * this.deg2rad);
+
         this.earth_division = 8;
         this.earth_webgl = true;
-        this.date_set();
-        this.time_set();
 
         this.selected_star = null;
 
@@ -196,7 +226,7 @@ export class ViewProperties {
         
         this.update_html_elements();
     }
-    //mp
+    //mp derive_observer_frame
     derive_observer_frame() {
         this.observer_up_ecef_v = this.vec_of_ra_de(this.ra, this.de);
 
@@ -300,6 +330,17 @@ export class ViewProperties {
     
     //mi update_html_elements
     update_html_elements() {
+        html.if_ele_id("reload_link", this, function(e,v) {
+            const a = document.createElement("a");
+            const lat_lon = `lat=${v.lat.toFixed(1)}&lon=${v.lon.toFixed(1)}`;
+            const mode = `mode=${v.star_catalog.selected_css}`;
+            const day_time = `day=${v.days_since_epoch.toFixed(0)}&time=${v.time_of_day.toFixed(4)}`;
+            const compass_elevation = `compass=${v.observer_compass.toFixed(1)}&elevation=${v.observer_elevation.toFixed(1)}`;
+            a.setAttribute("href", `?${mode}&${lat_lon}&${day_time}&${compass_elevation}#tab-skyview`);
+            a.innerText = "Sky View Link";
+            html.clear(e);
+            e.appendChild(a);
+        });
         html.if_ele_id("lat", this.lat, function(e,v) {
             e.innerText = `Lat: ${v.toFixed(1)}`;
         });
@@ -355,20 +396,24 @@ export class ViewProperties {
     view_observer_adjust(delta_c, delta_e) {
         const compass = (this.observer_compass * 1) * this.deg2rad - delta_c;
         const elevation = (this.observer_elevation * 1 + 0 ) * this.deg2rad - delta_e;
-
-        // console.log("Before:", this.view_to_ecef_q.apply3(this.vector_x).array);
-
+        this.view_observer_set(compass, elevation);
+    }
+    
+    //mp view_observer_set
+    // Rotate by the specified radians
+    view_observer_set(compass, elevation) {
+        // Setting the viewer will indirectly set observer_elevation and observer_compass
         this.view_to_ecef_q = WasmQuatf64.unit().rotate_y(elevation).rotate_z(compass).mul(this.ecef_to_observer_q).conjugate();
 
-        // console.log("Unchanged compass/elevation should be the same:", this.view_to_ecef_q.apply3(this.vector_x).array);
+        // Update the rest of the data after view_to_ecef_q
         this.derive_data();
         this.star_catalog.set_view_needs_update();
     }
     
     //mp view_clock_hour_rotate
     view_clock_hour_rotate(by_angle) {
-        const elevation = this.observer_elevation;
-        const compass = this.observer_compass;
+        const elevation = this.observer_elevation * this.deg2rad;
+        const compass = this.observer_compass * this.deg2rad;
 
         this.time_of_day += by_angle * 6 / Math.PI;
         console.log(this.time_of_day);
@@ -383,9 +428,7 @@ export class ViewProperties {
         if (true) {
             this.derive_de_ra();
             this.derive_observer_frame();
-            this.observer_compass = compass;
-            this.observer_elevation = elevation;
-            this.view_observer_adjust(0,0);
+            this.view_observer_set(compass,elevation);
         }            
         this.star_catalog.set_view_needs_update();
     }

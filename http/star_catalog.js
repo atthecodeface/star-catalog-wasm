@@ -1,5 +1,4 @@
 //a To do
-// Link
 // Cache
 // Orbit
 // Star names
@@ -30,17 +29,26 @@ function fract(x) {
 //c StarCatalog
 class StarCatalog {
     //cp constructor
-    constructor() {
+    constructor(params) {
+        console.log(params);
         this.WasmCatalog = WasmCatalog;
         this.WasmStar = WasmStar;
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
         this.catalog = new WasmCatalog("hipp_bright");
 
-        this.styling = new Styling();
+        const day_night_e = document.querySelector('input[name=day_night]');
+        let mode = "night";
+        if (params.get("mode") == "day") {
+            mode = "day";
+        }
+        if (day_night_e) {
+            day_night_e.checked = (mode == "day");
+        }
+        this.styling = new Styling(mode);
         
         this.view_needs_update = false;
 
-        this.vp = new ViewProperties(this);
+        this.vp = new ViewProperties(this, params);
 
         this.sky_canvas = new sky.SkyCanvas(this, this.catalog, "SkyCanvas",800,400);
         this.map_canvas = new map.MapCanvas(this, this.catalog, "MapCanvas",800,300);
@@ -186,8 +194,9 @@ class StarCatalog {
 //a Top level on load...
 window.star_catalog = null;
 function complete_init() {
+    const location_url = new URL(location);
     window.log = new Log(document.getElementById("Log"));
-    window.star_catalog = new StarCatalog();
+    window.star_catalog = new StarCatalog(location_url.searchParams);
 }
 
 window.addEventListener("load", (e) => {

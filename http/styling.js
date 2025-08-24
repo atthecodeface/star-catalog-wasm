@@ -91,10 +91,14 @@ class StylingDay {
 //c Styling
 export class Styling {
     //cp constructor
-    constructor() {
+    constructor(day_or_night) {
         this.map = {};
         this.sky = {};
-        this.set("night");
+        if (day_or_night == "day") {
+            this.set("day");
+        } else {
+            this.set("night");
+        }
         this.sky.show_equatorial = false;
         this.sky.show_azimuthal = false;
         this.map.show_equatorial = false;
