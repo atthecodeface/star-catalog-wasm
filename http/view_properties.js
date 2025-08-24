@@ -162,6 +162,8 @@ export class ViewProperties {
     ///
     derive_de_ra() {
         this.time_of_day = 24 * fract(this.time_of_day / 24.0);
+        this.minute_of_hour = 60 * fract(this.time_of_day);
+        
         if (this.lat > 90) {this.lat = 90;}
         if (this.lat < -90) {this.lat = -90;}
         if (this.lon > 180) {this.lon -= 360;}
@@ -186,12 +188,16 @@ export class ViewProperties {
             this.star_catalog.styling.sky[style] = enable_style;
             this.star_catalog.styling.map[style] = enable_style;
         }
-
         this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
-
         this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
 
         this.derive_de_ra();
+        this.derive_observer_frame();
+        
+        this.update_html_elements();
+    }
+    //mp
+    derive_observer_frame() {
         this.observer_up_ecef_v = this.vec_of_ra_de(this.ra, this.de);
 
         // Make v1 be star north - the north pole is +Z
@@ -272,9 +278,7 @@ export class ViewProperties {
         // const view_to_observer_rotated_and_elevated_q = this.view_to_ecef_q.mul(ecef_to_observer_rotated_and_elevated_q);
         // const mapped_x = view_to_observer_rotated_and_elevated_q.apply3(this.vector_x);
         // console.log(mapped_x.array);
-        
-        this.update_html_elements();
-    }
+    }        
 
     //mp update_html_star_info
     update_html_star_info() {
@@ -361,6 +365,31 @@ export class ViewProperties {
         this.star_catalog.set_view_needs_update();
     }
     
+    //mp view_clock_hour_rotate
+    view_clock_hour_rotate(by_angle) {
+        const elevation = this.observer_elevation;
+        const compass = this.observer_compass;
+
+        this.time_of_day += by_angle * 6 / Math.PI;
+        console.log(this.time_of_day);
+        if (this.time_of_day < 0) {
+            this.time_of_day += 24;
+            this.days_since_epoch -= 1;
+        }
+        if (this.time_of_day > 24) {
+            this.time_of_day -= 24;
+            this.days_since_epoch += 1;
+        }
+        if (true) {
+            this.derive_de_ra();
+            this.derive_observer_frame();
+            this.observer_compass = compass;
+            this.observer_elevation = elevation;
+            this.view_observer_adjust(0,0);
+        }            
+        this.star_catalog.set_view_needs_update();
+    }
+
     //mp view_q_post_mul
     view_q_post_mul(q) {
         this.view_to_ecef_q = this.view_to_ecef_q.mul(q);

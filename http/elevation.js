@@ -1,6 +1,6 @@
 import {WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
-import {Line} from "./line.js";
+import {Draw} from "./draw.js";
 import {Mouse} from "./mouse.js";
 
 //a ElevationCanvas
@@ -22,6 +22,29 @@ export class ElevationCanvas {
         this.ctx = this.canvas.getContext("2d");
 
         this.mouse = new Mouse(this, this.canvas);
+
+        const cx = 0; 
+        const cy = this.height/2;
+        const radius = this.width*0.95;
+        let bg_contents =             [ ["w", 2],
+              ["b"],
+              ["a", cx, cy, radius, -87, 87],
+              ["s"],
+                                      ];
+        const d2r = Math.PI / 180;
+        for (let angle=0; angle<85; angle+=15) {
+            const c = Math.cos(angle * d2r);
+            const s = Math.sin(angle * d2r);
+            bg_contents.push( ["m", cx+radius*c, cy-radius*s],
+                              ["L", -0.1*radius*c, 0.1*radius*s],
+                              ["m", cx+radius*c, cy+radius*s],
+                              ["L", -0.1*radius*c, -0.1*radius*s],
+                            );
+        }
+        bg_contents.push( ["s"] );
+        this.background = new Draw(bg_contents);
+        
+        this.arrow = Draw.arrow(0.9*radius, 4);
         
         window.log.add_log(0, "project", "load", `Created elevation canvas`);
         this.redraw();
@@ -29,45 +52,28 @@ export class ElevationCanvas {
 
     //mp redraw
     redraw() {
+        this.styling = this.star_catalog.styling.elevation;
         const ctx = this.ctx;
         ctx.save()
 
-        const color = "#611";
         const cx = 0; 
         const cy = this.height/2;
         const radius = this.width*0.95;
         
         const d2r = Math.PI / 180;
 
-        ctx.fillStyle = "black";
+        ctx.fillStyle = this.styling.canvas;
         ctx.fillRect(0,0,this.width, this.height);
 
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2.0;
+        ctx.strokeStyle = this.styling.scale;
+        this.background.draw(ctx); 
 
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, -Math.PI*0.48, Math.PI*0.48);
-        ctx.stroke();
-
-        const c = Math.cos(this.vp.observer_elevation * d2r);
-        const s = Math.sin(this.vp.observer_elevation * d2r);
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx+radius*0.9*c,cy-radius*0.9*s,);
-        ctx.stroke();
-
-        ctx.beginPath();
-        for (let angle=0; angle<85; angle+=15) {
-            const c = Math.cos(angle * d2r);
-            const s = Math.sin(angle * d2r);
-            ctx.moveTo(cx+radius*c,cy-radius*s,);
-            ctx.lineTo(cx+radius*0.9*c,cy-radius*0.9*s,);
-            ctx.moveTo(cx+radius*c,cy+radius*s,);
-            ctx.lineTo(cx+radius*0.9*c,cy+radius*0.9*s,);
-        }
-        ctx.stroke();
+        ctx.strokeStyle = this.styling.marker;
+        Draw.set_transform(ctx, [cx,cy], null, this.vp.observer_elevation);
+        this.arrow.draw(ctx);
 
         ctx.restore();
+        return;
     }
 
     //mp update

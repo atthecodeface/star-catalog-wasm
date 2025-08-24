@@ -1,6 +1,6 @@
 import {WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
-import {Line} from "./line.js";
+import {Draw} from "./draw.js";
 import {Mouse} from "./mouse.js";
 
 //a ClockCanvas
@@ -23,86 +23,77 @@ export class ClockCanvas {
 
         this.mouse = new Mouse(this, this.canvas);
         
+        const radius = this.width*0.45;
+        let bg_contents =
+            [
+                ["t", this.width/2, this.height/2],
+                ["push"],
+                ["b"],
+                ["c", 0, 0, radius ],
+                ["F", "rim"],
+                ["f"],
+                ["b"],
+                ["c", 0, 0, radius*0.9 ],
+                ["F", "face"],
+                ["f"],
+                ["pop"],
+                ["push"],
+                ["t", -radius*0.75,-radius*0.75,],
+                ["b",], 
+                ["a", 0, 0, radius*0.25,135, -45 ],
+                ["F", "rim"],
+                ["f"],
+                ["pop"],
+                ["push"],
+                ["t", radius*0.75,-radius*0.75,],
+                ["b",], 
+                ["a", 0, 0, radius*0.25,-135, 45,  ],
+                ["F", "rim"],
+                ["f"],
+                ["pop"],
+            ];
+        
+        this.background = new Draw(bg_contents);
+        this.hour_hand = Draw.arrow(radius * 0.4);
+        this.minute_hand = Draw.arrow(radius * 0.8);
+
         window.log.add_log(0, "project", "load", `Created clock canvas`);
         this.redraw();
     }
 
     //mp redraw
     redraw() {
+        this.styling = this.star_catalog.styling.clock;
         const ctx = this.ctx;
         ctx.save()
 
-        const color = "#611";
-        const base_color = "#211";
-        const cx = this.width/2; 
-        const cy = this.height/2;
-        const y_squash = 0.3;
-        
-        ctx.fillStyle = "black";
+        ctx.fillStyle = this.styling.canvas;
         ctx.fillRect(0,0,this.width, this.height);
 
-        const radius = this.width*0.45;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 8.0;
-        ctx.fillStyle = base_color;
-        for (let i=20; i>=0; i-= 4) {
-            ctx.setTransform(1,0,0,y_squash,cx,cy+i);
-            ctx.beginPath();
-            ctx.arc(0,0, radius, 0, 2 * Math.PI);
-            if (i==0) {
-                ctx.fill();
-                ctx.stroke();
-            } else {
-                ctx.stroke();
-            }
-        }
+        const style = this.styling;
 
-        ctx.beginPath();
-        ctx.moveTo(0,0);
-        ctx.lineTo(0,this.height/10);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 4.0;
-        ctx.stroke();
+        this.background.draw(ctx, (x) => style[x] );
 
-        const d2r = Math.PI / 180;
-        const c = Math.cos((this.vp.observer_clock + 90) * d2r );
-        const s = Math.sin((this.vp.observer_clock + 90) * d2r );
-        ctx.setTransform(c,-s*y_squash,s,c*y_squash,cx,cy);
-
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 4.0;
-        for (let angle =0; angle <360; angle += 15 ) {
-            const c = Math.cos(angle * d2r );
-            const s = Math.sin(angle * d2r );
-            ctx.beginPath();
-            let l = 0.8;
-            if ((angle % 90) == 0) {
-                l = 0.65;
-            }
-            if (angle == 0) {
-                l = 0.4;
-            }
-            ctx.moveTo(radius*l*c,radius*l*s,);
-            ctx.lineTo(radius*0.9*c,radius*0.9*s,);
-            ctx.stroke();
-        }
-
-        ctx.fillStyle = "";
+        ctx.save();
+        ctx.strokeStyle = this.styling.minute;
+        Draw.set_transform(ctx, [this.width/2, this.height/2], null, 90-this.vp.minute_of_hour*6);
+        this.minute_hand.draw(ctx, (x) => style[x] );
         ctx.restore();
-        // ctx.beginPath();
-        // ctx.moveTo(v0[0],v0[1]);
-        // ctx.lineTo(v1[0],v1[1]);
-        // ctx.lineTo(v2[0],v2[1]);
-        // ctx.lineTo(v0[0],v0[1]);
-        // ctx.clip();
-        //}
+
+        ctx.restore();
+        ctx.save();
+        ctx.strokeStyle = this.styling.hour;
+        Draw.set_transform(ctx, [this.width/2, this.height/2], null, 90-this.vp.time_of_day * 30);
+        this.hour_hand.draw(ctx, (x) => style[x] );
+        ctx.restore();
+
+
     }
 
     //mp update
     /// Invoked to purely update the state
     update() {
         this.redraw();
-        // this.styling = this.star_catalog.styling.map;
     }
 
     //mp zoom
@@ -112,17 +103,36 @@ export class ClockCanvas {
         console.log(this);
     }
 
+    //mi drag_anlgle
+    drag_angle(xy) {
+        const dy = xy[1]-this.height/2;
+        const dx = xy[0]-this.width/2;
+        return [Math.sqrt(dx*dx+dy*dy), Math.atan2(dy,dx)];
+    }
     //mp drag_start
     drag_start(e) {
-        this.drag_xy = e;
+        this.drag_polar = this.drag_angle(e);
+        this.drag_minutes = (this.drag_polar[0] > this.width*0.3);
     }
 
     //mp drag_to
     drag_to(e) {
-        let dx = (e[0] - this.drag_xy[0]) / this.width;
-        this.drag_xy = e;
+        const d_ra = this.drag_angle(e);
 
-        this.vp.view_clock_rotate(dx*Math.PI)
+        let da = d_ra[1] - this.drag_polar[1];
+        if (da < -Math.PI) {
+            da += Math.PI*2;
+        } 
+        if (da > Math.PI) {
+            da -= Math.PI*2;
+        }
+        if (this.drag_minutes) {
+            da /= 12;
+        }
+
+        this.drag_polar = d_ra;
+
+        this.vp.view_clock_hour_rotate(da)
         
     }
 

@@ -4,10 +4,6 @@
 // Orbit
 // Star names
 // S
-// Time clock in controls
-// Equatorial horizon and azimuthal horizon in bolder lines
-// Move star information to a line of its own
-// Move FOV text to a line of its own below
 
 //a Imports
 import init, {WasmCatalog, WasmStar, WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";

@@ -1,7 +1,7 @@
 import {WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 //a MapCanvas
 import * as html from "./html.js";
-import {Line} from "./line.js";
+import {Line} from "./draw.js";
 import * as earth from "./earth.js";
 
 function fract(x) {

@@ -19,6 +19,25 @@ class StylingNight {
     earth = {color:[1.0,0,0,0.7],
             };
 
+    compass = {
+        canvas: "black",
+        body: "#611",
+        bg: "#211",
+        markers: "#933",
+    };
+    elevation = {
+        canvas: "black",
+        scale: "#722",
+        marker: "#933",
+    };
+    clock = {
+        canvas: "black",
+        rim: "#522",
+        face: "#311",
+        minute: "#933",
+        hour: "#722",
+    };
+    
     css = "night";
     show_azimuthal = true;
     show_equatorial = true;
@@ -40,6 +59,27 @@ class StylingDay {
 
     earth = {color:[1,1,1,1],
             };
+
+
+    compass = {
+        canvas: "white",
+        body: "#888",
+        bg: "#445",
+        markers: "#bb8",
+    };
+    elevation = {
+        canvas: "white",
+        scale: "#888",
+        marker: "#445",
+    };
+    clock = {
+        canvas: "white",
+        rim: "#888",
+        face: "#445",
+        minute: "#aa7",
+        hour: "#cc8",
+    };
+    
 
     css = "day";
 
@@ -83,6 +123,9 @@ export class Styling {
         this.map = Object.assign(this.map, this.base_styling.map);
         this.sky = Object.assign(this.sky, this.base_styling.sky);
         this.earth = Object.assign({}, this.base_styling.earth);
+        this.compass = Object.assign({}, this.base_styling.compass);
+        this.elevation = Object.assign({}, this.base_styling.elevation);
+        this.clock = Object.assign({}, this.base_styling.clock);
         this.css = this.base_styling.css;
         this.set_css();
     }
