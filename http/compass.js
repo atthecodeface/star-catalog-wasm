@@ -107,13 +107,6 @@ export class CompassCanvas {
 
         ctx.fillStyle = "";
         ctx.restore();
-        // ctx.beginPath();
-        // ctx.moveTo(v0[0],v0[1]);
-        // ctx.lineTo(v1[0],v1[1]);
-        // ctx.lineTo(v2[0],v2[1]);
-        // ctx.lineTo(v0[0],v0[1]);
-        // ctx.clip();
-        //}
     }
 
     //mp update
@@ -130,22 +123,38 @@ export class CompassCanvas {
         console.log(this);
     }
 
+    //mi drag_polar
+    //
+    // This is +-PI at X=-1, Y=0; 0 at X=1, Y=0
+    drag_polar(xy) {
+        const dy = xy[1]-this.height/2;
+        const dx = xy[0]-this.width/2;
+        return [Math.sqrt(dx*dx+dy*dy), Math.atan2(dy,dx)];
+    }
+
     //mp drag_start
     drag_start(e) {
-        this.drag_xy = e;
+        this.last_drag_polar = this.drag_polar(e);
     }
 
     //mp drag_to
     drag_to(e) {
-        let dx = (e[0] - this.drag_xy[0]) / this.width;
-        this.drag_xy = e;
+        const d_ra = this.drag_polar(e);
 
-        this.vp.view_observer_adjust(dx*Math.PI, 0.0);
+        let da = d_ra[1] - this.last_drag_polar[1];
+        if (da < -Math.PI) {
+            da += Math.PI*2;
+        } 
+        if (da > Math.PI) {
+            da -= Math.PI*2;
+        }
+        this.last_drag_polar = d_ra;
+
+        this.vp.view_observer_adjust(da, 0.0);
     }
 
     //mp drag_end
     drag_end(e) {
-        console.log(e);
     }
 
     //mp mouse_click

@@ -103,23 +103,24 @@ export class ClockCanvas {
         console.log(this);
     }
 
-    //mi drag_anlgle
-    drag_angle(xy) {
+    //mi drag_polar
+    drag_polar(xy) {
         const dy = xy[1]-this.height/2;
         const dx = xy[0]-this.width/2;
         return [Math.sqrt(dx*dx+dy*dy), Math.atan2(dy,dx)];
     }
+
     //mp drag_start
     drag_start(e) {
-        this.drag_polar = this.drag_angle(e);
+        this.last_drag_polar = this.drag_polar(e);
         this.drag_minutes = (this.drag_polar[0] > this.width*0.3);
     }
 
     //mp drag_to
     drag_to(e) {
-        const d_ra = this.drag_angle(e);
+        const d_ra = this.drag_polar(e);
 
-        let da = d_ra[1] - this.drag_polar[1];
+        let da = d_ra[1] - this.last_drag_polar[1];
         if (da < -Math.PI) {
             da += Math.PI*2;
         } 
@@ -130,7 +131,7 @@ export class ClockCanvas {
             da /= 12;
         }
 
-        this.drag_polar = d_ra;
+        this.last_drag_polar = d_ra;
 
         this.vp.view_clock_hour_rotate(da)
         

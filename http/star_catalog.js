@@ -1,7 +1,6 @@
 //a To do
 // Cache
 // Orbit
-// Star names
 // S
 
 //a Imports

@@ -2,6 +2,7 @@
 import {WasmCatalog, WasmStar, WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import * as utils from "./utils.js";
+import {Names} from "./hipparcos.js";
 
 //a Useful functions
 //fi fract
@@ -315,14 +316,20 @@ export class ViewProperties {
         if (this.selected_star) {
             const star = this.star_catalog.catalog.star(this.selected_star);
             const e = document.getElementById("star_info");
+            const data = [];
+            const name = Names[star.id];
+            if ( name !== null && name !== undefined) {
+                data.push(`Name: ${name}`);
+            } else {
+                data.push(`Name: <unnamed>`);
+            }
+            data.push(`Id: ${star.id}`);
+            data.push(`Mag: ${(star.magnitude).toFixed(2)}`);
+            data.push(`Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`);
+            data.push(`De: ${(star.declination * this.rad2deg).toFixed(2)}`);
             if (e) {
                 html.clear(e);
-                e.append(html.table([],[], [[`Id: ${star.id}`,
-                                             `Mag: ${(star.magnitude).toFixed(2)}`,
-                                            // ], [
-                                                 `Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`,
-                                                 `De: ${(star.declination * this.rad2deg).toFixed(2)}`,
-                                       ]]));
+                e.append(html.table([],[], [data]));
                                              
             }
         }
