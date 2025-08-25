@@ -155,11 +155,11 @@ export class CompassCanvas {
 
     //mp drag_end
     drag_end(e) {
+        this.vp.log_compass_elevation_update();
     }
 
     //mp mouse_click
     mouse_click(e) {
-            console.log(e);
     }
 }
 

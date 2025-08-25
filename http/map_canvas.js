@@ -339,6 +339,7 @@ export class MapCanvas {
     drag_end(xy) {
         const ra_de = this.ra_de_of_cxy(xy);
         this.star_catalog.center_sky_view(ra_de);
+        this.vp.log_compass_elevation_update();
     }
     //
     //mi Mouse function mouse_click

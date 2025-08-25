@@ -29,7 +29,6 @@ function fract(x) {
 class StarCatalog {
     //cp constructor
     constructor(params) {
-        console.log(params);
         this.WasmCatalog = WasmCatalog;
         this.WasmStar = WasmStar;
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
@@ -111,7 +110,7 @@ class StarCatalog {
         if (!e) {
             return;
         }
-        console.log(e);
+
         if ((tab_id=="#tab-skyview") || (tab_id=="#tab-skymap")) {
             e.hidden = false;
         } else {

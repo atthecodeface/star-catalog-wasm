@@ -88,7 +88,7 @@ export class Earth {
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
-        console.log("Earh: constructor: created with size ", this.width, this.height, " in ", canvas_div_id);
+        // console.log("Earh: constructor: created with size ", this.width, this.height, " in ", canvas_div_id);
 
         this.webgl = use_webgl;
         this.ctx = null;
@@ -144,6 +144,7 @@ export class Earth {
         this.star_catalog.update_latlon(lat_lon);
     }
 
+    //mi zoom
     zoom(factor) {
         if (factor<1.0) {
             this.center_on_lon -= 1.0/factor;
@@ -152,13 +153,17 @@ export class Earth {
         }
         this.draw();
     }
+
+    //mi rotate
     rotate(angle) {
     }
 
+    //mi update
     update() {
         this.draw();
     }
 
+    //mi window_loaded
     window_loaded() {
         const use_webgl = this.webgl;
         this.webgl = null;
@@ -176,6 +181,7 @@ export class Earth {
         }
     }
 
+    //mi start_webgl
     start_webgl(canvas) {
         var gl;
         try { gl = canvas.getContext("webgl"); }

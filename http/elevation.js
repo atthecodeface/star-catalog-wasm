@@ -105,6 +105,7 @@ export class ElevationCanvas {
 
     //mp drag_end
     drag_end(e) {
+        this.vp.log_compass_elevation_update();
     }
 
     //mp mouse_click

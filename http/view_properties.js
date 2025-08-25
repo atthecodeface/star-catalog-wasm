@@ -330,6 +330,15 @@ export class ViewProperties {
         
         this.update_html_elements();
     }
+    //mi get_href
+    get_href() {
+        const lat_lon = `lat=${this.lat.toFixed(1)}&lon=${this.lon.toFixed(1)}`;
+        const mode = `mode=${this.star_catalog.selected_css}`;
+        const day_time = `day=${this.days_since_epoch.toFixed(0)}&time=${this.time_of_day.toFixed(4)}`;
+        const compass_elevation = `compass=${this.observer_compass.toFixed(1)}&elevation=${this.observer_elevation.toFixed(1)}`;
+        return `?${mode}&${lat_lon}&${day_time}&${compass_elevation}#tab-skyview`;
+    }
+
     //mp update_html_star_info
     update_html_star_info() {
         if (this.selected_star) {
@@ -358,11 +367,8 @@ export class ViewProperties {
     update_html_elements() {
         html.if_ele_id("reload_link", this, function(e,v) {
             const a = document.createElement("a");
-            const lat_lon = `lat=${v.lat.toFixed(1)}&lon=${v.lon.toFixed(1)}`;
-            const mode = `mode=${v.star_catalog.selected_css}`;
-            const day_time = `day=${v.days_since_epoch.toFixed(0)}&time=${v.time_of_day.toFixed(4)}`;
-            const compass_elevation = `compass=${v.observer_compass.toFixed(1)}&elevation=${v.observer_elevation.toFixed(1)}`;
-            a.setAttribute("href", `?${mode}&${lat_lon}&${day_time}&${compass_elevation}#tab-skyview`);
+            const href = v.get_href();
+            a.setAttribute("href", href);
             a.innerText = "Sky View Link";
             html.clear(e);
             e.appendChild(a);
@@ -411,10 +417,31 @@ export class ViewProperties {
     //mp update_latlon
     /// Update the view, because of a view change, time change, etc
     update_latlon(lat_lon) {
-        window.log.add_log("info", "view_prop", "update", `Set Lat/Lon to ${180/Math.PI*lat_lon[0]},${180/Math.PI*lat_lon[1]}`);
         this.lat = lat_lon[0];
         this.lon = lat_lon[1];
+        this.log_latlon_update();
         this.star_catalog.set_view_needs_update();
+    }
+
+    //mp log_latlon_update
+    log_latlon_update() {
+        const text = `${this.lat.toFixed(1)}, ${this.lon.toFixed(1)}`;
+        const href = this.get_href();
+        window.log.add_log("info", "view_prop", "update", `Set Lat/Lon to <a href='${href}'>${text}</a>`);
+    }
+
+    //mp log_time_date_update
+    log_time_date_update() {
+        const text = "some time-date text";
+        const href = this.get_href();
+        window.log.add_log("info", "view_prop", "update", `Set time + date to <a href='${href}'>${text}</a>`);
+    }
+
+    //mp log_compass_elevation_update
+    log_compass_elevation_update() {
+        const text = `compass ${this.observer_compass.toFixed(1)}, elevation ${this.observer_elevation.toFixed(1)}`;
+        const href = this.get_href();
+        window.log.add_log("info", "view_prop", "update", `Set view to <a href='${href}'>${text}</a>`);
     }
 
     //mp view_observer_adjust
