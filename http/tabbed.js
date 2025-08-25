@@ -53,7 +53,6 @@ class Tabs {
             }
         }
 
-        console.log(location);
         this.selected_tab_number = null;
         this.post_init()
     }

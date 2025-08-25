@@ -1,13 +1,13 @@
-import {WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 //a MapCanvas
+import {WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import {Line} from "./draw.js";
+import {Cache} from "./cache.js";
+import {Mouse} from "./mouse.js";
 import * as earth from "./earth.js";
 
-function fract(x) {
-    return x - Math.floor(x);
-}
-
+//a MapCanvas
+//c MapCanvas
 export class MapCanvas {
     //fp constructor
     constructor(star_catalog, catalog, canvas_div_id, width, height) {
@@ -25,34 +25,41 @@ export class MapCanvas {
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
+        this.brightness = 4.0;
+        this.star_cache = new Cache(null, () => {return false;}, this.fill_star_cache.bind(this));
+        this.star_cache.force_refresh();
        
-        const me = this;
-        // this.canvas.addEventListener('wheel', function(e) {me.wheel(e);});
-        this.canvas.addEventListener('mousedown', function(e) {me.mouse_down(e);});
-        //this.canvas.addEventListener('mouseup', function(e) {me.mouse_up(e);});
-        // this.canvas.addEventListener('mouseout', function(e) {me.mouse_up(e);});
-        // this.canvas.addEventListener('mousemove', function(e) {me.mouse_move(e);});
+        this.mouse = new Mouse(this, this.canvas);
 
         window.log.add_log(0, "project", "load", `Created map canvas`);
     }
 
+    //mi fill_star_cache
+    fill_star_cache(_x) {
+        const stars = [];
+        this.catalog.clear_filter();
+        this.catalog.filter_max_magnitude(this.brightness);
+
+        const XP_AXIS = new WasmVec3f64(1,0,0)
+        for (const index of this.catalog.find_stars_around(XP_AXIS, 1.6, 0, 1000)) {
+            stars.push(this.catalog.star(index));
+        }
+        for (const index of this.catalog.find_stars_around(XP_AXIS.neg(), 1.6, 0, 1000)) {
+            stars.push(this.catalog.star(index));
+        }
+        return stars;
+    }
+
+    //mp update
     update() {
         this.derive_data();
         this.redraw_canvas();
     }
+
+    //mi derive_data
     derive_data() {
         this.styling = this.star_catalog.styling.map;
     }        
-
-    //mi mouse_down
-    mouse_down(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const cx = e.clientX - rect.left;
-        const cy = e.clientY - rect.top;
-        const ra_de = this.ra_de_of_cxy([cx, cy]);
-        this.star_catalog.center_sky_view(ra_de);
-        e.preventDefault();
-    }
 
     //mi ra_de_of_cxy
     ra_de_of_cxy(cxy) {
@@ -294,21 +301,41 @@ export class MapCanvas {
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.catalog.filter_max_magnitude(4.0);
+        for (const star of this.star_cache.get()) {
+            this.draw_star(ctx, star);
+        }
 
-        const XP_AXIS = new WasmVec3f64(1,0,0)
-        for (const index of this.catalog.find_stars_around(XP_AXIS, 1.6, 0, 1000)) {
-            const star = this.catalog.star(index);
-            this.draw_star(ctx, star);
-        }
-        for (const index of this.catalog.find_stars_around(XP_AXIS.neg(), 1.6, 0, 1000)) {
-            const star = this.catalog.star(index);
-            this.draw_star(ctx, star);
-        }
         this.draw_azimuthal_grid(ctx);
         this.draw_sky_rect(ctx);
 
         this.draw_equatorial_grid(ctx);
+    }
+
+    //mi Mouse functions zoom, rotate, drag
+    zoom(factor) {
+        this.star_catalog.sky_view_zoom_by(factor);
+    }
+    rotate(angle) {
+    }
+    drag_start(xy) {
+        const ra_de = this.ra_de_of_cxy(xy);
+        this.star_catalog.center_sky_view(ra_de);
+    }
+    drag_to(xy) {
+        const ra_de = this.ra_de_of_cxy(xy);
+        this.star_catalog.center_sky_view(ra_de);
+    }
+    drag_end(xy) {
+        const ra_de = this.ra_de_of_cxy(xy);
+        this.star_catalog.center_sky_view(ra_de);
+    }
+    //
+    //mi Mouse function mouse_click
+    mouse_click(xy) {
+        const ra_de = this.ra_de_of_cxy(xy);
+        this.catalog.clear_filter();
+        this.catalog.filter_max_magnitude(this.brightness);
+        this.star_catalog.sky_canvas.select(this.catalog.closest_to(ra_de[0],ra_de[1]));
     }
 
     //zz All done

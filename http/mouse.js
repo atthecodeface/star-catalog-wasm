@@ -1,4 +1,18 @@
 //c Mouse
+///
+/// The client must provide:
+///
+///   zoom(factor)
+///
+///   rotate(angle)
+///
+///   drag_start(xy)
+///
+///   drag_to(xy)
+///
+///   drag_end(xy)
+///
+///   mouse_click(xy)
 export class Mouse {
     //cp constructor
     constructor(client, ele) {

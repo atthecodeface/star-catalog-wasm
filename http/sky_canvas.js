@@ -1,7 +1,7 @@
 import {WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import {Line} from "./draw.js";
-import * as mouse from "./mouse.js";
+import {Mouse} from "./mouse.js";
 
 //a SkyCanvas
 export class SkyCanvas {
@@ -27,7 +27,7 @@ export class SkyCanvas {
 
         this.brightness = 5.0;
 
-        this.mouse = new mouse.Mouse(this, this.canvas);
+        this.mouse = new Mouse(this, this.canvas);
 
         this.derive_data();
         window.log.add_log(0, "project", "load", `Created sky canvas`);
@@ -199,15 +199,15 @@ export class SkyCanvas {
     //mi center
     center(ra_de) {
         // Get new direction that is desired for the center of the view
-        const ra = ra_de[0];
-        const de = ra_de[1];
-        const new_qv = this.vp.vec_of_ra_de(ra, de);
+        const ecef_v = this.vp.vec_of_ra_de(ra_de[0], ra_de[1]);
 
         // Get quaternon to rotate current center of view to the desired center of view
-        const q = WasmQuatf64.rotation_of_vec_to_vec(this.vp.view_ecef_center_dir, new_qv);
-
+        // const q = WasmQuatf64.rotation_of_vec_to_vec(this.vp.view_ecef_center_dir, new_qv);
+        // 
         // Add that rotation to the map camera
-        this.vp.view_q_pre_mul(q);
+        // this.vp.view_q_pre_mul(q);
+        const ce = this.vp.compass_elevation_of_ecef(ecef_v);
+        this.vp.view_observer_set(ce[0] * this.vp.deg2rad, ce[1] * this.vp.deg2rad);
     }
 
     //mi draw_star

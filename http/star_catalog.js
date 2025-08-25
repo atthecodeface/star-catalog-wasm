@@ -200,6 +200,11 @@ class StarCatalog {
     sky_view_zoom_set() {
         this.sky_canvas.zoom_set();
     }
+    //mp sky_view_zoom_by
+    /// Set the zoom of the sky view window
+    sky_view_zoom_by(factor) {
+        this.sky_canvas.zoom(factor);
+    }
 }
 
 //a Top level on load...
@@ -212,8 +217,8 @@ function complete_init() {
 
 window.addEventListener("load", (e) => {
     init().then(() => {
+        complete_init();
         tabbed_configure("#tab-list", 
                          (id) => {if (window.star_catalog) {window.star_catalog.tab_selected(id);}});
-        complete_init();
     }
 )});

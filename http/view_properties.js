@@ -188,6 +188,25 @@ export class ViewProperties {
         this.star_catalog.set_view_needs_update();
     }
 
+    //mp compass_elevation_of_ecef
+    //
+    // The observed compass direction, elevation of an ECEF vector
+    // requires mapping the viewer to the observer space 
+    //
+    // The observed elevation is asin(z); the observed compass is atan2(y,x)
+    compass_elevation_of_ecef(ecef_v) {
+        const observer_v = this.ecef_to_observer_q.apply3(ecef_v);
+        const xyz = observer_v.array;
+
+        // Note that if the ECEF is along +Y, then
+        // it is *west* which is 90degrees anticlockwise
+        //
+        // Basically +compass angle is anticlockwise
+        const compass = -Math.atan2(xyz[1], xyz[0]) * this.rad2deg;
+        const elevation = Math.asin(xyz[2]) * this.rad2deg;
+        return [compass, elevation];
+    }
+
     //mp derive_de_ra
     /// Derive data for the internals based on the time, date, lat and lon
     ///
@@ -210,23 +229,6 @@ export class ViewProperties {
         this.de = de;
     }
 
-    //mp derive_data
-    /// Derive data for the internals based on the time, date, lat and lon
-    ///
-    derive_data() {
-        for (const style of ["show_azimuthal", "show_equatorial"]) {
-            const enable_style = (document.querySelector(`input[name=${style}]:checked`) != null);
-            this.star_catalog.styling.sky[style] = enable_style;
-            this.star_catalog.styling.map[style] = enable_style;
-        }
-        this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
-        this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
-
-        this.derive_de_ra();
-        this.derive_observer_frame();
-        
-        this.update_html_elements();
-    }
     //mp derive_observer_frame
     derive_observer_frame() {
         this.observer_up_ecef_v = this.vec_of_ra_de(this.ra, this.de);
@@ -311,6 +313,23 @@ export class ViewProperties {
         // console.log(mapped_x.array);
     }        
 
+    //mp derive_data
+    /// Derive data for the internals based on the time, date, lat and lon
+    ///
+    derive_data() {
+        for (const style of ["show_azimuthal", "show_equatorial"]) {
+            const enable_style = (document.querySelector(`input[name=${style}]:checked`) != null);
+            this.star_catalog.styling.sky[style] = enable_style;
+            this.star_catalog.styling.map[style] = enable_style;
+        }
+        this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
+        this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
+
+        this.derive_de_ra();
+        this.derive_observer_frame();
+        
+        this.update_html_elements();
+    }
     //mp update_html_star_info
     update_html_star_info() {
         if (this.selected_star) {
@@ -408,6 +427,8 @@ export class ViewProperties {
     
     //mp view_observer_set
     // Rotate by the specified radians
+    //
+    // Note, not degrees
     view_observer_set(compass, elevation) {
         // Setting the viewer will indirectly set observer_elevation and observer_compass
         this.view_to_ecef_q = WasmQuatf64.unit().rotate_y(elevation).rotate_z(compass).mul(this.ecef_to_observer_q).conjugate();
