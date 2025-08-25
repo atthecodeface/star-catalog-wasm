@@ -132,8 +132,8 @@ export class ViewProperties {
         this.vector_z = new WasmVec3f64(0,0,1);
         this.max_stars_in_sky = 5000;
         
-        this.lat = 52;
-        this.lon = 0;
+        this.lat = null;
+        this.lon = null;
 
         let lat_param = parseFloat(params.get("lat"));
         let lon_param = parseFloat(params.get("lon"));
@@ -142,6 +142,12 @@ export class ViewProperties {
         }
         if (lon_param!=null && !isNaN(lon_param)) {
             this.lon = lon_param;
+        }
+
+        if ((this.lat === null) || (this.lon === null)) {
+            this.lat = 52;
+            this.lon = 0;
+            this.request_geolocation();
         }
 
         this.days_since_epoch = 19711;
@@ -177,7 +183,30 @@ export class ViewProperties {
 
         this.selected_star = null;
 
-        this.update_latlon([this.lat, this.lon]);
+        this.update_latlon(this.lat, this.lon);
+    }
+
+    //mi request_geolocation
+    request_geolocation() {
+        const options = {
+            enableHighAccuracy: false,
+            maximumAge: 30000,
+            timeout: 27000,
+        };
+        navigator.geolocation.getCurrentPosition( this.geolocation_position.bind(this), null, options );
+    }
+
+    //mi geolocation_position
+    geolocation_position(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        if ((lat !== null) && !isNaN(lat)) {
+            this.lat = lat;
+        }
+        if ((lon !== null) && !isNaN(lon)) {
+            this.lon = lon;
+        }
+        this.update_latlon(this.lat, this.lon);
     }
 
     //mp set_selected_star
@@ -427,9 +456,9 @@ export class ViewProperties {
 
     //mp update_latlon
     /// Update the view, because of a view change, time change, etc
-    update_latlon(lat_lon) {
-        this.lat = lat_lon[0];
-        this.lon = lat_lon[1];
+    update_latlon(lat, lon) {
+        this.lat = lat;
+        this.lon = lon;
         this.log_latlon_update();
         this.star_catalog.set_view_needs_update();
     }

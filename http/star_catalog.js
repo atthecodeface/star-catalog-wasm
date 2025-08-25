@@ -156,8 +156,8 @@ class StarCatalog {
 
     //mp update_latlon
     /// Update the view, because of a view change, time change, etc
-    update_latlon(lat_lon) {
-        this.vp.update_latlon(lat_lon);
+    update_latlon(lat, lon) {
+        this.vp.update_latlon(lat, lon);
         this.set_view_needs_update();
     }
 

@@ -141,7 +141,7 @@ export class Earth {
         if (lat_lon == null) {
             return;
         }
-        this.star_catalog.update_latlon(lat_lon);
+        this.star_catalog.update_latlon(lat_lon[0], lat_lon[1]);
     }
 
     //mi zoom

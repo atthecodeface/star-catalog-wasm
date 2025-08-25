@@ -24,6 +24,7 @@ export class ClockCanvas {
         this.mouse = new Mouse(this, this.canvas);
         
         const radius = this.width*0.45;
+        const sun_radius = this.width*0.035;
         let bg_contents =
             [
                 ["t", this.width/2, this.height/2],
@@ -52,8 +53,52 @@ export class ClockCanvas {
                 ["f"],
                 ["pop"],
             ];
+
+
+        const sun_s = 1.2;
+        const sun_l = 0.8;
+        let sun_contents =
+            [
+                ["push"],
+                ["sc", sun_radius, sun_radius],
+                ["t", -4.0, 0.0],
+                ["b"],
+                ["c", 0, 0, 1.0 ],
+                ["F", "moon"],
+                ["f"],
+                ["pop"],
+                ["push"],
+                ["sc", sun_radius, sun_radius],
+                ["t", 4.0, 0.0],
+                ["b"],
+                ["c", 0, 0, 1.0 ],
+                ["F", "sun"],
+                ["f"],
+                ["b"],
+                ["w", 1/sun_radius],
+                ["m", 0, sun_s],
+                ["L", 0, sun_l],
+                ["m", 0, -sun_s],
+                ["L", 0, -sun_l],
+                ["m", sun_s, 0],
+                ["L", sun_l, 0],
+                ["m", -sun_s, 0],
+                ["L", -sun_l, 0],
+                ["m", sun_s*0.7, sun_s*0.7],
+                ["L", sun_l*0.7, sun_l*0.7],
+                ["m", -sun_s*0.7, -sun_s*0.7],
+                ["L", -sun_l*0.7, -sun_l*0.7],
+                ["m", -sun_s*0.7, sun_s*0.7],
+                ["L", -sun_l*0.7, sun_l*0.7],
+                ["m", sun_s*0.7, -sun_s*0.7],
+                ["L", sun_l*0.7, -sun_l*0.7],
+                ["S", "sun"],
+                ["s"],
+                ["pop"],
+            ];
         
         this.background = new Draw(bg_contents);
+        this.sun = new Draw(sun_contents);
         this.hour_hand = Draw.arrow(radius * 0.4);
         this.minute_hand = Draw.arrow(radius * 0.8);
 
@@ -72,7 +117,17 @@ export class ClockCanvas {
 
         const style = this.styling;
 
+        ctx.save();
         this.background.draw(ctx, (x) => style[x] );
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0,0,this.width, this.height/2);
+        ctx.clip();
+        Draw.set_transform(ctx, [this.width/2, this.height/2], null, 270-this.vp.time_of_day * 15);
+        this.sun.draw(ctx, (x) => style[x] );
+        ctx.restore();
 
         ctx.save();
         ctx.strokeStyle = this.styling.minute;
@@ -144,7 +199,6 @@ export class ClockCanvas {
 
     //mp mouse_click
     mouse_click(e) {
-            console.log(e);
     }
 }
 

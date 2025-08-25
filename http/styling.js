@@ -36,6 +36,8 @@ class StylingNight {
         face: "#311",
         minute: "#933",
         hour: "#722",
+        sun: "#ff0",
+        moon: "#777",
     };
     
     css = "night";
@@ -78,6 +80,8 @@ class StylingDay {
         face: "#445",
         minute: "#aa7",
         hour: "#cc8",
+        sun: "#ff0",
+        moon: "#777",
     };
     
 
