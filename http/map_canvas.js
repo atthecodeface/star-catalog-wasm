@@ -153,8 +153,8 @@ export class MapCanvas {
         const cy = cxy[1];
         
         let r = Math.floor(Math.min(255, Math.max(0,rgb[0]*255)));
-                           let g = Math.floor(Math.min(255, Math.max(0,rgb[1]*255)));
-                           let b = Math.floor(Math.min(255, Math.max(0,rgb[2]*255)));
+        let g = Math.floor(Math.min(255, Math.max(0,rgb[1]*255)));
+        let b = Math.floor(Math.min(255, Math.max(0,rgb[2]*255)));
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         if (m<3) {
             ctx.fillRect(cx-1,cy-1,3,3);
@@ -306,9 +306,20 @@ export class MapCanvas {
         }
 
         this.draw_azimuthal_grid(ctx);
-        this.draw_sky_rect(ctx);
-
         this.draw_equatorial_grid(ctx);
+
+        this.draw_sky_rect(ctx);
+        if (this.vp.selected_star) {
+            const star = this.catalog.star(this.vp.selected_star);
+            const cxy = this.cxy_of_vector(star.vector);
+            if (cxy != null) {
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 1.0;
+                ctx.beginPath();
+                ctx.arc(cxy[0], cxy[1], 8, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+        }
     }
 
     //mi Mouse functions zoom, rotate, drag
@@ -335,7 +346,7 @@ export class MapCanvas {
         const ra_de = this.ra_de_of_cxy(xy);
         this.catalog.clear_filter();
         this.catalog.filter_max_magnitude(this.brightness);
-        this.star_catalog.sky_canvas.select(this.catalog.closest_to(ra_de[0],ra_de[1]));
+        this.star_catalog.sky_canvas.select(this.catalog.closest_to_ra_de(ra_de[0],ra_de[1]));
     }
 
     //zz All done

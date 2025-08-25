@@ -160,7 +160,7 @@ export class SkyCanvas {
         const de = Math.asin(qv[2]);
         this.catalog.clear_filter();
         this.catalog.filter_max_magnitude(this.brightness);
-        this.select(this.catalog.closest_to(ra,de));
+        this.select(this.catalog.closest_to_ra_de(ra,de));
     }
 
     //mi zoom

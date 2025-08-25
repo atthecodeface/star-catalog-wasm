@@ -1,13 +1,8 @@
 //a Imports
-use js_sys::Array;
 use wasm_bindgen::prelude::*;
 
-use star_catalog::{Catalog, CatalogIndex, Star, StarFilter, Subcube};
-
-use crate::Rrc;
-use crate::{Icosphere, Vec2f32, Vec3f32, Vertex};
-use crate::{WasmVec2f32, WasmVec3f32, WasmVec3f64};
-use geo_nd::Vector;
+use crate::{Icosphere, Vertex};
+use crate::{WasmVec2f32, WasmVec3f32};
 
 //a WasmVertex
 //tp WasmVertex

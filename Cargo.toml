@@ -17,15 +17,15 @@ version = ">=0.2.92"
 version = ">=0.3.64"
 
 [dependencies.geo-nd]
-version = ">=0.5"
+version = "0.6"
 
 [dependencies.geo-nd-wasm]
-version = "0.1.2"
+version = "0.6"
+path = "../geo-nd-wasm"
 
 [dependencies.star-catalog]
-version = ">=0.0.8"
+version = "0.1"
 features = ["postcard", "hipp_bright"]
-# path = "../star-catalog"
 
 [dependencies.web-sys]
 features = [

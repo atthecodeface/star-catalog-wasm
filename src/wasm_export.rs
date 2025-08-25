@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 use star_catalog::{Catalog, CatalogIndex, Star, StarFilter, Subcube};
 
 use crate::Rrc;
-use crate::{WasmVec3f32, WasmVec3f64};
+use crate::{Vec3f64, WasmVec3f32, WasmVec3f64};
 
 //a WasmCatalog
 //tp WasmCatalog
@@ -80,10 +80,13 @@ impl WasmCatalog {
         true
     }
 
-    //mp closest_to
-    pub fn closest_to(&self, ra: f64, de: f64) -> Option<usize> {
+    //mp closest_to_ra_de
+    pub fn closest_to_ra_de(&self, ra: f64, de: f64) -> Option<usize> {
         let catalog = self.cat.borrow();
-        catalog.closest_to(ra, de).map(|(_, s)| s.as_usize())
+        let s = Subcube::iter_all();
+        catalog
+            .closest_to_ra_de(s, ra, de)
+            .map(|(_, s)| s.as_usize())
     }
 
     //mp clear_filter
@@ -100,10 +103,10 @@ impl WasmCatalog {
 
     //mp filter_closer_to
     pub fn filter_closer_to(&self, v: &WasmVec3f64, angle: f64) {
-        let v = v.into();
+        let v: Vec3f64 = v.into();
         self.cat
             .borrow_mut()
-            .add_filter(StarFilter::cos_to_gt(v, angle.cos()));
+            .add_filter(StarFilter::cos_to_gt(v.into(), angle.cos()));
     }
 
     //mp find_stars_around
@@ -120,7 +123,7 @@ impl WasmCatalog {
             .add_filter(StarFilter::select(first, max_results));
 
         let result = js_sys::Array::new();
-        let v = v.into();
+        let v: Vec3f64 = v.into();
         for index in self.cat.borrow().find_stars_around(&v, max_angle) {
             result.push(&index.as_usize().into());
         }
@@ -180,43 +183,48 @@ impl WasmStar {
     //ap id
     #[wasm_bindgen(getter)]
     pub fn id(&self) -> usize {
-        self.s.id
+        self.s.id()
     }
 
     //ap right_ascension
     #[wasm_bindgen(getter)]
     pub fn right_ascension(&self) -> f64 {
-        self.s.ra
+        self.s.ra()
     }
 
     //ap declination
     #[wasm_bindgen(getter)]
     pub fn declination(&self) -> f64 {
-        self.s.de
+        self.s.de()
     }
 
     //ap distance
     #[wasm_bindgen(getter)]
     pub fn distance(&self) -> f32 {
-        self.s.ly
+        self.s.distance()
     }
 
     //ap magnitude
     #[wasm_bindgen(getter)]
     pub fn magnitude(&self) -> f32 {
-        self.s.mag
+        self.s.magnitude()
     }
 
     //ap blue_violet
     #[wasm_bindgen(getter)]
     pub fn blue_violet(&self) -> f32 {
-        self.s.bv
+        self.s.bv()
     }
 
     //ap vector
     #[wasm_bindgen(getter)]
     pub fn vector(&self) -> WasmVec3f64 {
-        self.s.vector.into()
+        (*self.s.vector()).into()
+    }
+
+    //mp set_vector
+    pub fn set_vector(&self, v: &mut WasmVec3f64) {
+        v.set(self.s.vector().as_ref());
     }
 
     //ap temperature
