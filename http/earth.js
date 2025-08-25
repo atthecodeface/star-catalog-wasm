@@ -100,7 +100,7 @@ export class Earth {
 
         this.view_scale = 0.9;
         this.center_on_lat = this.vp.lat;
-        this.center_on_lon = this.vp.lon;
+        this.center_on_lon = -this.vp.lon;
 
         this.texture_image = new Image();
         this.texture_loaded = false;

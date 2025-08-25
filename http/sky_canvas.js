@@ -167,8 +167,8 @@ export class SkyCanvas {
     zoom(factor) {
         // window.log.add_log("info","sky","zoom",`${factor}`);
         this.fovh = 2*Math.atan(factor*Math.tan(this.fovh/2));
-        if (this.fovh > Math.PI) {
-            this.fovh = Math.PI;
+        if (this.fovh > Math.PI*3/4) {
+            this.fovh = Math.PI*3/4;
         } else if (this.fovh < 0.01){
             this.fovh = 0.01;
         }
@@ -381,6 +381,11 @@ export class SkyCanvas {
         const e = document.getElementById("zoom");
         if (e) {
             this.fovh = e.value * this.vp.deg2rad;
+            if (this.fovh > Math.PI*3/4) {
+                this.fovh = Math.PI*3/4;
+            } else if (this.fovh < 0.01){
+                this.fovh = 0.01;
+            }
             this.star_catalog.set_view_needs_update();
         }
     }

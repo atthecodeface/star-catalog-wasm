@@ -35,8 +35,20 @@ class StarCatalog {
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
         this.catalog = new WasmCatalog("hipp_bright");
 
+        let mode = "day";
+        const e = document.querySelector("#js_detect_css");
+        if (e) {
+            e.hidden = true;
+            const color_string = window.getComputedStyle(e).getPropertyValue("color");
+            const m = color_string.match(/^rgb\s*\(\s*(\d+).*/i);
+            if (m && m[1]) {
+                if (parseInt(m[1]) == 0) {
+                    mode = "night";
+                }
+            }
+        }
+
         const day_night_e = document.querySelector('input[name=day_night]');
-        let mode = "night";
         if (params.get("mode") == "day") {
             mode = "day";
         }

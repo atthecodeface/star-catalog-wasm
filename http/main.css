@@ -1,3 +1,21 @@
+/*a Item to let JS detect CSS settings */
+#js_detect_css {
+    hidden: true;
+    color: #777            
+}
+
+@media (prefers-color-scheme: dark) {
+    #js_detect_css {
+        color: #000
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    #js_detect_css {
+        color: #fff
+    }
+}
+
 /*a Non-colors (i.e. day and night) */
 .tab-list ul {
    list-style-type: none;
