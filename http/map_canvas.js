@@ -26,7 +26,7 @@ export class MapCanvas {
         this.canvas.height = this.height;
 
         this.brightness = 4.0;
-        this.star_cache = new Cache(null, () => {return false;}, this.fill_star_cache.bind(this));
+        this.star_cache = new Cache(null, (_x) => {return false;}, this.fill_star_cache.bind(this));
         this.star_cache.force_refresh();
        
         this.mouse = new Mouse(this, this.canvas);
@@ -37,6 +37,7 @@ export class MapCanvas {
     //mi fill_star_cache
     fill_star_cache(_x) {
         const stars = [];
+        console.log("Fill map canvas cache");
         this.catalog.clear_filter();
         this.catalog.filter_max_magnitude(this.brightness);
 

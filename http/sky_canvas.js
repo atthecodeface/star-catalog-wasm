@@ -2,6 +2,7 @@ import {WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js
 import * as html from "./html.js";
 import {Line} from "./draw.js";
 import {Mouse} from "./mouse.js";
+import {Cache} from "./cache.js";
 
 //a SkyCanvas
 export class SkyCanvas {
@@ -26,11 +27,61 @@ export class SkyCanvas {
         this.tan_yx = 1.0;
 
         this.brightness = 5.0;
+        this.star_cache = this.make_star_cache();
+        this.star_cache.force_refresh();
 
         this.mouse = new Mouse(this, this.canvas);
 
         this.derive_data();
         window.log.add_log(0, "project", "load", `Created sky canvas`);
+    }
+
+    //mi make_star_cache
+    make_star_cache() {
+        const stars = {
+            center : this.vp.vector_x,
+            angle : 0.0,
+            stars:[],
+            brightness: 0.0,
+        };
+        return new Cache(stars,
+                         this.check_star_cache.bind(this),
+                         this.try_to_fill_star_cache.bind(this)
+                        );
+    }
+    
+    //mi check_star_cache
+    check_star_cache(stars) {
+        if (stars.stars.length == 0) { return true; }
+        if (stars.brightness != this.brightness) { return true; }
+
+        const c = this.vp.view_ecef_center_dir.dot(stars.center);
+        if (c < 0) { return true; }
+        const angle = Math.acos(c);
+        if (angle + this.fovh > stars.angle) {
+            return true;
+        }
+        return false;
+    }
+
+    //mi try_to_fill_star_cache
+    try_to_fill_star_cache(stars) {
+        this.catalog.clear_filter();
+        this.catalog.filter_max_magnitude(this.brightness);
+
+        stars.brightness = this.brightness;
+        stars.center = this.vp.view_ecef_center_dir;
+        const angle = 1.5*this.fovh;
+        stars.angle = angle;
+        stars.stars = [];
+        const s = this.catalog.find_stars_around(this.vp.view_ecef_center_dir, angle, 0, this.vp.max_stars_in_sky);
+        if (s.length >= this.vp.max_stars_in_sky) {
+            return stars;
+        }
+        for (const index of s) {
+            stars.stars.push(this.catalog.star(index));
+        }
+        return stars;
     }
 
     //mp derive_data
@@ -69,19 +120,27 @@ export class SkyCanvas {
         this.redraw_canvas();
     }
 
-    //mp vector_of_cxy
+    //mp old_vector_of_cxy
     // Vector of canvas coord +X right +Y down
-    vector_of_cxy(cxy) {
+    old_vector_of_cxy(cxy) {
         const fx = (-cxy[0] / this.width + 0.5) * 2;
         const fy = (-cxy[1] / this.height + 0.5) * 2;
         return this.vector_of_fxy([fx,fy]);
     }
 
-    //mp vector_of_fcxy
+    //mp set_vector_of_cxy
+    // Set a vector of canvas coord +X right +Y down
+    set_vector_of_cxy(v, cxy) {
+        const fx = (-cxy[0] / this.width + 0.5) * 2;
+        const fy = (-cxy[1] / this.height + 0.5) * 2;
+        this.set_vector_of_fxy(v, [fx,fy]);
+    }
+
+    //mp set_vector_of_fxy
     // Vector of *square* canvas fraction with -1,-1 being bottom left, 1,1 top right
     //
     // This assumes that -1 in the Y corresponds to a 'full' width
-    vector_of_fxy(fxy) {
+    set_vector_of_fxy(v, fxy) {
         const fx = fxy[0];
         const fy = fxy[1] * this.win_ar / this.tan_yx;
         const roll = Math.atan2(fy,fx);
@@ -90,7 +149,8 @@ export class SkyCanvas {
         const vx = Math.cos(yaw);
         const vy = Math.sin(yaw) * Math.cos(roll);
         const vz = Math.sin(yaw) * Math.sin(roll);
-        return new WasmVec3f64(vx, vy, vz);
+        v.set([vx, vy, vz]);
+        return;
     }
 
     //mp cxy_of_vector
@@ -153,8 +213,10 @@ export class SkyCanvas {
     //mi mouse_click
     mouse_click(cxy) {
         // Map click location to ECEF direction
-        const v = this.vector_of_cxy(cxy);
-        const qv = this.vp.view_to_ecef_q.apply3(v).array;
+        const v = new WasmVec3f64();
+        this.set_vector_of_cxy(v, cxy);
+        v.set_apply_q3(this.vp.view_to_ecef_q);
+        const qv = v.array;
 
         const ra = Math.atan2(qv[1],qv[0]);
         const de = Math.asin(qv[2]);
@@ -212,11 +274,15 @@ export class SkyCanvas {
 
     //mi draw_star
     draw_star(ctx, star) {
+        if (!this.star_vector) {
+            this.star_vector = new WasmVec3f64();
+        }
         // Determine viewer direction vector for the star
-        const qv = this.vp.ecef_to_view_q.apply3(star.vector);
-
+        star.set_vector(this.star_vector);
+        this.star_vector.set_apply_q3(this.vp.ecef_to_view_q);
+        
         // Determine the canvas XY of the star
-        const cxy = this.cxy_of_vector(qv);
+        const cxy = this.cxy_of_vector(this.star_vector);
         if (cxy == null) {return; }
         
         const m = star.magnitude;
@@ -339,8 +405,6 @@ export class SkyCanvas {
                 ctx.stroke();
             }
         }
-        this.catalog.clear_filter();
-        this.catalog.filter_max_magnitude(this.brightness);
 
         if (this.styling.show_azimuthal) {
             this.draw_grid(ctx, this.vp.ecef_to_view_q.mul(this.vp.observer_to_ecef_q), this.styling.azimuthal_grid);
@@ -349,31 +413,16 @@ export class SkyCanvas {
             this.draw_grid(ctx, this.vp.ecef_to_view_q, this.styling.equatorial_grid);
         }
 
-        var first = 0;
-        var steps = 0;
-        var adjust_brightess = false;
-        while (true) {
-            const s = this.catalog.find_stars_around(this.vp.view_ecef_center_dir, this.fovh, first, 100);
-            for (const index of s) {
-                const star = this.catalog.star(index);
-                this.draw_star(ctx, star);
-            }
-            if (s.length == 0) {
-                break;
-            }
-            first += s.length;
-            steps += 1;
-            if (steps % 25 == 0) {
-                adjust_brightess = true;
-            }
-        }
-        this.catalog.clear_filter();
-        if (adjust_brightess) {
+        const stars = this.star_cache.get();
+        if (stars.stars.length == 0) {
             this.brightness = this.brightness * 0.9;
             this.derive_data();
             this.redraw_canvas();
+        } else {
+            for (const star of stars.stars) {
+                this.draw_star(ctx, star);
+            }
         }
-
     }
 
     //mi zoom_set

@@ -285,27 +285,33 @@
               <tr>
                 <td id="lat">
                 </td>
+              </tr>
+              <tr>
                 <td id="lon">
                 </td>
               </tr>
               <tr>
                 <td id="date">
                 </td>
-                <td id="today">
-                  <input class="date_button dn" type="button" value="Today" onclick="window.star_catalog.date_set();"/>
-                </td>
               </tr>
               <tr>
                 <td id="time">
-                </td>
-                <td id="now">
-                  <input class="date_button dn" type="button" value="Now" onclick="window.star_catalog.time_set();"/>
                 </td>
               </tr>
               <tr>
                 <td id="reload_link" colspan=2>
                 </td>
               </tr>
+              <tr>
+                <td id="today">
+                  <input class="date_button dn" type="button" value="Set day to today" onclick="window.star_catalog.date_set();"/>
+                </td>
+              </tr>
+              <tr>
+                <td id="now">
+                  <input class="date_button dn" type="button" value="Set time to now" onclick="window.star_catalog.time_set();"/>
+                </td>
+                </tr>
             </table>
           </td>
         </tr>
@@ -321,77 +327,77 @@
     <div id="controls"/>
     <table>
       <tr>
-          <td>
-            <table>
-              <tr>
-                <td>
-                  <div id="star_info"></div>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <table>
-              <tr>
-                <td>
-                  <label for="brightness" class="dn" id="max_mag">Max magnitude</label><br>
-                  <input type="range" class="range dn" id="brightness"  style="width:150px;" name="brightness" step="0.2" min="1" max="12" oninput="window.star_catalog.sky_view_brightness_set();"/>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <label for="zoom" class="dn">Field of view</label><br>
-                  <input type="range" class="range dn" id="zoom" name="zoom"  style="width:150px;" step="0.5" min="1" max="120" oninput="window.star_catalog.sky_view_zoom_set();"/>
-                </td>
-              </tr>
-             
-            </table>
-          </td>
-          <td>
-            <div id="ControlCompass"/>
-          </td>
-          <td>
-            <div id="ControlElevation"/>
-          </td>
-          <td>
-            <div id="ControlClock"/>
-          </td>
-          <td>
-            <table>
-              <tr>
-                <td>
-                  <input class="dn" type="checkbox" name="show_azimuthal" onclick="window.star_catalog.set_styling();"/>
-                  <label for="show_azimuthal">Azimuthal</label>
-                </td>
-              </tr>
-              <tr>
-          
-                <td>
-                  <input class="dn" type="checkbox" name="show_equatorial" onclick="window.star_catalog.set_styling();"/>
-                  <label for="show_equatorial">Equatorial</label>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <table>
-              <tr>
-                <td id="focal_length">
-                </td>
-              </tr>
-              <tr>
-                <td id="fov">
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        
-      </table>
+        <td colspan="4">
+          <table>
+            <tr>
+              <td>
+                <div id="star_info"></div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <table>
+            <tr>
+              <td>
+                <label for="brightness" class="dn" id="max_mag">Max magnitude</label><br>
+                <input type="range" class="range dn" id="brightness"  style="width:150px;" name="brightness" step="0.2" min="1" max="12" oninput="window.star_catalog.sky_view_brightness_set();"/>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <label for="zoom" class="dn">Field of view</label><br>
+                <input type="range" class="range dn" id="zoom" name="zoom"  style="width:150px;" step="0.5" min="1" max="120" oninput="window.star_catalog.sky_view_zoom_set();"/>
+              </td>
+            </tr>
+            
+          </table>
+        </td>
+        <td>
+          <div id="ControlCompass"/>
+        </td>
+        <td>
+          <div id="ControlElevation"/>
+        </td>
+        <td>
+          <div id="ControlClock"/>
+        </td>
+        <td>
+          <table>
+            <tr>
+              <td>
+                <input class="dn" type="checkbox" name="show_azimuthal" onclick="window.star_catalog.set_styling();"/>
+                <label for="show_azimuthal">Azimuthal</label>
+              </td>
+            </tr>
+            <tr>
+              
+              <td>
+                <input class="dn" type="checkbox" name="show_equatorial" onclick="window.star_catalog.set_styling();"/>
+                <label for="show_equatorial">Equatorial</label>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <table>
+            <tr>
+              <td id="focal_length">
+              </td>
+            </tr>
+            <tr>
+              <td id="fov">
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      
+    </table>
       
     </div>
     <div id="js_detect_css"/>

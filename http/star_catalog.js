@@ -1,7 +1,5 @@
 //a To do
-// Cache
-// Orbit
-// S
+// Orbit, more names
 
 //a Imports
 import init, {WasmCatalog, WasmStar, WasmVec3f32, WasmVec3f64, WasmQuatf64} from "../pkg/star_catalog_wasm.js";
@@ -184,8 +182,10 @@ class StarCatalog {
     //mp sky_view_vector_of_fxy
     /// Map a frame XY into a star unit direction vector
     sky_view_vector_of_fxy(fxy) {
-        const v = this.sky_canvas.vector_of_fxy(fxy);
-        return this.vp.view_to_ecef_q.apply3(v);
+        const v = new WasmVec3f64();
+        this.sky_canvas.set_vector_of_fxy(v, fxy);
+        v.set_apply_q3(this.vp.view_to_ecef_q);
+        return v;
     }
 
     //mp sky_view_brightness_set

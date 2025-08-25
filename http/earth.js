@@ -1,6 +1,7 @@
 import {WasmIcosphere} from "../pkg/star_catalog_wasm.js";
 import {WasmVec3f32, WasmVec3f64, WasmMat4f32, WasmQuatf32} from "../pkg/star_catalog_wasm.js";
-import * as mouse from "./mouse.js";
+import {Mouse} from "./mouse.js";
+import * as html from "./html.js";
 
 //a Webgl_obj
 class webgl_obj {
@@ -66,7 +67,6 @@ class webgl_obj {
 }
 
 //a Earth
-import * as html from "./html.js";
 export class Earth {
     //fp constructor
     constructor(star_catalog, canvas_div_id, width, height, use_webgl, division) {
@@ -93,7 +93,7 @@ export class Earth {
         this.webgl = use_webgl;
         this.ctx = null;
 
-        this.mouse = new mouse.Mouse(this, this.canvas);
+        this.mouse = new Mouse(this, this.canvas);
 
         this.icos = new WasmIcosphere();
         this.icos.subdivide(division);

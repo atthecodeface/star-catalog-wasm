@@ -139,7 +139,7 @@ export class ClockCanvas {
 
     //mp drag_end
     drag_end(e) {
-        console.log(e);
+        this.vp.log_time_date_update();
     }
 
     //mp mouse_click

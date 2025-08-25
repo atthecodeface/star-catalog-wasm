@@ -130,7 +130,8 @@ export class ViewProperties {
         this.vector_x = new WasmVec3f64(1,0,0);
         this.vector_y = new WasmVec3f64(0,1,0);
         this.vector_z = new WasmVec3f64(0,0,1);
-
+        this.max_stars_in_sky = 5000;
+        
         this.lat = 52;
         this.lon = 0;
 
@@ -339,6 +340,21 @@ export class ViewProperties {
         return `?${mode}&${lat_lon}&${day_time}&${compass_elevation}#tab-skyview`;
     }
 
+    //mi time_text
+    time_text(time_of_day) {
+        const hour = Math.floor(time_of_day);
+        const mins = (time_of_day - hour) * 60;
+        const secs = (mins - Math.floor(mins)) * 60;
+        return `${String(hour).padStart(2,'0')}:${String(Math.floor(mins)).padStart(2,'0')}:${String(Math.floor(secs)).padStart(2,'0')}`;
+    }
+
+    //mi date_text
+    date_text(days_since_epoch) {
+        const date = new Date();
+        date.setTime(days_since_epoch*24*60*60*1000);
+        return date.toDateString();
+    }        
+
     //mp update_html_star_info
     update_html_star_info() {
         if (this.selected_star) {
@@ -382,16 +398,11 @@ export class ViewProperties {
         html.if_ele_id("ele", this.observer_elevation, function(e,v) {
             e.innerText = `Elev: ${v.toFixed(1)}`;
         });
-        html.if_ele_id("time", this.time_of_day, function(e,v) {
-            const hour = Math.floor(v);
-            const mins = (v - hour) * 60;
-            const secs = (mins - Math.floor(mins)) * 60;
-            e.innerText = `Time: ${String(hour).padStart(2,'0')}:${String(Math.floor(mins)).padStart(2,'0')}:${String(Math.floor(secs)).padStart(2,'0')}`;
+        html.if_ele_id("time", this.time_text(this.time_of_day), function(e,v) {
+            e.innerText = `UTC Time: ${v}`;
         });
-        html.if_ele_id("date", this.days_since_epoch, function(e,v) {
-            const date = new Date();
-            date.setTime(v*24*60*60*1000);
-            e.innerText = `${date.toDateString()}`;
+        html.if_ele_id("date", this.date_text(this.days_since_epoch), function(e,v) {
+            e.innerText = v;
         });
     }        
 
@@ -432,7 +443,7 @@ export class ViewProperties {
 
     //mp log_time_date_update
     log_time_date_update() {
-        const text = "some time-date text";
+        const text = this.date_text(this.days_since_epoch)+" "+this.time_text(this.time_of_day);
         const href = this.get_href();
         window.log.add_log("info", "view_prop", "update", `Set time + date to <a href='${href}'>${text}</a>`);
     }
@@ -471,7 +482,7 @@ export class ViewProperties {
         const compass = this.observer_compass * this.deg2rad;
 
         this.time_of_day += by_angle * 6 / Math.PI;
-        console.log(this.time_of_day);
+
         if (this.time_of_day < 0) {
             this.time_of_day += 24;
             this.days_since_epoch -= 1;
