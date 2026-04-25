@@ -12,13 +12,14 @@ import init, {
 import { Tabs } from "../javascript/tabbed.js";
 import { Log, Logger, Severity } from "../javascript/log.js";
 
+import { CompassCanvas } from "../javascript/compass.js";
+import { ClockCanvas } from "../javascript/clock.js";
+import { ElevationCanvas } from "../javascript/elevation.js";
+
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
 import { FindCanvas } from "./find_canvas.js";
 import { Earth } from "./earth.js";
-import { CompassCanvas } from "./compass.js";
-import { ClockCanvas } from "./clock.js";
-import { ElevationCanvas } from "./elevation.js";
 import { Styling } from "./styling.js";
 import { ViewProperties } from "./view_properties.js";
 

@@ -1,15 +1,33 @@
-import { Mouse } from "../javascript/mouse.js";
-import { Logger } from "../javascript/log.js";
+import { Mouse, MousePressActions } from "./mouse.js";
+import { Logger } from "./log.js";
 
 //a CompassCanvas
 export class CompassCanvas {
+  star_catalog: any;
+  vp: any;
+  logger: Logger;
+  div: HTMLElement;
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+  ctx: CanvasRenderingContext2D;
+  mouse: Mouse;
+  styling: any;
+
+  last_drag_polar: [number, number] = [0, 0];
+  drag_minutes: boolean = false;
   //fp constructor
-  constructor(star_catalog, canvas_div_id, width, height) {
+  constructor(
+    star_catalog: any,
+    canvas_div_id: string,
+    width: number,
+    height: number,
+  ) {
     this.star_catalog = star_catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "compass");
 
-    this.div = document.getElementById(canvas_div_id);
+    this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
     this.div.appendChild(this.canvas);
 
@@ -18,7 +36,7 @@ export class CompassCanvas {
 
     this.canvas.width = this.width;
     this.canvas.height = this.height;
-    this.ctx = this.canvas.getContext("2d");
+    this.ctx = this.canvas.getContext("2d")!;
 
     this.mouse = new Mouse(this, this.canvas);
 
@@ -119,29 +137,29 @@ export class CompassCanvas {
   //mi drag_polar
   //
   // This is +-PI at X=-1, Y=0; 0 at X=1, Y=0
-  drag_polar(xy) {
+  drag_polar(xy: [number, number]): [number, number] {
     const dy = xy[1] - this.height / 2;
     const dx = xy[0] - this.width / 2;
     return [Math.sqrt(dx * dx + dy * dy), Math.atan2(dy, dx)];
   }
 
-  // drag_start(_start_xy, xy) {}
-  // drag_to(_start_xy, _old_xy, new_xy) {}
-  // drag_end(_start_xy, _xy) {}
+  user_press(_xy: [number, number], _actions: MousePressActions): void {}
+  user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press_cancel(_start_xy: [number, number]): void {}
+  user_release(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_zoom(_cxy: [number, number], _factor: number): void {}
+  user_pan(_xy: [number, number], _dxy: [number, number]): void {}
+  user_rotate(_xy: [number, number], _angle: number): void {}
 
-  user_press(_xy, _actions) {}
-  user_press_move(_start_xy, _xy) {}
-  user_press_cancel(_start_xy) {}
-  user_release(_start_xy, xy) {}
-  user_zoom(cxy, factor) {}
-  user_pan(_xy, dxy) {}
-  user_rotate(_xy, _angle) {}
-
-  drag_start(_start_xy, xy) {
+  drag_start(_start_xy: [number, number], xy: [number, number]): void {
     this.last_drag_polar = this.drag_polar(xy);
   }
 
-  drag_to(_start_xy, _old_xy, new_xy) {
+  drag_to(
+    _start_xy: [number, number],
+    _old_xy: [number, number],
+    new_xy: [number, number],
+  ): void {
     const d_ra = this.drag_polar(new_xy);
 
     let da = d_ra[1] - this.last_drag_polar[1];
@@ -156,7 +174,7 @@ export class CompassCanvas {
     this.vp.view_observer_adjust(da, 0.0);
   }
 
-  drag_end(_start_xy, _xy) {
+  drag_end(_start_xy: [number, number], _xy: [number, number]): void {
     this.vp.log_compass_elevation_update();
   }
 }

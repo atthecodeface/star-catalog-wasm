@@ -53,5 +53,8 @@
     "typescript/storage.ts",
 
     "typescript/draw.ts",
+    "typescript/clock.ts",
+    "typescript/compass.ts",
+    "typescript/elevation.ts",
   ],
 }

@@ -1,14 +1,37 @@
-import { Draw } from "../javascript/draw.js";
-import { Mouse } from "../javascript/mouse.js";
+import { Draw } from "./draw.js";
+import { Mouse, MousePressActions } from "./mouse.js";
+import { Logger } from "./log.js";
 
 //a ElevationCanvas
 export class ElevationCanvas {
+  star_catalog: any;
+  vp: any;
+  logger: Logger;
+  div: HTMLElement;
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+  ctx: CanvasRenderingContext2D;
+  mouse: Mouse;
+  styling: any;
+
+  last_drag_polar: [number, number] = [0, 0];
+  drag_minutes: boolean = false;
+  background: Draw;
+  arrow: Draw;
+
   //fp constructor
-  constructor(star_catalog, canvas_div_id, width, height) {
+  constructor(
+    star_catalog: any,
+    canvas_div_id: string,
+    width: number,
+    height: number,
+  ) {
     this.star_catalog = star_catalog;
     this.vp = this.star_catalog.vp;
+    this.logger = new Logger(star_catalog.log, "compass");
 
-    this.div = document.getElementById(canvas_div_id);
+    this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
     this.div.appendChild(this.canvas);
 
@@ -17,7 +40,7 @@ export class ElevationCanvas {
 
     this.canvas.width = this.width;
     this.canvas.height = this.height;
-    this.ctx = this.canvas.getContext("2d");
+    this.ctx = this.canvas.getContext("2d")!;
 
     this.mouse = new Mouse(this, this.canvas);
 
@@ -40,6 +63,7 @@ export class ElevationCanvas {
     this.background = new Draw(bg_contents);
 
     this.arrow = Draw.arrow(0.9 * radius, 4);
+    this.logger.info(`Created elevation canvas`);
 
     this.redraw();
   }
@@ -52,19 +76,18 @@ export class ElevationCanvas {
 
     const cx = 0;
     const cy = this.height / 2;
-    const radius = this.width * 0.95;
-
-    const d2r = Math.PI / 180;
+    // const radius = this.width * 0.95;
+    // const d2r = Math.PI / 180;
 
     ctx.fillStyle = this.styling.canvas;
     ctx.fillRect(0, 0, this.width, this.height);
 
     ctx.strokeStyle = this.styling.scale;
-    this.background.draw(ctx);
+    this.background.draw(ctx, (x) => x);
 
     ctx.strokeStyle = this.styling.marker;
     Draw.set_transform(ctx, [cx, cy], null, this.vp.observer_elevation);
-    this.arrow.draw(ctx);
+    this.arrow.draw(ctx, (x) => x);
 
     ctx.restore();
     return;
@@ -77,30 +100,27 @@ export class ElevationCanvas {
     // this.styling = this.star_catalog.styling.map;
   }
 
-  // drag_start(_start_xy, xy) {}
-  // drag_to(_start_xy, _old_xy, new_xy) {}
-  // drag_end(_start_xy, _xy) {}
+  user_press(_xy: [number, number], _actions: MousePressActions): void {}
+  user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press_cancel(_start_xy: [number, number]): void {}
+  user_release(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_zoom(_cxy: [number, number], _factor: number): void {}
+  user_pan(_xy: [number, number], _dxy: [number, number]): void {}
+  user_rotate(_xy: [number, number], _angle: number): void {}
 
-  user_press(_xy, _actions) {}
-  user_press_move(_start_xy, _xy) {}
-  user_press_cancel(_start_xy) {}
-  user_release(_start_xy, xy) {}
-  user_zoom(cxy, factor) {}
-  user_pan(_xy, dxy) {}
-  user_rotate(_xy, _angle) {}
+  drag_start(_start_xy: [number, number], _xy: [number, number]): void {}
 
-  drag_start(_start_xy, xy) {
-    this.drag_xy = xy;
-  }
-
-  drag_to(_start_xy, _old_xy, new_xy) {
-    let dy = (new_xy[1] - this.drag_xy[1]) / this.width;
-    this.drag_xy = new_xy;
+  drag_to(
+    _start_xy: [number, number],
+    old_xy: [number, number],
+    new_xy: [number, number],
+  ): void {
+    let dy = (new_xy[1] - old_xy[1]) / this.width;
 
     this.vp.view_observer_adjust(0.0, (dy * Math.PI) / 2);
   }
 
-  drag_end(_start_xy, _xy) {
+  drag_end(_start_xy: [number, number], _xy: [number, number]): void {
     this.vp.log_compass_elevation_update();
   }
 }

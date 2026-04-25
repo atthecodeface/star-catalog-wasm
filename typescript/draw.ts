@@ -40,7 +40,7 @@ export class Draw {
     this.contents = contents;
   }
 
-  static arrow(length: number, head: number) {
+  static arrow(length: number, head: number = 0) {
     const contents = [
       ["w", 2],
       ["b"],
@@ -56,13 +56,13 @@ export class Draw {
 
   static set_transform(
     ctx: CanvasRenderingContext2D,
-    cxy: [number, number],
-    scale: number,
-    angle: number,
+    cxy: [number, number] | null,
+    scale: number | null,
+    angle: number | null,
   ) {
     const d2r = Math.PI / 180;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (cxy) {
+    if (cxy !== null) {
       ctx.transform(1, 0, 0, 1, cxy[0], cxy[1]);
     }
     if (scale !== null) {
