@@ -2,6 +2,7 @@
 <html lang="en-US">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Star Catalog</title>
   </head>
   <body class="dn">
@@ -56,7 +57,7 @@
       if (u > vn) { // u + v > 1 ==> u > vn
               weights = vec4(0.0, un, u-vn, vn);
                }
-      float phi = 1.618033988749895;               
+      float phi = 1.618033988749895;
       vec3 w = vec3( -1.0,  phi,  0.0); // 0
       vec3 x = vec3(  1.0,  phi,  0.0); // 1
       vec3 y = vec3(  phi,  0.0,  1.0); // 9
@@ -191,7 +192,7 @@
             magnitude, using
             a <a href="https://en.wikipedia.org/wiki/Map_projection#Normal_cylindrical">equirectangular
             cylindrical projection</a>.
-            
+
             The rectangular <i>sky view windows</i> is shown on the
             sky map; this usually does not appear as a rectangle
             (unless the field of view is small), but distorted. The
@@ -199,7 +200,7 @@
             window), and the bottom edge of the window is red (etc).
 
             Clicking on the map will centre the sky view window on the that location.
-                
+
             The sky map exposes the controls - see below.
           </dd>
           <dt>Location</dt>
@@ -212,7 +213,7 @@
 
           It also permits the setting of the date and time to
           'today'. More control is probably required...
-                                                               
+
           </dd>
           <dt>Log</dt>
           <dd>
@@ -242,7 +243,7 @@
             great circles for every 30 degrees of longitude.
 
             <h2>Azimuthal grid</h2>
-            
+
             An 'azimuthal' grid can be overlayed on top of the sky
             view and map, showing the grid as seen by the <b>observer
               position</b> (given by the location and time).
@@ -264,7 +265,7 @@
       </table>
     </div>
 
-   
+
     <div id="tab-skymap">
       <table>
         <tr>
@@ -274,7 +275,7 @@
         </tr>
       </table>
     </div>
-    
+
     <div id="tab-location">
       <table>
         <tr>
@@ -324,7 +325,7 @@
         <div id='Log'></div>
       </table>
     </div>
-    
+
     <div id="tab-find">
       <table>
         <tr>
@@ -371,7 +372,7 @@
         </tr>
       </table>
     </div>
-    
+
     <div id="controls"/>
     <table>
       <tr>
@@ -400,7 +401,7 @@
                 <input type="range" class="range dn" id="zoom" name="zoom"  style="width:150px;" step="0.5" min="1" max="120" oninput="window.star_catalog.sky_view_zoom_set();"/>
               </td>
             </tr>
-            
+
           </table>
         </td>
         <td>
@@ -421,7 +422,7 @@
               </td>
             </tr>
             <tr>
-              
+
               <td>
                 <input class="dn" type="checkbox" name="show_equatorial" onclick="window.star_catalog.set_styling();"/>
                 <label for="show_equatorial">Equatorial</label>
@@ -444,9 +445,9 @@
           </table>
         </td>
       </tr>
-      
+
     </table>
-      
+
     </div>
     <div id="js_detect_css"/>
   </body>
