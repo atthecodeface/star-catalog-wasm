@@ -1,35 +1,41 @@
 import { WasmIcosphere } from "../pkg/star_catalog_wasm.js";
 import {
+  WasmVec2f32,
   WasmVec3f32,
-  WasmVec3f64,
   WasmMat4f32,
   WasmQuatf32,
 } from "../pkg/star_catalog_wasm.js";
-import { Mouse } from "../javascript/mouse.js";
-import { Logger } from "../javascript/log.js";
+import { Mouse, MousePressActions } from "./mouse.js";
+import { Logger } from "./log.js";
 
-//a Webgl_obj
-class webgl_obj {
-  //fp constructor
-  constructor(max_vertices, max_indices) {
+class WebglObj {
+  positions: Float32Array;
+  tex_coords: Float32Array;
+  indices: Uint16Array;
+  num_vertices: number = 0;
+  num_indices: number = 0;
+  position_buf: WebGLBuffer | null = null;
+  tex_coord_buf: WebGLBuffer | null = null;
+  indices_buf: WebGLBuffer | null = null;
+
+  constructor(max_vertices: number, max_indices: number) {
     this.positions = new Float32Array(3 * max_vertices);
     this.tex_coords = new Float32Array(2 * max_vertices);
     this.indices = new Uint16Array(3 * max_indices);
-    this.num_vertices = 0;
-    this.num_indices = 0;
   }
 
-  add_vertex(position, texcoord) {
+  add_vertex(position: Float32Array, texcoord: Float32Array) {
     this.positions.set(position, this.num_vertices * 3);
     this.tex_coords.set(texcoord, this.num_vertices * 2);
     this.num_vertices += 1;
   }
-  add_face(indices) {
+
+  add_face(indices: number[]) {
     this.indices.set(indices, this.num_indices);
     this.num_indices += indices.length;
   }
 
-  webgl_create(webgl) {
+  webgl_create(webgl: WebGLRenderingContext) {
     this.position_buf = webgl.createBuffer();
     webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
     webgl.bufferData(
@@ -54,7 +60,8 @@ class webgl_obj {
       webgl.STATIC_DRAW,
     );
   }
-  draw(webgl) {
+
+  draw(webgl: WebGLRenderingContext) {
     webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
     webgl.enableVertexAttribArray(0);
     webgl.vertexAttribPointer(0, 3, webgl.FLOAT, false, 0, 0);
@@ -72,20 +79,58 @@ class webgl_obj {
   }
 }
 
-//a Earth
 export class Earth {
-  //fp constructor
-  constructor(star_catalog, canvas_div_id, width, height, use_webgl, division) {
+  star_catalog: any;
+  vp: any;
+  logger: Logger;
+  div: HTMLElement;
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+
+  deg2rad = Math.PI / 180;
+  rad2deg = 180 / Math.PI;
+
+  mouse: Mouse;
+
+  use_webgl: boolean;
+  ctx: CanvasRenderingContext2D | null;
+  icos: WasmIcosphere;
+  view_scale: number;
+  center_on_lat: number;
+  center_on_lon: number;
+  texture_image: HTMLImageElement;
+  texture_loaded: boolean;
+  texture_created: boolean;
+  webgl_icosphere: WebglObj | null = null;
+  webgl_triangle: WebglObj | null = null;
+  webgl: WebGLRenderingContext | null = null;
+  program: WebGLProgram | null = null;
+  u_projection: WebGLUniformLocation | null = null;
+  u_view: WebGLUniformLocation | null = null;
+  u_model: WebGLUniformLocation | null = null;
+  u_color: WebGLUniformLocation | null = null;
+  u_sampler: WebGLUniformLocation | null = null;
+  texture: WebGLTexture | null = null;
+  q: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
+  triangle_q_ll: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
+  styling: any;
+
+  constructor(
+    star_catalog: any,
+    canvas_div_id: string,
+    width: number,
+    height: number,
+    use_webgl: boolean,
+    division: number,
+  ) {
     this.star_catalog = star_catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "earth");
 
-    this.div = document.getElementById(canvas_div_id);
+    this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
     this.div.appendChild(this.canvas);
-
-    this.deg2rad = Math.PI / 180;
-    this.rad2deg = 180 / Math.PI;
 
     const size = Math.min(width, height);
     this.width = size;
@@ -96,7 +141,7 @@ export class Earth {
 
     // console.log("Earh: constructor: created with size ", this.width, this.height, " in ", canvas_div_id);
 
-    this.webgl = use_webgl;
+    this.use_webgl = use_webgl;
     this.ctx = null;
 
     this.mouse = new Mouse(this, this.canvas);
@@ -120,98 +165,28 @@ export class Earth {
     this.texture_image.src = "Blue_Marble_2002_x10.jpg";
 
     this.window_loaded();
-    //this.texture_image.src = "square.jpg";
   }
 
-  //mp center_lat_lon
-  center_lat_lon(lat, lon) {
+  center_lat_lon(lat: number, lon: number) {
     this.center_on_lat = lat;
     this.center_on_lon = -lon;
   }
 
-  /*
-  drag_start(_start_xy: [number, number], xy: [number, number]): void {  }
-  drag_to(
-    _start_xy: [number, number],
-    _old_xy: [number, number],
-    new_xy: [number, number],
-  ): void {
-  }
-  drag_end(_start_xy: [number, number], _xy: [number, number]): void {
-  }
-  user_press(_xy: [number, number], _actions: MousePressActions): void {}
-  user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
-  user_press_cancel(_start_xy: [number, number]): void {}
-  user_release(_start_xy: [number, number], _xy: [number, number]): void {}
-  user_zoom(cxy: [number, number], factor: number): void {    }
-  user_pan(_xy: [number, number], dxy: [number, number]): void {  }
-  user_rotate(_xy: [number, number], _angle: number): void {}
-  */
-  /*
-  drag_start(_start_xy, xy) {}
-  drag_to(_start_xy, _old_xy, new_xy) {}
-  drag_end(_start_xy, _xy) {}
-
-  user_press(_xy, _actions) {}
-  user_press_move(_start_xy, _xy) {}
-  user_press_cancel(_start_xy) {}
-  user_release(_start_xy, xy) {}
-  user_zoom(cxy, factor) {}
-  user_pan(_xy, dxy) {}
-  user_rotate(_xy, _angle) {}
-  */
-  drag_start(_start_xy, xy) {}
-  drag_to(_start_xy, cxy0, cxy1) {
-    const dcx = cxy0[0] - cxy1[0];
-    const dcy = cxy0[1] - cxy1[1];
-    this.center_on_lat -= dcy;
-    this.center_on_lon -= dcx;
-    this.draw();
-  }
-  drag_end(_start_xy, _xy) {}
-
-  user_press(_xy, _actions) {}
-  user_press_move(_start_xy, _xy) {}
-  user_press_cancel(_start_xy) {}
-  // user_release(_start_xy, xy) {}
-  // user_zoom(cxy, factor) {}
-  user_pan(_xy, dxy) {}
-  user_rotate(_xy, _angle) {}
-
-  user_release(start_xy, cxy) {
-    const lat_lon = this.latlon_of_cxy(cxy);
-    if (lat_lon == null) {
-      return;
-    }
-    this.star_catalog.update_latlon(lat_lon[0], lat_lon[1]);
-  }
-
-  user_zoom(cxy, factor) {
-    if (factor < 1.0) {
-      this.center_on_lon -= 1.0 / factor;
-    } else {
-      this.center_on_lon += factor;
-    }
-    this.draw();
-  }
-
-  //mi update
   update() {
     this.draw();
   }
 
   //mi window_loaded
   window_loaded() {
-    const use_webgl = this.webgl;
     this.webgl = null;
-    if (use_webgl) {
+    if (this.use_webgl) {
       this.start_webgl(this.canvas);
     }
 
     // this.canvas.width = this.canvas.offsetWidth;
     // this.canvas.height = this.canvas.offsetHeight;
     if (this.webgl == null) {
-      this.ctx = this.canvas.getContext("2d");
+      this.ctx = this.canvas.getContext("2d")!;
       this.logger.info(
         "webgl",
         `Using 2D context for the earth sphere ${this.ctx}`,
@@ -222,8 +197,8 @@ export class Earth {
   }
 
   //mi start_webgl
-  start_webgl(canvas) {
-    var gl;
+  start_webgl(canvas: HTMLCanvasElement) {
+    var gl: WebGLRenderingContext | null;
     try {
       gl = canvas.getContext("webgl");
     } catch (x) {
@@ -231,6 +206,9 @@ export class Earth {
       return;
     }
     this.webgl = gl;
+    if (this.webgl === null) {
+      return;
+    }
 
     const vertex_e = document.getElementById("vertex_src");
     const fragment_e = document.getElementById("fragment_src");
@@ -241,8 +219,8 @@ export class Earth {
       );
       return;
     }
-    const vertex_src = vertex_e.text;
-    const fragment_src = fragment_e.text;
+    const vertex_src = vertex_e.innerText;
+    const fragment_src = fragment_e.innerText;
 
     this.program = this.webgl.createProgram();
 
@@ -271,7 +249,7 @@ export class Earth {
       return;
     }
 
-    this.webgl_icosphere = new webgl_obj(
+    this.webgl_icosphere = new WebglObj(
       this.icos.num_vertices,
       this.icos.num_faces * 3,
     );
@@ -281,14 +259,23 @@ export class Earth {
     }
     for (var i = 0; i < this.icos.num_faces; i++) {
       const f = this.icos.subdiv_face(i);
-      this.webgl_icosphere.add_face(f);
+      this.webgl_icosphere.add_face([f[0]!, f[1]!, f[2]!]);
     }
     this.webgl_icosphere.webgl_create(this.webgl);
 
-    this.webgl_triangle = new webgl_obj(3, 3);
-    this.webgl_triangle.add_vertex([1.0, 0, 0.05773], [0, 0]);
-    this.webgl_triangle.add_vertex([1.0, -0.05, -0.02887], [0, 0]);
-    this.webgl_triangle.add_vertex([1.0, 0.05, -0.02887], [0, 0]);
+    this.webgl_triangle = new WebglObj(3, 3);
+    this.webgl_triangle.add_vertex(
+      new Float32Array([1.0, 0, 0.05773]),
+      new Float32Array([0, 0]),
+    );
+    this.webgl_triangle.add_vertex(
+      new Float32Array([1.0, -0.05, -0.02887]),
+      new Float32Array([0, 0]),
+    );
+    this.webgl_triangle.add_vertex(
+      new Float32Array([1.0, 0.05, -0.02887]),
+      new Float32Array([0, 0]),
+    );
     this.webgl_triangle.add_face([0, 2, 1]);
     this.webgl_triangle.webgl_create(this.webgl);
 
@@ -301,7 +288,7 @@ export class Earth {
     this.u_color = this.webgl.getUniformLocation(this.program, "color");
     ((this.u_sampler = this.webgl.getUniformLocation(this.program, "uSampler")),
       (this.texture = this.webgl.createTexture()));
-    this.webgl.bindTexture(gl.TEXTURE_2D, this.texture);
+    this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
 
     this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
     this.webgl.texImage2D(
@@ -335,7 +322,10 @@ export class Earth {
     this.logger.info("webgl", `WebGl started successfully`);
   }
 
-  webgl_load_shader(kind, src) {
+  webgl_load_shader(kind: number, src: string) {
+    if (this.webgl === null) {
+      return;
+    }
     const shader = this.webgl.createShader(kind);
     if (shader == null) {
       this.logger.error("webgl", `Failed to create shader`);
@@ -354,6 +344,9 @@ export class Earth {
   }
 
   webgl_draw() {
+    if (this.webgl === null) {
+      return;
+    }
     const matrix = new Float32Array(16);
     const color = new Float32Array(4);
     this.webgl.useProgram(this.program);
@@ -382,24 +375,26 @@ export class Earth {
 
     if (this.u_projection != null) {
       // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
-      const x = WasmMat4f32.from_array([
-        0,
-        this.view_scale,
-        0,
-        0,
-        0,
-        0,
-        this.view_scale,
-        0,
-        -this.view_scale,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-      ]);
+      const x = WasmMat4f32.from_array(
+        new Float32Array([
+          0,
+          this.view_scale,
+          0,
+          0,
+          0,
+          0,
+          this.view_scale,
+          0,
+          -this.view_scale,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+        ]),
+      );
       matrix.set(x.transpose().array, 0);
       this.webgl.uniformMatrix4fv(this.u_projection, false, matrix);
     }
@@ -427,7 +422,7 @@ export class Earth {
       this.webgl.uniformMatrix4fv(this.u_model, false, matrix);
     }
 
-    this.webgl_icosphere.draw(this.webgl);
+    this.webgl_icosphere!.draw(this.webgl);
 
     if (this.u_color != null) {
       color.set([1, 0, 0, 0], 0);
@@ -439,7 +434,7 @@ export class Earth {
       matrix.set(x.transpose().array, 0);
       this.webgl.uniformMatrix4fv(this.u_model, false, matrix);
     }
-    this.webgl_triangle.draw(this.webgl);
+    this.webgl_triangle!.draw(this.webgl);
   }
 
   derive_data() {
@@ -473,7 +468,7 @@ export class Earth {
     }
   }
 
-  latlon_of_cxy(cxy) {
+  latlon_of_cxy(cxy: [number, number]): [number, number] | null {
     this.derive_data();
     const dx = ((cxy[0] / this.width) * 2 - 1.0) / this.view_scale;
     const dy = (1.0 - (cxy[1] / this.height) * 2) / this.view_scale;
@@ -493,19 +488,19 @@ export class Earth {
 
     const world = this.q.conjugate().apply3(v);
     // const world = this.q.apply3(v);
-    const lat = this.rad2deg * Math.asin(world.array[2]);
-    const lon = this.rad2deg * Math.atan2(world.array[1], world.array[0]);
+    const lat = this.rad2deg * Math.asin(world.array[2]!);
+    const lon = this.rad2deg * Math.atan2(world.array[1]!, world.array[0]!);
     return [lat, lon];
   }
 
-  v_of_p(xyz) {
-    xyz = xyz.array;
-    xyz[2] += 4;
+  v_of_p(xyz_vec: WasmVec3f32): [number, number] {
+    let xyz = xyz_vec.array;
+    xyz[2]! += 4;
     // if (xyz[2] < 0.1) {
     // return null;
     // }
-    const x = (xyz[0] / xyz[2] + 0.5) * this.width;
-    const y = (xyz[1] / xyz[2] + 0.5) * this.height;
+    const x = (xyz[0]! / xyz[2]! + 0.5) * this.width;
+    const y = (xyz[1]! / xyz[2]! + 0.5) * this.height;
     return [x, y];
   }
 
@@ -514,7 +509,7 @@ export class Earth {
     if (!this.texture_loaded) {
       return;
     }
-    if (this.webgl) {
+    if (this.webgl !== null) {
       this.webgl_draw();
       return;
     }
@@ -522,14 +517,14 @@ export class Earth {
     const f1 = this.icos.num_faces;
     for (var f = f0; f < f1; f++) {
       const vertices = this.icos.subdiv_face(f);
-      const p_t0 = this.icos.subdiv_vertex(vertices[0]);
-      const p_t1 = this.icos.subdiv_vertex(vertices[1]);
-      const p_t2 = this.icos.subdiv_vertex(vertices[2]);
+      const p_t0 = this.icos.subdiv_vertex(vertices[0]!);
+      const p_t1 = this.icos.subdiv_vertex(vertices[1]!);
+      const p_t2 = this.icos.subdiv_vertex(vertices[2]!);
       const p0 = this.q.apply3(p_t0.position);
       const p1 = this.q.apply3(p_t1.position);
       const p2 = this.q.apply3(p_t2.position);
       const n = p1.sub(p0).cross_product(p2.sub(p0));
-      if (n.array[2] < 0) {
+      if (n.array[2]! < 0) {
         continue;
       }
       const v0 = this.v_of_p(p0);
@@ -541,7 +536,7 @@ export class Earth {
       const t0 = p_t0.texture;
       const t1 = p_t1.texture;
       const t2 = p_t2.texture;
-      this.draw_triangle(v0, t0.array, v1, t1.array, v2, t2.array);
+      this.draw_triangle(v0, t0, v1, t1, v2, t2);
     }
   }
 
@@ -566,8 +561,15 @@ export class Earth {
   //
   // Nominal coordinate t2-t0 is texture t2; this maps through
   // M*N to Y to (v2-v0), and hence to v21
-  draw_triangle(v0, t0, v1, t1, v2, t2) {
-    const ctx = this.ctx;
+  draw_triangle(
+    v0: [number, number],
+    t0: WasmVec2f32,
+    v1: [number, number],
+    t1: WasmVec2f32,
+    v2: [number, number],
+    t2: WasmVec2f32,
+  ): void {
+    const ctx = this.ctx!;
     const tw = this.texture_image.width;
     const th = this.texture_image.height;
     ctx.save();
@@ -586,19 +588,28 @@ export class Earth {
     // and (t2-t0) to (v2-v0), and then adds v0
     //
     // Then draw the texture at -t0
-    const dt10 = [(t1[0] - t0[0]) * tw, (t1[1] - t0[1]) * th];
-    const dt20 = [(t2[0] - t0[0]) * tw, (t2[1] - t0[1]) * th];
-    const dv10 = [v1[0] - v0[0], v1[1] - v0[1]];
-    const dv20 = [v2[0] - v0[0], v2[1] - v0[1]];
+    const tex0 = t0.array;
+    const tex1 = t1.array;
+    const tex2 = t2.array;
+    const dt10: [number, number] = [
+      (tex1[0]! - tex0[0]!) * tw,
+      (tex1[1]! - tex0[1]!) * th,
+    ];
+    const dt20: [number, number] = [
+      (tex2[0]! - tex0[0]!) * tw,
+      (tex2[1]! - tex0[1]!) * th,
+    ];
+    const dv10: [number, number] = [v1[0] - v0[0], v1[1] - v0[1]];
+    const dv20: [number, number] = [v2[0] - v0[0], v2[1] - v0[1]];
 
     const inv_det = dt10[0] * dt20[1] - dt10[1] * dt20[0];
-    const inv = [
+    const inv: [number, number, number, number] = [
       dt20[1] / inv_det,
       -dt20[0] / inv_det,
       -dt10[1] / inv_det,
       dt10[0] / inv_det,
     ];
-    const mat = [
+    const mat: [number, number, number, number] = [
       dv10[0] * inv[0] + dv20[0] * inv[2],
       dv10[0] * inv[1] + dv20[0] * inv[3],
       dv10[1] * inv[0] + dv20[1] * inv[2],
@@ -608,7 +619,45 @@ export class Earth {
     // mat[2] * dt20[0] + mat[3] * dt20[1],
     // );
     ctx.setTransform(mat[0], mat[2], mat[1], mat[3], v0[0], v0[1]);
-    ctx.drawImage(this.texture_image, -t0[0] * tw, -t0[1] * th);
+    ctx.drawImage(this.texture_image, -tex0[0]! * tw, -tex0[1]! * th);
     ctx.restore();
+  }
+
+  drag_start(_start_xy: [number, number], _xy: [number, number]): void {}
+
+  drag_end(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press(_xy: [number, number], _actions: MousePressActions): void {}
+  user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press_cancel(_start_xy: [number, number]): void {}
+  user_pan(_xy: [number, number], _dxy: [number, number]): void {}
+  user_rotate(_xy: [number, number], _angle: number): void {}
+
+  drag_to(
+    _start_xy: [number, number],
+    old_xy: [number, number],
+    new_xy: [number, number],
+  ): void {
+    const dcx = old_xy[0] - new_xy[0];
+    const dcy = old_xy[1] - new_xy[1];
+    this.center_on_lat -= dcy;
+    this.center_on_lon -= dcx;
+    this.draw();
+  }
+
+  user_release(_start_xy: [number, number], cxy: [number, number]): void {
+    const lat_lon = this.latlon_of_cxy(cxy);
+    if (lat_lon == null) {
+      return;
+    }
+    this.star_catalog.update_latlon(lat_lon[0], lat_lon[1]);
+  }
+
+  user_zoom(_cxy: [number, number], factor: number): void {
+    if (factor < 1.0) {
+      this.center_on_lon -= 1.0 / factor;
+    } else {
+      this.center_on_lon += factor;
+    }
+    this.draw();
   }
 }
