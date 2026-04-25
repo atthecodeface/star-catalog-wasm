@@ -7,7 +7,7 @@ import {
   WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
-import { Names } from "./hipparcos.js";
+import { Names } from "../javascript/hipparcos.js";
 import { Logger } from "../javascript/log.js";
 
 //a Useful functions

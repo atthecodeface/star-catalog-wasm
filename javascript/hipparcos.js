@@ -59,7 +59,7 @@ export const Names = {
     "65474": "Spica",
     "65477": "Alcor",
     "67301": "Alkaid",
-    "68702": "Agena",
+    //"68702": "Agena",
     "68702": "Hadar",
     "68756": "Thuban",
     "69673": "Arcturus",
@@ -94,5 +94,5 @@ export const Names = {
     "112247": "Babcock's star",
     "113368": "Fomalhaut",
     "113881": "Scheat",
-    "113963": "Markab"
-}
+    "113963": "Markab",
+};

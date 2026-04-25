@@ -5,7 +5,7 @@ import {
 } from "../pkg/star_catalog_wasm.js";
 import { Draw } from "../javascript/draw.js";
 import { Mouse } from "../javascript/mouse.js";
-import { ZoomedWindow } from "./zoomed_window.js";
+import { ZoomedWindow } from "../javascript/zoomed_window.js";
 import { Logger } from "../javascript/log.js";
 
 //a FindOrientation
