@@ -1,4 +1,4 @@
-import { Mouse } from "./mouse.js";
+import { Mouse } from "../javascript/mouse.js";
 import { Logger } from "../javascript/log.js";
 
 //a CompassCanvas
@@ -116,13 +116,6 @@ export class CompassCanvas {
     // this.styling = this.star_catalog.styling.map;
   }
 
-  //mp zoom
-  zoom(z) {
-    // this.direction = z * 180.0;
-    this.redraw();
-    console.log(this);
-  }
-
   //mi drag_polar
   //
   // This is +-PI at X=-1, Y=0; 0 at X=1, Y=0
@@ -132,14 +125,24 @@ export class CompassCanvas {
     return [Math.sqrt(dx * dx + dy * dy), Math.atan2(dy, dx)];
   }
 
-  //mp drag_start
-  drag_start(e) {
-    this.last_drag_polar = this.drag_polar(e);
+  // drag_start(_start_xy, xy) {}
+  // drag_to(_start_xy, _old_xy, new_xy) {}
+  // drag_end(_start_xy, _xy) {}
+
+  user_press(_xy, _actions) {}
+  user_press_move(_start_xy, _xy) {}
+  user_press_cancel(_start_xy) {}
+  user_release(_start_xy, xy) {}
+  user_zoom(cxy, factor) {}
+  user_pan(_xy, dxy) {}
+  user_rotate(_xy, _angle) {}
+
+  drag_start(_start_xy, xy) {
+    this.last_drag_polar = this.drag_polar(xy);
   }
 
-  //mp drag_to
-  drag_to(e) {
-    const d_ra = this.drag_polar(e);
+  drag_to(_start_xy, _old_xy, new_xy) {
+    const d_ra = this.drag_polar(new_xy);
 
     let da = d_ra[1] - this.last_drag_polar[1];
     if (da < -Math.PI) {
@@ -153,11 +156,7 @@ export class CompassCanvas {
     this.vp.view_observer_adjust(da, 0.0);
   }
 
-  //mp drag_end
-  drag_end(e) {
+  drag_end(_start_xy, _xy) {
     this.vp.log_compass_elevation_update();
   }
-
-  //mp mouse_click
-  mouse_click(e) {}
 }
