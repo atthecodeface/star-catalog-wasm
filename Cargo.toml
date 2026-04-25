@@ -17,10 +17,11 @@ version = ">=0.2.92"
 version = ">=0.3.64"
 
 [dependencies.geo-nd]
-version = "0.6"
+version = "0.6.2"
+path = "../geo-nd-rs"
 
 [dependencies.geo-nd-wasm]
-version = "0.6"
+version = "0.6.2"
 path = "../geo-nd-wasm"
 
 [dependencies.star-catalog]

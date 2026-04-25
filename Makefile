@@ -18,19 +18,22 @@ star_catalog.zip:
 	zip star_catalog.zip http/Blue_Marble_2002_x10.jpg
 	zip star_catalog.zip http/main.css
 	zip star_catalog.zip http/favicon.ico
+	zip star_catalog.zip http/draw.js
+	zip star_catalog.zip http/cache.js
 	zip star_catalog.zip http/hipparcos.js
 	zip star_catalog.zip http/html.js
-	zip star_catalog.zip http/draw.js
 	zip star_catalog.zip http/mouse.js
 	zip star_catalog.zip http/tabbed.js
 	zip star_catalog.zip http/utils.js
+	zip star_catalog.zip http/zoomed_window.js
 
 	zip star_catalog.zip http/view_properties.js
 
 	zip star_catalog.zip http/clock.js
 	zip star_catalog.zip http/compass.js
-	zip star_catalog.zip http/elevation.js
 	zip star_catalog.zip http/earth.js
+	zip star_catalog.zip http/elevation.js
+	zip star_catalog.zip http/find_canvas.js
 	zip star_catalog.zip http/map_canvas.js
 	zip star_catalog.zip http/sky_canvas.js
 	zip star_catalog.zip http/log.js

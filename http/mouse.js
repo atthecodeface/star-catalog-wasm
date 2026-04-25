@@ -57,7 +57,7 @@ export class Mouse {
     //mp wheel
     wheel(e) {
         if (e.deltaY!=0) {
-            this.client.zoom(Math.pow(this.zoom_ratio, e.deltaY));
+            this.client.zoom(Math.pow(this.zoom_ratio, e.deltaY), this.cxy(e));
         }
         e.preventDefault();
     }
@@ -75,7 +75,7 @@ export class Mouse {
 
     //mi touch_start
     touch_start(e) {
-//         console.log(e.touches);
+         console.log(e);
         if (e.touches.length == 1) {
             this.touch_first = [e.touches[0].identifier, this.cxy(e.touches[0])];
             this.touch_second = null;
@@ -106,9 +106,11 @@ export class Mouse {
             const dy_new = tf_new_cxy[1] - ts_new_cxy[1];
             const d_orig = Math.sqrt(dx_orig*dx_orig + dy_orig*dy_orig);
             const d_new = Math.sqrt(dx_new*dx_new + dy_new*dy_new);
+            const dcxy = [(tf_new_cxy[0] + ts_new_cxy[0])/2,
+                          (tf_new_cxy[1] + ts_new_cxy[1])/2];
             if (d_orig != d_new) {
                 if (d_new > 0 && d_orig>0) {
-                    this.client.zoom(d_orig / d_new);
+                    this.client.zoom(d_orig / d_new, dcxy );
                 }
             }
             const a_orig = Math.atan2(dy_orig, dx_orig);

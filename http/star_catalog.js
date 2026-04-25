@@ -7,8 +7,9 @@ import {tabbed_configure} from "./tabbed.js";
 import {Log} from "./log.js";
 import * as html from "./html.js";
 import * as utils from "./utils.js";
-import * as map from "./map_canvas.js";
-import * as sky from "./sky_canvas.js";
+import {MapCanvas} from "./map_canvas.js";
+import {SkyCanvas} from "./sky_canvas.js";
+import {FindCanvas} from "./find_canvas.js";
 import {Earth} from "./earth.js";
 import {CompassCanvas} from "./compass.js";
 import {ClockCanvas} from "./clock.js";
@@ -58,9 +59,10 @@ class StarCatalog {
 
         this.vp = new ViewProperties(this, params);
 
-        this.sky_canvas = new sky.SkyCanvas(this, this.catalog, "SkyCanvas",800,400);
-        this.map_canvas = new map.MapCanvas(this, this.catalog, "MapCanvas",800,300);
+        this.sky_canvas = new SkyCanvas(this, this.catalog, "SkyCanvas",800,400);
+        this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas",800,300);
         this.earth_canvas = new Earth(this, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
+        this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas", 600, 400);
         this.control_compass = new CompassCanvas(this, "ControlCompass", 200, 100 );
         this.control_clock = new ClockCanvas(this, "ControlClock", 100, 100 );
         this.control_elevation = new ElevationCanvas(this, "ControlElevation", 50, 100 );
@@ -68,7 +70,7 @@ class StarCatalog {
         this.selected_css_changed();        
         this.set_view_needs_update();
     }
-
+    
     //mp set_styling
     /// Invoked by events on the page to change the contents; such as selection of equatorial grid 'on'
     set_styling() {
@@ -98,6 +100,7 @@ class StarCatalog {
         this.control_clock.update();
         this.control_elevation.update();
         this.earth_canvas.update();
+        this.find_canvas.update();
 
         this.view_needs_update = false;
     }
@@ -173,10 +176,24 @@ class StarCatalog {
         this.set_view_needs_update();
     }
 
+    //mp center_lat_lon
+    /// Center the earth view on a specific lat lon
+    center_lat_lon(lat, lon) {
+        this.earth_canvas.center_lat_lon(lat, lon);
+        this.set_view_needs_update();
+    }
+
     //mp center_sky_view
     /// Center the sky view on a specific right ascension / declination
     center_sky_view(ra_de) {
         this.sky_canvas.center(ra_de);
+    }
+
+    //mp sky_view_set_orientation
+    /// Set the whole quaternion
+    sky_view_set_orientation(q) {
+        this.vp.view_to_ecef_q = q;
+        this.set_view_needs_update();
     }
 
     //mp sky_view_vector_of_fxy
@@ -199,6 +216,7 @@ class StarCatalog {
     sky_view_zoom_set() {
         this.sky_canvas.zoom_set();
     }
+
     //mp sky_view_zoom_by
     /// Set the zoom of the sky view window
     sky_view_zoom_by(factor) {

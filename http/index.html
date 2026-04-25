@@ -156,6 +156,7 @@
         <li><a href="#tab-skymap">Sky Map</a></li>
         <li><a href="#tab-location">Location/Date/Time</a></li>
         <li><a href="#tab-log">Log</a></li>
+        <li><a href="#tab-find">Find</a></li>
         <li>
             <input class="dn" type="checkbox" id="day_night_checkbox" name="day_night" onclick="window.star_catalog.selected_css_changed();"/>
             <label id="day_night_label" onclick="window.star_catalog.selected_css_toggle();" for="day_night">Day mode</label>
@@ -321,6 +322,53 @@
     <div id="tab-log">
       <table>
         <div id='Log'></div>
+      </table>
+    </div>
+    
+    <div id="tab-find">
+      <table>
+        <tr>
+          <td>
+          <table>
+            <tr>
+              <td>
+            <label for="find_get_image">Select a star-field image
+              <input id="find_get_image" name="find_get_image" type="file" accept="image/x-png,image/jpeg,image/gif" capture="environment"/></label>
+          </td>
+              <td>
+            <button id="find_best_matches" name="find_best_matches" type="button">Find best star matches</button>
+          </td>
+              <td>
+            <button id="find_clear_selection" name="find_clear_selection" type="button">Clear selection</button>
+          </td>
+            </tr>
+            <tr>
+              <td>
+                <label for="find_max_magnitude" class="dn" id="find_mm">Max magnitude</label><br>
+                <input type="range" class="range dn" id="find_max_magnitude"style="width:150px;" name="find_max_magnitude" step="0.2" min="1" max="5"/>
+              </td>
+              <td>
+                <label for="find_max_angle" class="dn" id="find_ma">Max angle</label><br>
+                <input type="range" class="range dn" id="find_max_angle"style="width:150px;" name="find_max_angle" step="0.1" min="0.1" max="2.0"/>
+              </td>
+              <td>
+                <label id="find_fh" for="find_fovh" class="dn">35mm eq</label><br>
+                <input type="range" class="range dn" id="find_fovh" name="find_fovh" style="width:150px;" step="1" min="14" max="150"/>
+              </td>
+            </tr>
+          </table>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <div id='FindCanvas'></div>
+          </td>
+        </tr>
+        <tr>
+          <td id='find_results'>
+            There are no results yet
+          </td>
+        </tr>
       </table>
     </div>
     

@@ -116,7 +116,13 @@ export class Earth {
         this.window_loaded();
         //this.texture_image.src = "square.jpg";
     }
-    
+
+    //mp center_lat_lon
+    center_lat_lon(lat, lon) {
+        this.center_on_lat = lat;
+        this.center_on_lon = -lon;
+    }
+
     //mi drag_start
     drag_start(cxy) {
     }

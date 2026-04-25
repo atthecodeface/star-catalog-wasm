@@ -158,7 +158,7 @@ export class ViewProperties {
         let day = parseInt(params.get("day"));
         let time_of_day = parseFloat(params.get("time"));
         if (day!=null && !isNaN(day)) {
-            this.day = day;
+            this.days_since_epoch = day;
         }
         if (time_of_day!=null && !isNaN(time_of_day)) {
             this.time_of_day = time_of_day;
@@ -207,6 +207,7 @@ export class ViewProperties {
             this.lon = lon;
         }
         this.update_latlon(this.lat, this.lon);
+        this.star_catalog.center_lat_lon(this.lat, this.lon);
     }
 
     //mp set_selected_star

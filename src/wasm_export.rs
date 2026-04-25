@@ -1,4 +1,10 @@
 //a Imports
+// test stars
+//
+// alkaid 67301 : opposite is 4.36 degrees
+// mizar 65378 : opposite is 10.46 degrees
+// alioth 62956 : opposite is 6.67 degrees
+
 use js_sys::Array;
 use wasm_bindgen::prelude::*;
 
@@ -140,10 +146,10 @@ impl WasmCatalog {
         a2: f64,
         max_triangles: usize,
     ) -> Array {
-        let f_orig = self
-            .cat
-            .borrow_mut()
-            .add_filter(StarFilter::select(0, max_triangles));
+        //        let f_orig = self
+        //            .cat
+        //            .borrow_mut()
+        //            .add_filter(StarFilter::select(0, max_triangles));
 
         let result = js_sys::Array::new();
         let angles_to_find = [a0, a1, a2];
@@ -158,7 +164,7 @@ impl WasmCatalog {
             result.push(&i2.as_usize().into());
         }
 
-        self.cat.borrow_mut().set_filter(f_orig);
+        //self.cat.borrow_mut().set_filter(f_orig);
         result
     }
 
