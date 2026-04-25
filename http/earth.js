@@ -5,7 +5,7 @@ import {
   WasmMat4f32,
   WasmQuatf32,
 } from "../pkg/star_catalog_wasm.js";
-import { Mouse } from "./mouse.js";
+import { Mouse } from "../javascript/mouse.js";
 import { Logger } from "../javascript/log.js";
 
 //a Webgl_obj
@@ -129,24 +129,56 @@ export class Earth {
     this.center_on_lon = -lon;
   }
 
-  //mi drag_start
-  drag_start(cxy) {}
+  /*
+  drag_start(_start_xy: [number, number], xy: [number, number]): void {  }
+  drag_to(
+    _start_xy: [number, number],
+    _old_xy: [number, number],
+    new_xy: [number, number],
+  ): void {
+  }
+  drag_end(_start_xy: [number, number], _xy: [number, number]): void {
+  }
+  user_press(_xy: [number, number], _actions: MousePressActions): void {}
+  user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press_cancel(_start_xy: [number, number]): void {}
+  user_release(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_zoom(cxy: [number, number], factor: number): void {    }
+  user_pan(_xy: [number, number], dxy: [number, number]): void {  }
+  user_rotate(_xy: [number, number], _angle: number): void {}
+  */
+  /*
+  drag_start(_start_xy, xy) {}
+  drag_to(_start_xy, _old_xy, new_xy) {}
+  drag_end(_start_xy, _xy) {}
 
-  //mi drag_to
-  // Rotate the view (dont move the star catalog lat lon)
-  drag_to(cxy0, cxy1) {
+  user_press(_xy, _actions) {}
+  user_press_move(_start_xy, _xy) {}
+  user_press_cancel(_start_xy) {}
+  user_release(_start_xy, xy) {}
+  user_zoom(cxy, factor) {}
+  user_pan(_xy, dxy) {}
+  user_rotate(_xy, _angle) {}
+  */
+  drag_start(_start_xy, xy) {}
+  drag_to(_start_xy, cxy0, cxy1) {
     const dcx = cxy0[0] - cxy1[0];
     const dcy = cxy0[1] - cxy1[1];
     this.center_on_lat -= dcy;
     this.center_on_lon -= dcx;
     this.draw();
   }
+  drag_end(_start_xy, _xy) {}
 
-  //mi drag_end
-  drag_end(cxy) {}
+  user_press(_xy, _actions) {}
+  user_press_move(_start_xy, _xy) {}
+  user_press_cancel(_start_xy) {}
+  // user_release(_start_xy, xy) {}
+  // user_zoom(cxy, factor) {}
+  user_pan(_xy, dxy) {}
+  user_rotate(_xy, _angle) {}
 
-  //mi mouse_click
-  mouse_click(cxy) {
+  user_release(start_xy, cxy) {
     const lat_lon = this.latlon_of_cxy(cxy);
     if (lat_lon == null) {
       return;
@@ -154,8 +186,7 @@ export class Earth {
     this.star_catalog.update_latlon(lat_lon[0], lat_lon[1]);
   }
 
-  //mi zoom
-  zoom(factor) {
+  user_zoom(cxy, factor) {
     if (factor < 1.0) {
       this.center_on_lon -= 1.0 / factor;
     } else {
@@ -163,9 +194,6 @@ export class Earth {
     }
     this.draw();
   }
-
-  //mi rotate
-  rotate(angle) {}
 
   //mi update
   update() {
