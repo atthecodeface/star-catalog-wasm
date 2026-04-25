@@ -5,7 +5,7 @@ import {
 } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import { Line } from "./draw.js";
-import { Mouse } from "./mouse.js";
+import { Mouse } from "../javascript/mouse.js";
 import { Cache } from "./cache.js";
 import { Logger } from "../javascript/log.js";
 
@@ -190,76 +190,6 @@ export class SkyCanvas {
     this.vp.set_selected_star(s);
 
     this.redraw_canvas();
-  }
-
-  //mi drag_start
-  drag_start(cxy) {
-    const cx = cxy[0] - this.width / 2;
-    const cy = cxy[1] - this.height / 2;
-    const d2 = cx * cx + cy * cy;
-    if (d2 > (this.width * this.height) / 8) {
-      this.drag_rotate = "x";
-    } else {
-      this.drag_rotate = "yz";
-    }
-  }
-
-  //mi drag_to
-  drag_to(cxy0, cxy1) {
-    if (this.drag_rotate == "x") {
-      const cx0 = cxy0[0] - this.width / 2;
-      const cy0 = cxy0[1] - this.height / 2;
-      const cx1 = cxy1[0] - this.width / 2;
-      const cy1 = cxy1[1] - this.height / 2;
-      const angle = Math.atan2(cy1, cx1) - Math.atan2(cy0, cx0);
-      const q = WasmQuatf64.unit().rotate_x(-angle);
-      this.vp.view_q_post_mul(q);
-    } else {
-      const dcx = (cxy0[0] - cxy1[0]) * this.tan_pixh;
-      const dcy = (cxy0[1] - cxy1[1]) * this.tan_pixv;
-      const qz = WasmQuatf64.unit().rotate_z(-Math.atan(dcx));
-      const qy = WasmQuatf64.unit().rotate_y(Math.atan(dcy));
-      const q = qz.mul(qy);
-      this.vp.view_q_post_mul(q);
-    }
-  }
-
-  //mi drag_end
-  drag_end(cxy) {
-    // console.log("Drag end", cxy);
-  }
-
-  //mi mouse_click
-  mouse_click(cxy) {
-    // Map click location to ECEF direction
-    const v = new WasmVec3f64();
-    this.set_vector_of_cxy(v, cxy);
-    v.set_apply_q3(this.vp.view_to_ecef_q);
-    const qv = v.array;
-
-    const ra = Math.atan2(qv[1], qv[0]);
-    const de = Math.asin(qv[2]);
-    this.catalog.clear_filter();
-    this.catalog.filter_max_magnitude(this.brightness);
-    this.select(this.catalog.closest_to_ra_de(ra, de));
-  }
-
-  //mi zoom
-  zoom(factor) {
-    this.fovh = 2 * Math.atan(factor * Math.tan(this.fovh / 2));
-    if (this.fovh > (Math.PI * 3) / 4) {
-      this.fovh = (Math.PI * 3) / 4;
-    } else if (this.fovh < 0.01) {
-      this.fovh = 0.01;
-    }
-    this.star_catalog.set_view_needs_update();
-  }
-
-  //mi rotate
-  rotate(angle) {
-    const v = new WasmVec3f64(1, 0, 0);
-    const q = WasmQuatf64.of_axis_angle(v, -angle);
-    this.vp.view_q_post_mul(q);
   }
 
   //mi rotate_axis
@@ -470,5 +400,77 @@ export class SkyCanvas {
     }
   }
 
-  //zz All done
+  // drag_start(_start_xy, xy) {}
+  // drag_to(_start_xy, _old_xy, new_xy) {}
+  drag_end(_start_xy, _xy) {}
+
+  user_press(_xy, _actions) {}
+  user_press_move(_start_xy, _xy) {}
+  user_press_cancel(_start_xy) {}
+  // user_release(_start_xy, xy) {}
+  // user_zoom(cxy, factor) {}
+  // user_pan(_xy, dxy) {}
+  // user_rotate(_xy, _angle) {}
+
+  drag_start(_start_xy, xy) {
+    const cx = xy[0] - this.width / 2;
+    const cy = xy[1] - this.height / 2;
+    const d2 = cx * cx + cy * cy;
+    if (d2 > (this.width * this.height) / 8) {
+      this.drag_rotate = "x";
+    } else {
+      this.drag_rotate = "yz";
+    }
+  }
+
+  drag_to(_start_xy, cxy0, cxy1) {
+    if (this.drag_rotate == "x") {
+      const cx0 = cxy0[0] - this.width / 2;
+      const cy0 = cxy0[1] - this.height / 2;
+      const cx1 = cxy1[0] - this.width / 2;
+      const cy1 = cxy1[1] - this.height / 2;
+      const angle = Math.atan2(cy1, cx1) - Math.atan2(cy0, cx0);
+      const q = WasmQuatf64.unit().rotate_x(-angle);
+      this.vp.view_q_post_mul(q);
+    } else {
+      const dcx = (cxy0[0] - cxy1[0]) * this.tan_pixh;
+      const dcy = (cxy0[1] - cxy1[1]) * this.tan_pixv;
+      const qz = WasmQuatf64.unit().rotate_z(-Math.atan(dcx));
+      const qy = WasmQuatf64.unit().rotate_y(Math.atan(dcy));
+      const q = qz.mul(qy);
+      this.vp.view_q_post_mul(q);
+    }
+  }
+
+  user_release(_start_xy, cxy) {
+    // Map click location to ECEF direction
+    const v = new WasmVec3f64();
+    this.set_vector_of_cxy(v, cxy);
+    v.set_apply_q3(this.vp.view_to_ecef_q);
+    const qv = v.array;
+
+    const ra = Math.atan2(qv[1], qv[0]);
+    const de = Math.asin(qv[2]);
+    this.catalog.clear_filter();
+    this.catalog.filter_max_magnitude(this.brightness);
+    this.select(this.catalog.closest_to_ra_de(ra, de));
+  }
+
+  user_pan(_xy, dxy) {}
+
+  user_zoom(_cxy, factor) {
+    this.fovh = 2 * Math.atan(factor * Math.tan(this.fovh / 2));
+    if (this.fovh > (Math.PI * 3) / 4) {
+      this.fovh = (Math.PI * 3) / 4;
+    } else if (this.fovh < 0.01) {
+      this.fovh = 0.01;
+    }
+    this.star_catalog.set_view_needs_update();
+  }
+
+  user_rotate(_xy, angle) {
+    const v = new WasmVec3f64(1, 0, 0);
+    const q = WasmQuatf64.of_axis_angle(v, -angle);
+    this.vp.view_q_post_mul(q);
+  }
 }

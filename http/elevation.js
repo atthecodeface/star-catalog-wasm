@@ -5,7 +5,7 @@ import {
 } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import { Draw } from "./draw.js";
-import { Mouse } from "./mouse.js";
+import { Mouse } from "../javascript/mouse.js";
 
 //a ElevationCanvas
 export class ElevationCanvas {
@@ -83,30 +83,30 @@ export class ElevationCanvas {
     // this.styling = this.star_catalog.styling.map;
   }
 
-  //mp zoom
-  zoom(z) {
-    // this.direction = z * 180.0;
-    this.redraw();
+  // drag_start(_start_xy, xy) {}
+  // drag_to(_start_xy, _old_xy, new_xy) {}
+  // drag_end(_start_xy, _xy) {}
+
+  user_press(_xy, _actions) {}
+  user_press_move(_start_xy, _xy) {}
+  user_press_cancel(_start_xy) {}
+  user_release(_start_xy, xy) {}
+  user_zoom(cxy, factor) {}
+  user_pan(_xy, dxy) {}
+  user_rotate(_xy, _angle) {}
+
+  drag_start(_start_xy, xy) {
+    this.drag_xy = xy;
   }
 
-  //mp drag_start
-  drag_start(e) {
-    this.drag_xy = e;
-  }
-
-  //mp drag_to
-  drag_to(e) {
-    let dy = (e[1] - this.drag_xy[1]) / this.width;
-    this.drag_xy = e;
+  drag_to(_start_xy, _old_xy, new_xy) {
+    let dy = (new_xy[1] - this.drag_xy[1]) / this.width;
+    this.drag_xy = new_xy;
 
     this.vp.view_observer_adjust(0.0, (dy * Math.PI) / 2);
   }
 
-  //mp drag_end
-  drag_end(e) {
+  drag_end(_start_xy, _xy) {
     this.vp.log_compass_elevation_update();
   }
-
-  //mp mouse_click
-  mouse_click(e) {}
 }
