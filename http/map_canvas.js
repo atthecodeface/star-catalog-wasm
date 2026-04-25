@@ -6,7 +6,7 @@ import {
 } from "../pkg/star_catalog_wasm.js";
 import { Line } from "./draw.js";
 import { Cache } from "./cache.js";
-import { Mouse } from "./mouse.js";
+import { Mouse } from "../javascript/mouse.js";
 import { Logger } from "../javascript/log.js";
 
 //a MapCanvas
@@ -338,27 +338,36 @@ export class MapCanvas {
     }
   }
 
-  //mi Mouse functions zoom, rotate, drag
-  zoom(factor) {
+  // drag_start(_start_xy, xy) {}
+  // drag_to(_start_xy, _old_xy, new_xy) {}
+  // drag_end(_start_xy, _xy) {}
+
+  user_press(_xy, _actions) {}
+  user_press_move(_start_xy, _xy) {}
+  user_press_cancel(_start_xy) {}
+  // user_release(_start_xy, xy) {}
+  // user_zoom(cxy, factor) {}
+  user_pan(_xy, dxy) {}
+  user_rotate(_xy, _angle) {}
+
+  user_zoom(cxy, factor) {
     this.star_catalog.sky_view_zoom_by(factor);
   }
-  rotate(angle) {}
-  drag_start(xy) {
+
+  drag_start(_start_xy, xy) {
     const ra_de = this.ra_de_of_cxy(xy);
     this.star_catalog.center_sky_view(ra_de);
   }
-  drag_to(xy) {
-    const ra_de = this.ra_de_of_cxy(xy);
+  drag_to(_start_xy, _old_xy, new_xy) {
+    const ra_de = this.ra_de_of_cxy(new_xy);
     this.star_catalog.center_sky_view(ra_de);
   }
-  drag_end(xy) {
+  drag_end(_start_xy, xy) {
     const ra_de = this.ra_de_of_cxy(xy);
     this.star_catalog.center_sky_view(ra_de);
     this.vp.log_compass_elevation_update();
   }
-  //
-  //mi Mouse function mouse_click
-  mouse_click(xy) {
+  user_release(_start_xy, xy) {
     const ra_de = this.ra_de_of_cxy(xy);
     this.catalog.clear_filter();
     this.catalog.filter_max_magnitude(this.brightness);
@@ -366,6 +375,4 @@ export class MapCanvas {
       this.catalog.closest_to_ra_de(ra_de[0], ra_de[1]),
     );
   }
-
-  //zz All done
 }
