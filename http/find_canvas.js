@@ -4,7 +4,7 @@ import {
   WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
 import { Draw } from "./draw.js";
-import { Mouse } from "./mouse.js";
+import { Mouse } from "../javascript/mouse.js";
 import { ZoomedWindow } from "./zoomed_window.js";
 import { Logger } from "../javascript/log.js";
 
@@ -528,35 +528,39 @@ export class FindCanvas {
       ctx.restore();
     }
   }
-  zoom(factor, cxy) {
-    //mp zoom
+
+  drag_start(_start_xy, xy) {}
+  // drag_to(_start_xy, _old_xy, new_xy) {}
+  drag_end(_start_xy, _xy) {}
+
+  user_press(_xy, _actions) {}
+  user_press_move(_start_xy, _xy) {}
+  user_press_cancel(_start_xy) {}
+  user_release(_start_xy, xy) {}
+  user_zoom(cxy, factor) {}
+  user_pan(_xy, dxy) {}
+  user_rotate(_xy, _angle) {}
+
+  user_pan(_xy, dxy) {
+    this.zoomed_window.zoom_scr_by(dxy[0], dxy[1]);
+    this.redraw_canvas();
+  }
+  user_zoom(cxy, factor) {
     const zoom = factor * this.zoomed_window.get_zoom();
     this.zoomed_window.zoom_set(zoom, cxy);
     this.zoomed_window.recalculate_zoom();
     this.redraw_canvas();
   }
 
-  //mp rotate
-  rotate(angle) {}
-
-  //mp drag_start/to/end
-  drag_start(xy) {
-    this.drag_xy = xy;
-  }
-
-  drag_to(xy) {
-    console.log(xy);
+  drag_to(_start_xy, old_xy, new_xy) {
     this.zoomed_window.zoom_scr_by(
-      -xy[0] + this.drag_xy[0],
-      -xy[1] + this.drag_xy[1],
+      old_xy[0] - new_xy[0],
+      old_xy[1] - new_xy[1],
     );
-    this.drag_xy = xy;
     this.redraw_canvas();
   }
-  drag_end(xy) {}
 
-  //mp mouse_click
-  mouse_click(xy) {
+  user_release(_start_xy, xy) {
     this.selected_stars.push(this.zoomed_window.img_xy_of_scr_xy(xy));
     this.redraw_canvas();
   }
