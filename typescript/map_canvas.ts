@@ -1,25 +1,45 @@
-//a MapCanvas
 import {
-  WasmVec3f32,
   WasmVec3f64,
   WasmQuatf64,
+  WasmCatalog,
+  WasmStar,
 } from "../pkg/star_catalog_wasm.js";
-import { Line } from "../javascript/draw.js";
-import { Cache } from "../javascript/cache.js";
-import { Mouse } from "../javascript/mouse.js";
-import { Logger } from "../javascript/log.js";
+import { Line } from "./draw.js";
+import { Cache } from "./cache.js";
+import { Mouse, MousePressActions } from "./mouse.js";
+import { Logger } from "./log.js";
 
-//a MapCanvas
-//c MapCanvas
 export class MapCanvas {
-  //fp constructor
-  constructor(star_catalog, catalog, canvas_div_id, width, height) {
+  star_catalog: any;
+  catalog: WasmCatalog;
+  vp: any;
+  logger: Logger;
+  div: HTMLElement;
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+  brightness: number;
+  star_cache: Cache<any>;
+
+  mouse: Mouse;
+  styling: any;
+
+  last_drag_polar: [number, number] = [0, 0];
+  drag_minutes: boolean = false;
+
+  constructor(
+    star_catalog: any,
+    catalog: any,
+    canvas_div_id: string,
+    width: number,
+    height: number,
+  ) {
     this.star_catalog = star_catalog;
     this.catalog = catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "map");
 
-    this.div = document.getElementById(canvas_div_id);
+    this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
     this.div.appendChild(this.canvas);
 
@@ -45,7 +65,7 @@ export class MapCanvas {
   }
 
   //mi fill_star_cache
-  fill_star_cache(_x) {
+  fill_star_cache(_x: WasmStar[]): WasmStar[] {
     const stars = [];
     console.log("Fill map canvas cache");
     this.catalog.clear_filter();
@@ -53,7 +73,7 @@ export class MapCanvas {
 
     const XP_AXIS = new WasmVec3f64(1, 0, 0);
     for (const index of this.catalog.find_stars_around(XP_AXIS, 1.6, 0, 1000)) {
-      stars.push(this.catalog.star(index));
+      stars.push(this.catalog.star(index)!);
     }
     for (const index of this.catalog.find_stars_around(
       XP_AXIS.neg(),
@@ -61,7 +81,7 @@ export class MapCanvas {
       0,
       1000,
     )) {
-      stars.push(this.catalog.star(index));
+      stars.push(this.catalog.star(index)!);
     }
     return stars;
   }
@@ -78,7 +98,7 @@ export class MapCanvas {
   }
 
   //mi ra_de_of_cxy
-  ra_de_of_cxy(cxy) {
+  ra_de_of_cxy(cxy: [number, number]): [number, number] {
     const fx = cxy[0] / this.width;
     const fy = cxy[1] / this.height;
     const ra = (fx - 0.5) * 2 * Math.PI;
@@ -90,12 +110,12 @@ export class MapCanvas {
   // Vector of a canvas XY
   //
   // X+ is in, Y+ is left, Z+ is up
-  vector_of_cxy(cxy) {
+  unused_vector_of_cxy(cxy: [number, number]): [number, number, number] {
     const de_ra = this.ra_de_of_cxy(cxy);
-    const vz = Math.sin(de);
-    const c = Math.cos(de);
-    const vx = c * Math.cos(ra);
-    const vy = -c * Math.sin(ra);
+    const vz = Math.sin(de_ra[0]);
+    const c = Math.cos(de_ra[0]);
+    const vx = c * Math.cos(de_ra[1]);
+    const vy = -c * Math.sin(de_ra[1]);
     return [vx, vy, vz];
   }
 
@@ -107,7 +127,7 @@ export class MapCanvas {
   // Declination 0 at the moddle, +DE up (PI for the height)
   //
   // RA is 0 at the middle RA+ right (2PI for the width)
-  cxy_of_ra_de(ra, de) {
+  cxy_of_ra_de(ra: number, de: number): [number, number] {
     const x = 0.5 + ra / (2 * Math.PI);
     const y = 0.5 - de / Math.PI;
     const fx = x - Math.floor(x);
@@ -121,16 +141,16 @@ export class MapCanvas {
   // canvas XY of a vector
   //
   // X+ is in, Y+ is left, Z+ is up; sin(z) is declination (or atan(z/x))
-  cxy_of_vector(vv) {
+  cxy_of_vector(vv: WasmVec3f64): [number, number] {
     const v = vv.array;
-    const de = Math.asin(v[2]);
-    const ra = Math.atan2(v[1], v[0]);
+    const de = Math.asin(v[2]!);
+    const ra = Math.atan2(v[1]!, v[0]!);
     return this.cxy_of_ra_de(ra, de);
   }
 
   //mi draw_sky_rect
   // Draw the 'rectangle' that the Sky canvas represents
-  draw_sky_rect(ctx) {
+  draw_sky_rect(ctx: CanvasRenderingContext2D): void {
     if (this.styling.view_border != null) {
       ctx.strokeStyle = this.styling.view_border[0];
       for (const y of [-1, 1]) {
@@ -159,7 +179,7 @@ export class MapCanvas {
 
   //mi draw_star
   // Draw a star in the Canvas context
-  draw_star(ctx, star) {
+  draw_star(ctx: CanvasRenderingContext2D, star: any): void {
     const m = star.magnitude;
     const rgb = star.rgb.array;
     const ra = star.right_ascension;
@@ -182,7 +202,7 @@ export class MapCanvas {
   }
 
   //mi draw_equatorial_grid
-  draw_equatorial_grid(ctx) {
+  draw_equatorial_grid(ctx: CanvasRenderingContext2D) {
     if (!this.styling.show_equatorial) {
       return;
     }
@@ -238,26 +258,39 @@ export class MapCanvas {
   }
 
   //mi add_declination_circle - for azimuthal_grid
-  add_declination_circle(q, l, v, de, step_size) {
+  add_declination_circle(
+    q: WasmQuatf64,
+    l: Line,
+    v: WasmVec3f64,
+    de: number,
+    step_size: number,
+  ) {
     const de_c = Math.cos(de * this.vp.deg2rad);
     const de_s = Math.sin(de * this.vp.deg2rad);
     l.new_segment();
     for (var ra = 0; ra <= 360; ra += step_size) {
       const ra_r = ra * this.vp.deg2rad;
-      v.set([de_c * Math.cos(ra_r), de_c * Math.sin(ra_r), de_s]);
+      v.set(
+        new Float64Array([de_c * Math.cos(ra_r), de_c * Math.sin(ra_r), de_s]),
+      );
       l.add_pt(this.cxy_of_vector(q.apply3(v)));
     }
   }
 
-  //mi add_ra_great_circle - for azimuthal grid
-  add_ra_great_circle(q, l, v, ra, step_size) {
+  add_ra_great_circle(
+    q: WasmQuatf64,
+    l: Line,
+    v: WasmVec3f64,
+    ra: number,
+    _step_size: number,
+  ) {
     const ra_c = Math.cos(ra * this.vp.deg2rad);
     const ra_s = Math.sin(ra * this.vp.deg2rad);
     l.new_segment();
     for (var de = -80; de <= 80; de += 1) {
       const de_c = Math.cos(de * this.vp.deg2rad);
       const de_s = Math.sin(de * this.vp.deg2rad);
-      v.set([ra_c * de_c, ra_s * de_c, de_s]);
+      v.set(new Float64Array([ra_c * de_c, ra_s * de_c, de_s]));
       l.add_pt(this.cxy_of_vector(q.apply3(v)));
     }
   }
@@ -267,7 +300,7 @@ export class MapCanvas {
   //
   // Create a RH set of axes with z as 'up', and ideally x with no
   // component in the 'declination' direction
-  draw_azimuthal_grid(ctx) {
+  draw_azimuthal_grid(ctx: CanvasRenderingContext2D): void {
     if (!this.styling.show_azimuthal) {
       return;
     }
@@ -313,7 +346,7 @@ export class MapCanvas {
 
   //mi redraw_canvas
   redraw_canvas() {
-    const ctx = this.canvas.getContext("2d");
+    const ctx = this.canvas.getContext("2d")!;
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -327,7 +360,7 @@ export class MapCanvas {
     this.draw_sky_rect(ctx);
     if (this.vp.selected_star) {
       const star = this.catalog.star(this.vp.selected_star);
-      const cxy = this.cxy_of_vector(star.vector);
+      const cxy = this.cxy_of_vector(star!.vector);
       if (cxy != null) {
         ctx.strokeStyle = "white";
         ctx.lineWidth = 1.0;
@@ -338,36 +371,37 @@ export class MapCanvas {
     }
   }
 
-  // drag_start(_start_xy, xy) {}
-  // drag_to(_start_xy, _old_xy, new_xy) {}
-  // drag_end(_start_xy, _xy) {}
+  user_press(_xy: [number, number], _actions: MousePressActions): void {}
+  user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press_cancel(_start_xy: [number, number]): void {}
+  user_pan(_xy: [number, number], _dxy: [number, number]): void {}
+  user_rotate(_xy: [number, number], _angle: number): void {}
 
-  user_press(_xy, _actions) {}
-  user_press_move(_start_xy, _xy) {}
-  user_press_cancel(_start_xy) {}
-  // user_release(_start_xy, xy) {}
-  // user_zoom(cxy, factor) {}
-  user_pan(_xy, dxy) {}
-  user_rotate(_xy, _angle) {}
-
-  user_zoom(cxy, factor) {
+  user_zoom(_cxy: [number, number], factor: number): void {
     this.star_catalog.sky_view_zoom_by(factor);
   }
 
-  drag_start(_start_xy, xy) {
+  drag_start(_start_xy: [number, number], xy: [number, number]): void {
     const ra_de = this.ra_de_of_cxy(xy);
     this.star_catalog.center_sky_view(ra_de);
   }
-  drag_to(_start_xy, _old_xy, new_xy) {
+
+  drag_to(
+    _start_xy: [number, number],
+    _old_xy: [number, number],
+    new_xy: [number, number],
+  ): void {
     const ra_de = this.ra_de_of_cxy(new_xy);
     this.star_catalog.center_sky_view(ra_de);
   }
-  drag_end(_start_xy, xy) {
+
+  drag_end(_start_xy: [number, number], xy: [number, number]): void {
     const ra_de = this.ra_de_of_cxy(xy);
     this.star_catalog.center_sky_view(ra_de);
     this.vp.log_compass_elevation_update();
   }
-  user_release(_start_xy, xy) {
+
+  user_release(_start_xy: [number, number], xy: [number, number]): void {
     const ra_de = this.ra_de_of_cxy(xy);
     this.catalog.clear_filter();
     this.catalog.filter_max_magnitude(this.brightness);

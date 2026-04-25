@@ -51,6 +51,7 @@
     "typescript/mouse.ts",
     "typescript/tabbed.ts",
     "typescript/storage.ts",
+    "typescript/zoomed_window.ts",
 
     "typescript/draw.ts",
     "typescript/clock.ts",
@@ -59,6 +60,7 @@
 
     "typescript/cache.ts",
     "typescript/hipparcos.ts",
-    "typescript/zoomed_window.ts",
+
+    "typescript/map_canvas.ts",
   ],
 }
