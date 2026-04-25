@@ -279,6 +279,7 @@ class ClientInteraction {
                     return this.abort(null);
                 }
                 const tf_new_cxy = this.relative_xy(t01[0]);
+                this.first_touch_xy = tf_new_cxy;
                 this.client.drag_to(this.initial_xy, this.drag_xy, tf_new_cxy);
                 this.drag_xy = tf_new_cxy;
                 return true;

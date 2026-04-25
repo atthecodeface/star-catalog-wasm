@@ -1,5 +1,5 @@
 export class Cache {
-    constructor (initial_contents, needs_refresh, refresh) {
+    constructor(initial_contents, needs_refresh, refresh) {
         this.contents = initial_contents;
         this.refresh_pending = false;
         this.needs_refresh = needs_refresh;

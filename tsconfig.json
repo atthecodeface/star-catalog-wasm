@@ -57,6 +57,7 @@
     "typescript/compass.ts",
     "typescript/elevation.ts",
 
+    "typescript/cache.ts",
     "typescript/hipparcos.ts",
     "typescript/zoomed_window.ts",
   ],

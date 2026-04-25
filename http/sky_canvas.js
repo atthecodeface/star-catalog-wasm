@@ -6,7 +6,7 @@ import {
 import * as html from "./html.js";
 import { Line } from "../javascript/draw.js";
 import { Mouse } from "../javascript/mouse.js";
-import { Cache } from "./cache.js";
+import { Cache } from "../javascript/cache.js";
 import { Logger } from "../javascript/log.js";
 
 //a SkyCanvas
