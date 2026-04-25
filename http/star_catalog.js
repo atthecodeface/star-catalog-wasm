@@ -9,8 +9,8 @@ import init, {
   WasmVec3f64,
   WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
-import { tabbed_configure } from "./tabbed.js";
-import { Log } from "./log.js";
+import { Tabs } from "../javascript/tabbed.js";
+import { Log, Logger } from "../javascript/log.js";
 import * as html from "./html.js";
 import * as utils from "./utils.js";
 import { MapCanvas } from "./map_canvas.js";
@@ -38,6 +38,10 @@ class StarCatalog {
     this.WasmStar = WasmStar;
     this.vec_of_ra_de = WasmStar.vec_of_ra_de;
     this.catalog = new WasmCatalog("hipp_bright");
+
+    this.tabs = new Tabs("#tab-list", (id) => {
+      this.tab_selected(id);
+    });
 
     let mode = "day";
     const e = document.querySelector("#js_detect_css");
@@ -264,10 +268,5 @@ function complete_init() {
 window.addEventListener("load", (e) => {
   init().then(() => {
     complete_init();
-    tabbed_configure("#tab-list", (id) => {
-      if (window.star_catalog) {
-        window.star_catalog.tab_selected(id);
-      }
-    });
   });
 });

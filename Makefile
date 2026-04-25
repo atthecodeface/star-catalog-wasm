@@ -6,11 +6,23 @@ WASM_PACK = WASM_PACK_WASM_OPT=true wasm-pack build --release --target web
 
 .PHONY: all
 all:
+	$(MAKE) js
 	${WASM_PACK}
 
 start_http:
 	python3 -m http.server 3001
 
+help:
+	@echo "To compile the typescript to the 'js' directory (where it is checked into git):"
+	@echo "    make js"
+	@echo
+	@echo "To install 'tsc' first install node (sad face): node-v24.14.1.pkg"
+	@echo "Then"
+	@echo "    npm install typescript"
+	@echo ""
+
+js:
+	npx tsc -b
 
 .PHONY: star_catalog.zip
 star_catalog.zip:

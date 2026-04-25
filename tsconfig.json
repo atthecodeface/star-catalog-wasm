@@ -1,0 +1,56 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    "rootDir": "./typescript/",
+    "outDir": "./javascript/",
+
+    "target": "ES6",
+    // Not strictly needed
+    // "sourceMap": true,
+    // "declaration": true,
+    // "declarationMap": true,
+
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Style Options
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    // Recommended Options
+    "strict": true,
+    "jsx": "react-jsx",
+
+    // "verbatimModuleSyntax": true,
+    // "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    // Needed for testing in jest
+    // "module": "node16",
+    // Needed for testing in jest
+    // "moduleResolution": "node16",
+    "types": [
+      // Enable 'jest' for testing
+      // "jest",
+      // Enable 'node' for use with some jest tests
+      // "node",
+    ],
+  },
+
+  // "include": ["pkg/*"],
+
+  "files": [
+    "typescript/html.ts",
+    "typescript/log.ts",
+    "typescript/mouse.ts",
+    "typescript/tabbed.ts",
+    "typescript/storage.ts",
+    //    "typescript/bezier_canvas.ts",
+  ],
+}
