@@ -1,4 +1,4 @@
-import { Draw } from "./draw.js";
+import { Draw } from "../javascript/draw.js";
 import { Mouse } from "../javascript/mouse.js";
 import { Logger } from "../javascript/log.js";
 

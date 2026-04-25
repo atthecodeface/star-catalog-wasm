@@ -1,10 +1,4 @@
-import {
-  WasmVec3f32,
-  WasmVec3f64,
-  WasmQuatf64,
-} from "../pkg/star_catalog_wasm.js";
-import * as html from "./html.js";
-import { Draw } from "./draw.js";
+import { Draw } from "../javascript/draw.js";
 import { Mouse } from "../javascript/mouse.js";
 
 //a ElevationCanvas

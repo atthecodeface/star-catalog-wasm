@@ -4,7 +4,7 @@ import {
   WasmVec3f64,
   WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
-import { Line } from "./draw.js";
+import { Line } from "../javascript/draw.js";
 import { Cache } from "./cache.js";
 import { Mouse } from "../javascript/mouse.js";
 import { Logger } from "../javascript/log.js";

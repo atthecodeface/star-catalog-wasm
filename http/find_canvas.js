@@ -3,7 +3,7 @@ import {
   WasmVec3f64,
   WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
-import { Draw } from "./draw.js";
+import { Draw } from "../javascript/draw.js";
 import { Mouse } from "../javascript/mouse.js";
 import { ZoomedWindow } from "./zoomed_window.js";
 import { Logger } from "../javascript/log.js";

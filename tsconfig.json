@@ -51,6 +51,7 @@
     "typescript/mouse.ts",
     "typescript/tabbed.ts",
     "typescript/storage.ts",
-    //    "typescript/bezier_canvas.ts",
+
+    "typescript/draw.ts",
   ],
 }
