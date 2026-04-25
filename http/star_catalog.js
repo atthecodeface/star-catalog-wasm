@@ -10,9 +10,8 @@ import init, {
   WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
 import { Tabs } from "../javascript/tabbed.js";
-import { Log, Logger } from "../javascript/log.js";
-import * as html from "./html.js";
-import * as utils from "./utils.js";
+import { Log, Logger, Severity } from "../javascript/log.js";
+
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
 import { FindCanvas } from "./find_canvas.js";
@@ -34,6 +33,9 @@ function fract(x) {
 class StarCatalog {
   //cp constructor
   constructor(params) {
+    this.log = new Log("Log", Severity.Info, Severity.Warning);
+    this.logger = new Logger(this.log, "main");
+
     this.WasmCatalog = WasmCatalog;
     this.WasmStar = WasmStar;
     this.vec_of_ra_de = WasmStar.vec_of_ra_de;
@@ -261,7 +263,6 @@ class StarCatalog {
 window.star_catalog = null;
 function complete_init() {
   const location_url = new URL(location);
-  window.log = new Log(document.getElementById("Log"));
   window.star_catalog = new StarCatalog(location_url.searchParams);
 }
 
