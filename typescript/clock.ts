@@ -2,6 +2,7 @@ import { Draw } from "./draw.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
+import { Styling } from "./styling.js";
 import { StarCatalog } from "./star_catalog.js";
 
 //a ClockCanvas
@@ -19,13 +20,13 @@ export class ClockCanvas {
   sun: Draw;
   hour_hand: Draw;
   minute_hand: Draw;
-  styling: any;
+  styling: Styling;
 
   last_drag_polar: [number, number] = [0, 0];
   drag_minutes: boolean = false;
 
   constructor(
-    star_catalog: any,
+    star_catalog: StarCatalog,
     canvas_div_id: string,
     width: number,
     height: number,
@@ -37,6 +38,7 @@ export class ClockCanvas {
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
     this.div.appendChild(this.canvas);
+    this.styling = this.star_catalog.styling;
 
     this.width = width;
     this.height = height;
@@ -129,17 +131,16 @@ export class ClockCanvas {
 
   //mp redraw
   redraw() {
-    this.styling = this.star_catalog.styling.clock;
     const ctx = this.ctx;
     ctx.save();
 
-    ctx.fillStyle = this.styling.canvas;
+    ctx.fillStyle = this.styling.clock.canvas;
     ctx.fillRect(0, 0, this.width, this.height);
 
     const style = this.styling;
 
     ctx.save();
-    this.background.draw(ctx, (x) => style[x]);
+    this.background.draw(ctx, (x) => (style as any)[x]);
     ctx.restore();
 
     ctx.save();
@@ -152,30 +153,30 @@ export class ClockCanvas {
       null,
       270 - this.vp.time_of_day * 15,
     );
-    this.sun.draw(ctx, (x) => style[x]);
+    this.sun.draw(ctx, (x) => (style as any)[x]);
     ctx.restore();
 
     ctx.save();
-    ctx.strokeStyle = this.styling.minute;
+    ctx.strokeStyle = this.styling.clock.minute;
     Draw.set_transform(
       ctx,
       [this.width / 2, this.height / 2],
       null,
       90 - this.vp.minute_of_hour * 6,
     );
-    this.minute_hand.draw(ctx, (x) => style[x]);
+    this.minute_hand.draw(ctx, (x) => (style as any)[x]);
     ctx.restore();
 
     ctx.restore();
     ctx.save();
-    ctx.strokeStyle = this.styling.hour;
+    ctx.strokeStyle = this.styling.clock.hour;
     Draw.set_transform(
       ctx,
       [this.width / 2, this.height / 2],
       null,
       90 - this.vp.time_of_day * 30,
     );
-    this.hour_hand.draw(ctx, (x) => style[x]);
+    this.hour_hand.draw(ctx, (x) => (style as any)[x]);
     ctx.restore();
   }
 

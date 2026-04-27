@@ -12,6 +12,7 @@ export class ClockCanvas {
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
+        this.styling = this.star_catalog.styling;
         this.width = width;
         this.height = height;
         this.canvas.width = this.width;
@@ -96,10 +97,9 @@ export class ClockCanvas {
     }
     //mp redraw
     redraw() {
-        this.styling = this.star_catalog.styling.clock;
         const ctx = this.ctx;
         ctx.save();
-        ctx.fillStyle = this.styling.canvas;
+        ctx.fillStyle = this.styling.clock.canvas;
         ctx.fillRect(0, 0, this.width, this.height);
         const style = this.styling;
         ctx.save();
@@ -113,13 +113,13 @@ export class ClockCanvas {
         this.sun.draw(ctx, (x) => style[x]);
         ctx.restore();
         ctx.save();
-        ctx.strokeStyle = this.styling.minute;
+        ctx.strokeStyle = this.styling.clock.minute;
         Draw.set_transform(ctx, [this.width / 2, this.height / 2], null, 90 - this.vp.minute_of_hour * 6);
         this.minute_hand.draw(ctx, (x) => style[x]);
         ctx.restore();
         ctx.restore();
         ctx.save();
-        ctx.strokeStyle = this.styling.hour;
+        ctx.strokeStyle = this.styling.clock.hour;
         Draw.set_transform(ctx, [this.width / 2, this.height / 2], null, 90 - this.vp.time_of_day * 30);
         this.hour_hand.draw(ctx, (x) => style[x]);
         ctx.restore();
