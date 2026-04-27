@@ -100,7 +100,6 @@ export class StarCatalog {
     //mp selected_css_toggle
     /// Invoked by the web page when day/night mode is toggled
     selected_css_toggle() {
-        console.log("Toggle");
         const is_day = html.get_input_checked("day_night_checkbox");
         html.set_input_checked("day_night_checkbox", !is_day);
         this.selected_css_changed();

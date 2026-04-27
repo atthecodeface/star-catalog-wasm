@@ -358,11 +358,12 @@ export class ViewProperties {
     /// Derive data for the internals based on the time, date, lat and lon
     ///
     derive_data() {
-        for (const style of ["show_azimuthal", "show_equatorial"]) {
-            const enable_style = document.querySelector(`input[name=${style}]:checked`) != null;
-            this.star_catalog.styling.sky[style] = enable_style;
-            this.star_catalog.styling.map[style] = enable_style;
-        }
+        const show_azimuthal = html.get_input_checked("show_azimuthal");
+        this.star_catalog.styling.sky.show_azimuthal = show_azimuthal;
+        this.star_catalog.styling.map.show_azimuthal = show_azimuthal;
+        const show_equatorial = html.get_input_checked("show_equatorial");
+        this.star_catalog.styling.sky.show_equatorial = show_equatorial;
+        this.star_catalog.styling.map.show_equatorial = show_equatorial;
         this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
         this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
         this.derive_de_ra();

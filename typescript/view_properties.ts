@@ -7,6 +7,7 @@ import {
 import * as html from "./html.js";
 import { Names } from "./hipparcos.js";
 import { Logger } from "./log.js";
+import { StarCatalog } from "./star_catalog.js";
 
 //a Useful functions
 //fi fract
@@ -133,7 +134,7 @@ function if_ele_id(
 /// The earth actually rotates 360 * 366.25 every year,
 /// so 360*366.25/365.25 degrees per UTC day = 360.98562628336754 degrees per UTC day
 export class ViewProperties {
-  star_catalog: any;
+  star_catalog: StarCatalog;
   logger: Logger;
 
   lat: number = 0;
@@ -175,7 +176,7 @@ export class ViewProperties {
   earth_webgl: boolean;
   selected_star: number | null;
 
-  constructor(star_catalog: any, params: URLSearchParams) {
+  constructor(star_catalog: StarCatalog, params: URLSearchParams) {
     this.star_catalog = star_catalog;
     this.logger = new Logger(star_catalog.log, "view_prop");
 
@@ -439,12 +440,14 @@ export class ViewProperties {
   /// Derive data for the internals based on the time, date, lat and lon
   ///
   derive_data() {
-    for (const style of ["show_azimuthal", "show_equatorial"]) {
-      const enable_style =
-        document.querySelector(`input[name=${style}]:checked`) != null;
-      this.star_catalog.styling.sky[style] = enable_style;
-      this.star_catalog.styling.map[style] = enable_style;
-    }
+    const show_azimuthal = html.get_input_checked("show_azimuthal");
+    this.star_catalog.styling.sky.show_azimuthal = show_azimuthal;
+    this.star_catalog.styling.map.show_azimuthal = show_azimuthal;
+
+    const show_equatorial = html.get_input_checked("show_equatorial");
+    this.star_catalog.styling.sky.show_equatorial = show_equatorial;
+    this.star_catalog.styling.map.show_equatorial = show_equatorial;
+
     this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
     this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
 
@@ -481,7 +484,7 @@ export class ViewProperties {
 
   update_html_star_info() {
     if (this.selected_star) {
-      const star = this.star_catalog.catalog.star(this.selected_star);
+      const star = this.star_catalog.catalog.star(this.selected_star)!;
       const e = document.getElementById("star_info");
       if (!e) {
         return;
