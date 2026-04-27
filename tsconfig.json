@@ -54,6 +54,9 @@
     "typescript/zoomed_window.ts",
 
     "typescript/draw.ts",
+
+    "typescript/styling.ts",
+
     "typescript/clock.ts",
     "typescript/compass.ts",
     "typescript/elevation.ts",

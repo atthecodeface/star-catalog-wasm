@@ -19,7 +19,7 @@ import { MapCanvas } from "../javascript/map_canvas.js";
 import { SkyCanvas } from "../javascript/sky_canvas.js";
 import { FindCanvas } from "../javascript/find_canvas.js";
 import { Earth } from "../javascript/earth.js";
-import { Styling } from "./styling.js";
+import { Styling } from "../javascript/styling.js";
 import { ViewProperties } from "../javascript/view_properties.js";
 
 //a Useful functions
