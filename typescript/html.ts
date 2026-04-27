@@ -191,9 +191,16 @@ export class HtmlElement {
     }
   }
 
-  static new_ele(ele_type: string, id_classes: IdClasses = {}) {
+  static new_ele(
+    ele_type: string,
+    id_classes: IdClasses = {},
+    map: null | ((e: HTMLElement) => void) = null,
+  ) {
     const ele = document.createElement(ele_type);
     HtmlElement.set_id_classes(ele, id_classes);
+    if (map !== null) {
+      map(ele);
+    }
     return new HtmlElement(ele);
   }
 

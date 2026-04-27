@@ -1,19 +1,28 @@
 //a Imports
 import {
-  WasmCatalog,
   WasmStar,
-  WasmVec3f32,
   WasmVec3f64,
   WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
-import { Names } from "../javascript/hipparcos.js";
-import { Logger } from "../javascript/log.js";
+import { Names } from "./hipparcos.js";
+import { Logger } from "./log.js";
 
 //a Useful functions
 //fi fract
-function fract(x) {
+function fract(x: number) {
   return x - Math.floor(x);
+}
+
+function if_ele_id(
+  ele_id: string,
+  v: any,
+  f: (e: HTMLElement, v: any) => void,
+) {
+  const e = document.getElementById(ele_id);
+  if (e != null) {
+    f(e, v);
+  }
 }
 
 //a ViewProperties
@@ -124,38 +133,71 @@ function fract(x) {
 /// The earth actually rotates 360 * 366.25 every year,
 /// so 360*366.25/365.25 degrees per UTC day = 360.98562628336754 degrees per UTC day
 export class ViewProperties {
-  //cp constructor
-  constructor(star_catalog, params) {
+  star_catalog: any;
+  logger: Logger;
+
+  lat: number = 0;
+  lon: number = 0;
+
+  vec_of_ra_de: (ra: number, de: number) => WasmVec3f64;
+  deg2rad: number = Math.PI / 180;
+  rad2deg: number = 180 / Math.PI;
+
+  days_since_epoch: number;
+  time_of_day: number;
+  minute_of_hour: number = 0;
+
+  max_stars_in_sky: number;
+
+  vector_x: WasmVec3f64 = new WasmVec3f64(1, 0, 0);
+  vector_y: WasmVec3f64 = new WasmVec3f64(0, 1, 0);
+  vector_z: WasmVec3f64 = new WasmVec3f64(0, 0, 1);
+
+  view_to_ecef_q: WasmQuatf64;
+  ecef_to_view_q: WasmQuatf64;
+  ecef_to_observer_q: WasmQuatf64;
+  observer_to_ecef_q: WasmQuatf64;
+
+  observer_up_ecef_v: WasmVec3f64 = new WasmVec3f64(0, 0, 0);
+  observer_we_ecef_v: WasmVec3f64 = new WasmVec3f64(0, 0, 0);
+  observer_ns_ecef_v: WasmVec3f64 = new WasmVec3f64(0, 0, 0);
+
+  view_ecef_center_dir: WasmVec3f64 = new WasmVec3f64(0, 0, 0);
+  view_observer_center_dir: WasmVec3f64 = new WasmVec3f64(0, 0, 0);
+
+  ra: number = 0;
+  de: number = 0;
+
+  observer_compass: number = 0;
+  observer_elevation: number = 0;
+
+  earth_division: number;
+  earth_webgl: boolean;
+  selected_star: number | null;
+
+  constructor(star_catalog: any, params: any) {
     this.star_catalog = star_catalog;
     this.logger = new Logger(star_catalog.log, "view_prop");
 
     this.vec_of_ra_de = WasmStar.vec_of_ra_de;
 
-    this.deg2rad = Math.PI / 180;
-    this.rad2deg = 180 / Math.PI;
-
-    this.vector_x = new WasmVec3f64(1, 0, 0);
-    this.vector_y = new WasmVec3f64(0, 1, 0);
-    this.vector_z = new WasmVec3f64(0, 0, 1);
     this.max_stars_in_sky = 5000;
 
-    this.lat = null;
-    this.lon = null;
-
-    let lat_param = parseFloat(params.get("lat"));
-    let lon_param = parseFloat(params.get("lon"));
-    if (lat_param != null && !isNaN(lat_param)) {
-      this.lat = lat_param;
+    let lat: null | number = parseFloat(params.get("lat"));
+    let lon: null | number = parseFloat(params.get("lon"));
+    if (isNaN(lat)) {
+      lat = null;
     }
-    if (lon_param != null && !isNaN(lon_param)) {
-      this.lon = lon_param;
+    if (isNaN(lon)) {
+      lon = null;
     }
-
-    if (this.lat === null || this.lon === null) {
-      this.lat = 52;
-      this.lon = 0;
+    if (lat === null || lon === null) {
+      lat = 52;
+      lon = 0;
       this.request_geolocation();
     }
+    this.lat = lat;
+    this.lon = lon;
 
     this.days_since_epoch = 19711;
     this.time_of_day = 18.377;
@@ -172,17 +214,22 @@ export class ViewProperties {
     }
 
     this.view_to_ecef_q = WasmQuatf64.unit();
+    this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
+
+    this.ecef_to_observer_q = WasmQuatf64.unit();
+    this.observer_to_ecef_q = WasmQuatf64.unit();
 
     this.derive_data();
 
     let compass = parseFloat(params.get("compass"));
     let elevation = parseFloat(params.get("elevation"));
-    if (compass != null && !isNaN(compass)) {
+    if (compass !== null && !isNaN(compass)) {
       this.observer_compass = compass;
     }
-    if (elevation != null && !isNaN(elevation)) {
+    if (elevation !== null && !isNaN(elevation)) {
       this.observer_elevation = elevation;
     }
+
     this.view_observer_set(
       this.observer_compass * this.deg2rad,
       this.observer_elevation * this.deg2rad,
@@ -211,7 +258,7 @@ export class ViewProperties {
   }
 
   //mi geolocation_position
-  geolocation_position(position) {
+  geolocation_position(position: GeolocationPosition) {
     const lat = position.coords.latitude;
     const lon = position.coords.longitude;
     if (lat !== null && !isNaN(lat)) {
@@ -225,7 +272,7 @@ export class ViewProperties {
   }
 
   //mp set_selected_star
-  set_selected_star(star) {
+  set_selected_star(star: number | undefined) {
     if (star) {
       this.selected_star = star;
       this.update_html_star_info();
@@ -239,7 +286,7 @@ export class ViewProperties {
   // requires mapping the viewer to the observer space
   //
   // The observed elevation is asin(z); the observed compass is atan2(y,x)
-  compass_elevation_of_ecef(ecef_v) {
+  compass_elevation_of_ecef(ecef_v: WasmVec3f64) {
     const observer_v = this.ecef_to_observer_q.apply3(ecef_v);
     const xyz = observer_v.array;
 
@@ -247,8 +294,8 @@ export class ViewProperties {
     // it is *west* which is 90degrees anticlockwise
     //
     // Basically +compass angle is anticlockwise
-    const compass = -Math.atan2(xyz[1], xyz[0]) * this.rad2deg;
-    const elevation = Math.asin(xyz[2]) * this.rad2deg;
+    const compass = -Math.atan2(xyz[1]!, xyz[0]!) * this.rad2deg;
+    const elevation = Math.asin(xyz[2]!) * this.rad2deg;
     return [compass, elevation];
   }
 
@@ -352,8 +399,8 @@ export class ViewProperties {
     // it is *west* which is 90degrees anticlockwise
     //
     // Basically +compass angle is anticlockwise
-    this.observer_compass = -Math.atan2(xyz[1], xyz[0]) * this.rad2deg;
-    this.observer_elevation = Math.asin(xyz[2]) * this.rad2deg;
+    this.observer_compass = -Math.atan2(xyz[1]!, xyz[0]!) * this.rad2deg;
+    this.observer_elevation = Math.asin(xyz[2]!) * this.rad2deg;
 
     // Another way to get the elevation - dot product the view ECEF with the observer UP ECEF
     // const ele = (Math.PI/2 - Math.acos(this.view_ecef_center_dir.dot(this.observer_up_ecef_v))) * this.rad2deg;
@@ -397,7 +444,7 @@ export class ViewProperties {
 
     this.update_html_elements();
   }
-  //mi get_href
+
   get_href() {
     const lat_lon = `lat=${this.lat.toFixed(1)}&lon=${this.lon.toFixed(1)}`;
     const mode = `mode=${this.star_catalog.selected_css}`;
@@ -406,73 +453,110 @@ export class ViewProperties {
     return `?${mode}&${lat_lon}&${day_time}&${compass_elevation}#tab-skyview`;
   }
 
-  //mi time_text
-  time_text(time_of_day) {
+  time_text(time_of_day: number) {
     const hour = Math.floor(time_of_day);
     const mins = (time_of_day - hour) * 60;
     const secs = (mins - Math.floor(mins)) * 60;
-    return `${String(hour).padStart(2, "0")}:${String(Math.floor(mins)).padStart(2, "0")}:${String(Math.floor(secs)).padStart(2, "0")}`;
+
+    const hour_s = ("00" + hour.toString()).slice(-2);
+    const mins_s = ("00" + mins.toString()).slice(-2);
+    const secs_s = ("00" + secs.toString()).slice(-2);
+    return `${hour_s}:${mins_s}:${secs_s}`;
   }
 
-  //mi date_text
-  date_text(days_since_epoch) {
+  date_text(days_since_epoch: number) {
     const date = new Date();
     date.setTime(days_since_epoch * 24 * 60 * 60 * 1000);
     return date.toDateString();
   }
 
-  //mp update_html_star_info
   update_html_star_info() {
     if (this.selected_star) {
       const star = this.star_catalog.catalog.star(this.selected_star);
       const e = document.getElementById("star_info");
-      const data = [];
-      const name = Names[star.id];
+      if (!e) {
+        return;
+      }
+      const he = new html.HtmlElement(e);
+      he.clear();
+      const table = new html.Table("");
+      const name = (Names as any).get(star.id);
       if (name !== null && name !== undefined) {
-        data.push(`Name: ${name}`);
+        table.add_body([
+          html.HtmlElement.new_ele(
+            "span",
+            {},
+            (e) => (e.innerText = `Name: ${name}`),
+          ),
+        ]);
       } else {
-        data.push(`Name: <unnamed>`);
+        table.add_body([
+          html.HtmlElement.new_ele(
+            "span",
+            {},
+            (e) => (e.innerText = "Name: <unnamed>"),
+          ),
+        ]);
       }
-      data.push(`Id: ${star.id}`);
-      data.push(`Mag: ${star.magnitude.toFixed(2)}`);
-      data.push(`Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`);
-      data.push(`De: ${(star.declination * this.rad2deg).toFixed(2)}`);
-      if (e) {
-        html.clear(e);
-        e.append(html.table([], [], [data]));
-      }
+      table.add_body([
+        html.HtmlElement.new_ele(
+          "span",
+          {},
+          (e) => (e.innerText = `Id: ${star.id}`),
+        ),
+      ]);
+      table.add_body([
+        html.HtmlElement.new_ele(
+          "span",
+          {},
+          (e) => (e.innerText = `Mag: ${star.magnitude.toFixed(2)}`),
+        ),
+      ]);
+      table.add_body([
+        html.HtmlElement.new_ele(
+          "span",
+          {},
+          (e) =>
+            (e.innerText = `Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`),
+        ),
+      ]);
+      table.add_body([
+        html.HtmlElement.new_ele(
+          "span",
+          {},
+          (e) =>
+            (e.innerText = `De: ${(star.declination * this.rad2deg).toFixed(2)}`),
+        ),
+      ]);
     }
   }
 
   //mi update_html_elements
   update_html_elements() {
-    html.if_ele_id("reload_link", this, function (e, v) {
+    if_ele_id("reload_link", this, function (e, v) {
       const a = document.createElement("a");
       const href = v.get_href();
       a.setAttribute("href", href);
       a.innerText = "Sky View Link";
-      html.clear(e);
+      const he = new html.HtmlElement(e);
+      he.clear();
       e.appendChild(a);
     });
-    html.if_ele_id("lat", this.lat, function (e, v) {
+    if_ele_id("lat", this.lat, function (e, v) {
       e.innerText = `Lat: ${v.toFixed(1)}`;
     });
-    html.if_ele_id("lon", this.lon, function (e, v) {
+    if_ele_id("lon", this.lon, function (e, v) {
       e.innerText = `Lon: ${v.toFixed(1)}`;
     });
-    html.if_ele_id("ele", this.observer_elevation, function (e, v) {
+    if_ele_id("ele", this.observer_elevation, function (e, v) {
       e.innerText = `Elev: ${v.toFixed(1)}`;
     });
-    html.if_ele_id("time", this.time_text(this.time_of_day), function (e, v) {
+    if_ele_id("time", this.time_text(this.time_of_day), function (e, v) {
       e.innerText = `UTC Time: ${v}`;
     });
-    html.if_ele_id(
-      "date",
-      this.date_text(this.days_since_epoch),
-      function (e, v) {
-        e.innerText = v;
-      },
-    );
+    if_ele_id("date", this.date_text(this.days_since_epoch), function (e, v) {
+      e.innerText = v;
+    });
   }
 
   //mp date_set
@@ -496,21 +580,25 @@ export class ViewProperties {
 
   //mp update_latlon
   /// Update the view, because of a view change, time change, etc
-  update_latlon(lat, lon) {
+  update_latlon(lat: number, lon: number) {
     this.lat = lat;
     this.lon = lon;
     this.log_latlon_update();
     this.star_catalog.set_view_needs_update();
   }
 
-  //mp log_latlon_update
+  /**
+   *  Record a change of lat/lon in the log
+   */
   log_latlon_update() {
     const text = `${this.lat.toFixed(1)}, ${this.lon.toFixed(1)}`;
     const href = this.get_href();
     this.logger.info("update", `Set Lat/Lon to <a href='${href}'>${text}</a>`);
   }
 
-  //mp log_time_date_update
+  /**
+   *  Record a change of time/date in the log
+   */
   log_time_date_update() {
     const text =
       this.date_text(this.days_since_epoch) +
@@ -523,27 +611,35 @@ export class ViewProperties {
     );
   }
 
-  //mp log_compass_elevation_update
+  /**
+   *  Record a change of compass in the log
+   */
   log_compass_elevation_update() {
     const text = `compass ${this.observer_compass.toFixed(1)}, elevation ${this.observer_elevation.toFixed(1)}`;
     const href = this.get_href();
     this.logger.info("update", `Set view to <a href='${href}'>${text}</a>`);
   }
 
-  //mp view_observer_adjust
-  // Rotate by the specified radians
-  view_observer_adjust(delta_c, delta_e) {
+  /**
+   *  Change the observer compasee/elevation by the specified radians
+   *
+   * @param {number} delta_c Change in compass angle in radians
+   * @param {number} delta_e Change in elevation angle in radians
+   */
+  view_observer_adjust(delta_c: number, delta_e: number) {
     const compass = this.observer_compass * 1 * this.deg2rad - delta_c;
     const elevation =
       (this.observer_elevation * 1 + 0) * this.deg2rad - delta_e;
     this.view_observer_set(compass, elevation);
   }
 
-  //mp view_observer_set
-  // Rotate by the specified radians
-  //
-  // Note, not degrees
-  view_observer_set(compass, elevation) {
+  /**
+   *  Rotate by the specified radians
+   *
+   * @param {number} compass Angle to set the compass to in radians
+   * @param {number} elevation Angle to set the observer elevation to in radians
+   */
+  view_observer_set(compass: number, elevation: number) {
     // Setting the viewer will indirectly set observer_elevation and observer_compass
     this.view_to_ecef_q = WasmQuatf64.unit()
       .rotate_y(elevation)
@@ -556,8 +652,7 @@ export class ViewProperties {
     this.star_catalog.set_view_needs_update();
   }
 
-  //mp view_clock_hour_rotate
-  view_clock_hour_rotate(by_angle) {
+  view_clock_hour_rotate(by_angle: number) {
     const elevation = this.observer_elevation * this.deg2rad;
     const compass = this.observer_compass * this.deg2rad;
 
@@ -579,14 +674,12 @@ export class ViewProperties {
     this.star_catalog.set_view_needs_update();
   }
 
-  //mp view_q_post_mul
-  view_q_post_mul(q) {
+  view_q_post_mul(q: WasmQuatf64) {
     this.view_to_ecef_q = this.view_to_ecef_q.mul(q);
     this.star_catalog.set_view_needs_update();
   }
 
-  //mp view_q_pre_mul
-  view_q_pre_mul(q) {
+  view_q_pre_mul(q: WasmQuatf64) {
     this.view_to_ecef_q = q.mul(this.view_to_ecef_q);
     this.star_catalog.set_view_needs_update();
   }

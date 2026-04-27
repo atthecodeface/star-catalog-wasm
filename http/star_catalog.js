@@ -1,7 +1,6 @@
 //a To do
 // Orbit, more names
 
-//a Imports
 import init, {
   WasmCatalog,
   WasmStar,
@@ -21,7 +20,7 @@ import { SkyCanvas } from "../javascript/sky_canvas.js";
 import { FindCanvas } from "../javascript/find_canvas.js";
 import { Earth } from "../javascript/earth.js";
 import { Styling } from "./styling.js";
-import { ViewProperties } from "./view_properties.js";
+import { ViewProperties } from "../javascript/view_properties.js";
 
 //a Useful functions
 //fi fract

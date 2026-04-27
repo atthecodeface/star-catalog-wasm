@@ -61,6 +61,8 @@
     "typescript/cache.ts",
     "typescript/hipparcos.ts",
 
+    "typescript/view_properties.ts",
+
     "typescript/earth.ts",
     "typescript/map_canvas.ts",
     "typescript/sky_canvas.ts",
