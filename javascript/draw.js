@@ -46,7 +46,7 @@ export class Draw {
         ];
         return new Draw(contents);
     }
-    static set_transform(ctx, cxy, scale, angle) {
+    static set_transform(ctx, cxy = null, scale = null, angle = null) {
         const d2r = Math.PI / 180;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         if (cxy !== null) {

@@ -144,14 +144,14 @@ impl WasmCatalog {
         a0: f64,
         a1: f64,
         a2: f64,
-        max_triangles: usize,
-    ) -> Array {
+        _max_triangles: usize,
+    ) -> Vec<u32> {
         //        let f_orig = self
         //            .cat
         //            .borrow_mut()
         //            .add_filter(StarFilter::select(0, max_triangles));
 
-        let result = js_sys::Array::new();
+        let mut result = vec![]; // js_sys::Array::new();
         let angles_to_find = [a0, a1, a2];
         let s = Subcube::iter_all();
         for (i0, i1, i2) in
@@ -159,9 +159,9 @@ impl WasmCatalog {
                 .borrow()
                 .find_star_triangles(s, &angles_to_find, max_angle_delta)
         {
-            result.push(&i0.as_usize().into());
-            result.push(&i1.as_usize().into());
-            result.push(&i2.as_usize().into());
+            result.push(i0.as_usize() as u32);
+            result.push(i1.as_usize() as u32);
+            result.push(i2.as_usize() as u32);
         }
 
         //self.cat.borrow_mut().set_filter(f_orig);

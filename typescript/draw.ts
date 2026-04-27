@@ -56,9 +56,9 @@ export class Draw {
 
   static set_transform(
     ctx: CanvasRenderingContext2D,
-    cxy: [number, number] | null,
-    scale: number | null,
-    angle: number | null,
+    cxy: [number, number] | null = null,
+    scale: number | null = null,
+    angle: number | null = null,
   ) {
     const d2r = Math.PI / 180;
     ctx.setTransform(1, 0, 0, 1, 0, 0);

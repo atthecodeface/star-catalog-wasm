@@ -624,7 +624,6 @@ export class Earth {
   }
 
   drag_start(_start_xy: [number, number], _xy: [number, number]): void {}
-
   drag_end(_start_xy: [number, number], _xy: [number, number]): void {}
   user_press(_xy: [number, number], _actions: MousePressActions): void {}
   user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
