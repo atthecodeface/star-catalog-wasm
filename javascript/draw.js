@@ -9,7 +9,7 @@ export class Line {
         this.last_cxy = null;
     }
     add_pt(cxy) {
-        if (cxy == null) {
+        if (cxy === null) {
         }
         else if (this.last_cxy == null) {
             this.ctx.moveTo(cxy[0], cxy[1]);

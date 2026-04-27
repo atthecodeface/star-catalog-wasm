@@ -2,28 +2,75 @@ import {
   WasmVec3f32,
   WasmVec3f64,
   WasmQuatf64,
+  WasmCatalog,
+  WasmStar,
 } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
-import { Line } from "../javascript/draw.js";
-import { Mouse } from "../javascript/mouse.js";
-import { Cache } from "../javascript/cache.js";
-import { Logger } from "../javascript/log.js";
+import { Line } from "./draw.js";
+import { Mouse, MousePressActions } from "./mouse.js";
+import { Cache } from "./cache.js";
+import { Logger } from "./log.js";
+
+function if_ele_id(
+  ele_id: string,
+  v: any,
+  f: (e: HTMLElement, v: any) => void,
+) {
+  const e = document.getElementById(ele_id);
+  if (e != null) {
+    f(e, v);
+  }
+}
 
 //a SkyCanvas
 export class SkyCanvas {
+  star_catalog: any;
+  catalog: WasmCatalog;
+  vp: any;
+  logger: Logger;
+  div: HTMLElement;
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+
+  mouse: Mouse;
+
+  fovh: number;
+  // is what half the width is horizontally in tan space
+  tan_hfovh: number = 0;
+  brightness: number;
+  star_cache: Cache<any>;
+  tan_yx: number;
+
+  styling: any;
+
+  win_ar: number = 0;
+  // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
+  tan_pixh: number = 0;
+  tan_pixv: number = 0;
+  drag_rotate: string = "";
+  star_vector: WasmVec3f64;
+
   //fp constructor
-  constructor(star_catalog, catalog, canvas_div_id, width, height) {
+  constructor(
+    star_catalog: any,
+    catalog: WasmCatalog,
+    canvas_div_id: string,
+    width: number,
+    height: number,
+  ) {
     this.star_catalog = star_catalog;
     this.catalog = catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "clock");
 
-    this.div = document.getElementById(canvas_div_id);
+    this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
     this.div.appendChild(this.canvas);
 
     this.width = width;
     this.height = height;
+    this.star_vector = new WasmVec3f64(0, 0, 0);
 
     this.canvas.width = this.width;
     this.canvas.height = this.height;
@@ -58,7 +105,7 @@ export class SkyCanvas {
   }
 
   //mi check_star_cache
-  check_star_cache(stars) {
+  check_star_cache(stars: any) {
     if (stars.stars.length == 0) {
       return true;
     }
@@ -78,7 +125,7 @@ export class SkyCanvas {
   }
 
   //mi try_to_fill_star_cache
-  try_to_fill_star_cache(stars) {
+  try_to_fill_star_cache(stars: any) {
     this.catalog.clear_filter();
     this.catalog.filter_max_magnitude(this.brightness);
 
@@ -114,20 +161,20 @@ export class SkyCanvas {
     this.tan_pixh = (2 * this.tan_hfovh) / this.width;
     this.tan_pixv = (2 * this.tan_pixh) / this.tan_yx;
 
-    html.if_ele_id("focal_length", this.tan_hfovh, function (e, v) {
+    if_ele_id("focal_length", this.tan_hfovh, function (e, v) {
       e.innerText = `${(18 / v).toFixed(2)}mm equiv`;
     });
-    html.if_ele_id("fov", this.fovh * this.vp.rad2deg, function (e, v) {
+    if_ele_id("fov", this.fovh * this.vp.rad2deg, function (e, v) {
       e.innerText = `${v.toFixed(2)} degrees`;
     });
-    html.if_ele_id("brightness", this.brightness, function (e, v) {
-      e.value = v;
+    if_ele_id("brightness", this.brightness, function (e, v) {
+      (e as any).value = v;
     });
-    html.if_ele_id("max_mag", this.brightness, function (e, v) {
+    if_ele_id("max_mag", this.brightness, function (e, v) {
       e.innerText = `Max magnitude: ${v.toFixed(2)}`;
     });
-    html.if_ele_id("zoom", this.fovh * this.vp.rad2deg, function (e, v) {
-      e.value = v;
+    if_ele_id("zoom", this.fovh * this.vp.rad2deg, function (e, v) {
+      (e as any).value = v;
     });
   }
 
@@ -137,17 +184,9 @@ export class SkyCanvas {
     this.redraw_canvas();
   }
 
-  //mp old_vector_of_cxy
-  // Vector of canvas coord +X right +Y down
-  old_vector_of_cxy(cxy) {
-    const fx = (-cxy[0] / this.width + 0.5) * 2;
-    const fy = (-cxy[1] / this.height + 0.5) * 2;
-    return this.vector_of_fxy([fx, fy]);
-  }
-
   //mp set_vector_of_cxy
   // Set a vector of canvas coord +X right +Y down
-  set_vector_of_cxy(v, cxy) {
+  set_vector_of_cxy(v: WasmVec3f32, cxy: [number, number]) {
     const fx = (-cxy[0] / this.width + 0.5) * 2;
     const fy = (-cxy[1] / this.height + 0.5) * 2;
     this.set_vector_of_fxy(v, [fx, fy]);
@@ -157,7 +196,7 @@ export class SkyCanvas {
   // Vector of *square* canvas fraction with -1,-1 being bottom left, 1,1 top right
   //
   // This assumes that -1 in the Y corresponds to a 'full' width
-  set_vector_of_fxy(v, fxy) {
+  set_vector_of_fxy(v: WasmVec3f32, fxy: [number, number]) {
     const fx = fxy[0];
     const fy = (fxy[1] * this.win_ar) / this.tan_yx;
     const roll = Math.atan2(fy, fx);
@@ -166,7 +205,7 @@ export class SkyCanvas {
     const vx = Math.cos(yaw);
     const vy = Math.sin(yaw) * Math.cos(roll);
     const vz = Math.sin(yaw) * Math.sin(roll);
-    v.set([vx, vy, vz]);
+    v.set(new Float32Array([vx, vy, vz]));
     return;
   }
 
@@ -174,18 +213,18 @@ export class SkyCanvas {
   // Canvas XY of vector in'camera' space
   //
   // Note X+ is in to screen, Y+ is left, Z+ is up
-  cxy_of_vector(vv) {
+  cxy_of_vector(vv: WasmVec3f64): null | [number, number] {
     const v = vv.array;
-    if (v[0] < 0.1) {
+    if (v[0]! < 0.1) {
       return null;
     }
-    const x = this.width / 2.0 - v[1] / v[0] / this.tan_pixh;
-    const y = this.height / 2.0 - v[2] / v[0] / this.tan_pixh; // v / this.win_ar );
+    const x = this.width / 2.0 - v[1]! / v[0]! / this.tan_pixh;
+    const y = this.height / 2.0 - v[2]! / v[0]! / this.tan_pixh; // v / this.win_ar );
     return [x, y];
   }
 
   //mp select
-  select(s) {
+  select(s: undefined | number) {
     this.logger.verbose("select", `Selected ${s}`);
     this.vp.set_selected_star(s);
 
@@ -193,7 +232,7 @@ export class SkyCanvas {
   }
 
   //mi rotate_axis
-  rotate_axis(axis, delta) {
+  rotate_axis(axis: number, delta: number) {
     var v = new WasmVec3f64(1, 0, 0);
     if (axis == 1) {
       v = new WasmVec3f64(0, 1, 0);
@@ -205,7 +244,7 @@ export class SkyCanvas {
   }
 
   //mi center
-  center(ra_de) {
+  center(ra_de: [number, number]) {
     // Get new direction that is desired for the center of the view
     const ecef_v = this.vp.vec_of_ra_de(ra_de[0], ra_de[1]);
 
@@ -219,10 +258,7 @@ export class SkyCanvas {
   }
 
   //mi draw_star
-  draw_star(ctx, star) {
-    if (!this.star_vector) {
-      this.star_vector = new WasmVec3f64();
-    }
+  draw_star(ctx: CanvasRenderingContext2D, star: WasmStar) {
     // Determine viewer direction vector for the star
     star.set_vector(this.star_vector);
     this.star_vector.set_apply_q3(this.vp.ecef_to_view_q);
@@ -234,15 +270,15 @@ export class SkyCanvas {
     }
 
     const m = star.magnitude;
-    const ra = star.right_ascension;
-    const de = star.declination;
+    // const _ra = star.right_ascension;
+    // const _de = star.declination;
     const rgb = star.rgb.array;
 
     const cx = cxy[0];
     const cy = cxy[1];
-    let r = Math.floor(Math.min(255, Math.max(0, rgb[0] * 255)));
-    let g = Math.floor(Math.min(255, Math.max(0, rgb[1] * 255)));
-    let b = Math.floor(Math.min(255, Math.max(0, rgb[2] * 255)));
+    let r = Math.floor(Math.min(255, Math.max(0, rgb[0]! * 255)));
+    let g = Math.floor(Math.min(255, Math.max(0, rgb[1]! * 255)));
+    let b = Math.floor(Math.min(255, Math.max(0, rgb[2]! * 255)));
     ctx.fillStyle = `rgb(${r},${g},${b})`;
     if (m < 3) {
       ctx.fillRect(cx - 1, cy - 1, 3, 3);
@@ -254,32 +290,46 @@ export class SkyCanvas {
   }
 
   //mi add_declination_circle
-  add_declination_circle(q, l, v, de, step_size) {
+  add_declination_circle(
+    q: WasmQuatf64,
+    l: Line,
+    v: WasmVec3f64,
+    de: number,
+    step_size: number,
+  ) {
     const de_c = Math.cos(de * this.vp.deg2rad);
     const de_s = Math.sin(de * this.vp.deg2rad);
     l.new_segment();
     for (var ra = 0; ra <= 360; ra += step_size) {
       const ra_r = ra * this.vp.deg2rad;
-      v.set([de_c * Math.cos(ra_r), de_c * Math.sin(ra_r), de_s]);
+      v.set(
+        new Float64Array([de_c * Math.cos(ra_r), de_c * Math.sin(ra_r), de_s]),
+      );
       l.add_pt(this.cxy_of_vector(q.apply3(v)));
     }
   }
 
   //mi add_ra_great_circle - for azimuthal grid
-  add_ra_great_circle(q, l, v, ra, step_size) {
+  add_ra_great_circle(
+    q: WasmQuatf64,
+    l: Line,
+    v: WasmVec3f64,
+    ra: number,
+    _step_size: number,
+  ) {
     const ra_c = Math.cos(ra * this.vp.deg2rad);
     const ra_s = Math.sin(ra * this.vp.deg2rad);
     l.new_segment();
     for (var de = -80; de <= 80; de += 1) {
       const de_c = Math.cos(de * this.vp.deg2rad);
       const de_s = Math.sin(de * this.vp.deg2rad);
-      v.set([ra_c * de_c, ra_s * de_c, de_s]);
+      v.set(new Float64Array([ra_c * de_c, ra_s * de_c, de_s]));
       l.add_pt(this.cxy_of_vector(q.apply3(v)));
     }
   }
 
   //mi draw_grid - draw a grid given a styling and ecef-to-view quaternion
-  draw_grid(ctx, q_grid, styling) {
+  draw_grid(ctx: CanvasRenderingContext2D, q_grid: WasmQuatf64, styling: any) {
     if (styling == null) {
       return;
     }
@@ -315,7 +365,7 @@ export class SkyCanvas {
   }
 
   //mi draw_border
-  draw_border(ctx) {
+  draw_border(ctx: CanvasRenderingContext2D): void {
     if (this.styling.view_border == null) {
       return;
     }
@@ -332,20 +382,20 @@ export class SkyCanvas {
   }
 
   //mi redraw_canvas
-  redraw_canvas() {
-    const ctx = this.canvas.getContext("2d");
+  redraw_canvas(): void {
+    const ctx = this.canvas.getContext("2d")!;
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.draw_border(ctx);
-    if (this.vp.selected_star != null) {
-      const star = this.catalog.star(this.vp.selected_star);
+    if (this.vp.selected_star !== null) {
+      const star = this.catalog.star(this.vp.selected_star)!;
       ctx.strokeStyle = "White";
       const qv = this.vp.ecef_to_view_q.apply3(star.vector);
       const cxy = this.cxy_of_vector(qv);
-      if (cxy != null) {
-        const cx = cxy[0];
-        const cy = cxy[1];
+      if (cxy !== null) {
+        const cx = cxy[0]!;
+        const cy = cxy[1]!;
 
         ctx.beginPath();
         ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
@@ -376,43 +426,29 @@ export class SkyCanvas {
     }
   }
 
-  //mi zoom_set
   zoom_set() {
-    const e = document.getElementById("zoom");
-    if (e) {
-      this.fovh = e.value * this.vp.deg2rad;
-      if (this.fovh > (Math.PI * 3) / 4) {
-        this.fovh = (Math.PI * 3) / 4;
-      } else if (this.fovh < 0.01) {
-        this.fovh = 0.01;
-      }
-      this.star_catalog.set_view_needs_update();
+    const zoom = html.get_input_float("zoom", 1, 120);
+    this.fovh = zoom * this.vp.deg2rad;
+    if (this.fovh > (Math.PI * 3) / 4) {
+      this.fovh = (Math.PI * 3) / 4;
+    } else if (this.fovh < 0.01) {
+      this.fovh = 0.01;
     }
+    this.star_catalog.set_view_needs_update();
   }
 
-  //mi brightness_set
   brightness_set() {
-    const e = document.getElementById("brightness");
-    if (e) {
-      let brightness = e.value;
-      this.brightness = 1.0 * brightness;
-      this.star_catalog.set_view_needs_update();
-    }
+    this.brightness = html.get_input_float("brightness", 1, 12);
+    this.star_catalog.set_view_needs_update();
   }
 
-  // drag_start(_start_xy, xy) {}
-  // drag_to(_start_xy, _old_xy, new_xy) {}
-  drag_end(_start_xy, _xy) {}
+  drag_end(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press(_xy: [number, number], _actions: MousePressActions): void {}
+  user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press_cancel(_start_xy: [number, number]): void {}
+  user_pan(_xy: [number, number], _dxy: [number, number]): void {}
 
-  user_press(_xy, _actions) {}
-  user_press_move(_start_xy, _xy) {}
-  user_press_cancel(_start_xy) {}
-  // user_release(_start_xy, xy) {}
-  // user_zoom(cxy, factor) {}
-  // user_pan(_xy, dxy) {}
-  // user_rotate(_xy, _angle) {}
-
-  drag_start(_start_xy, xy) {
+  drag_start(_start_xy: [number, number], xy: [number, number]): void {
     const cx = xy[0] - this.width / 2;
     const cy = xy[1] - this.height / 2;
     const d2 = cx * cx + cy * cy;
@@ -423,7 +459,11 @@ export class SkyCanvas {
     }
   }
 
-  drag_to(_start_xy, cxy0, cxy1) {
+  drag_to(
+    _start_xy: [number, number],
+    cxy0: [number, number],
+    cxy1: [number, number],
+  ): void {
     if (this.drag_rotate == "x") {
       const cx0 = cxy0[0] - this.width / 2;
       const cy0 = cxy0[1] - this.height / 2;
@@ -442,23 +482,21 @@ export class SkyCanvas {
     }
   }
 
-  user_release(_start_xy, cxy) {
+  user_release(_start_xy: [number, number], cxy: [number, number]): void {
     // Map click location to ECEF direction
-    const v = new WasmVec3f64();
+    const v = new WasmVec3f32(0, 0, 0);
     this.set_vector_of_cxy(v, cxy);
     v.set_apply_q3(this.vp.view_to_ecef_q);
     const qv = v.array;
 
-    const ra = Math.atan2(qv[1], qv[0]);
-    const de = Math.asin(qv[2]);
+    const ra = Math.atan2(qv[1]!, qv[0]!);
+    const de = Math.asin(qv[2]!);
     this.catalog.clear_filter();
     this.catalog.filter_max_magnitude(this.brightness);
     this.select(this.catalog.closest_to_ra_de(ra, de));
   }
 
-  user_pan(_xy, dxy) {}
-
-  user_zoom(_cxy, factor) {
+  user_zoom(_cxy: [number, number], factor: number): void {
     this.fovh = 2 * Math.atan(factor * Math.tan(this.fovh / 2));
     if (this.fovh > (Math.PI * 3) / 4) {
       this.fovh = (Math.PI * 3) / 4;
@@ -468,7 +506,7 @@ export class SkyCanvas {
     this.star_catalog.set_view_needs_update();
   }
 
-  user_rotate(_xy, angle) {
+  user_rotate(_xy: [number, number], angle: number): void {
     const v = new WasmVec3f64(1, 0, 0);
     const q = WasmQuatf64.of_axis_angle(v, -angle);
     this.vp.view_q_post_mul(q);

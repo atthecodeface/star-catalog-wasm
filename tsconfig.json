@@ -63,6 +63,7 @@
 
     "typescript/earth.ts",
     "typescript/map_canvas.ts",
+    "typescript/sky_canvas.ts",
     "typescript/find_canvas.ts",
   ],
 }

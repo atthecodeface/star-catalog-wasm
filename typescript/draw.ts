@@ -13,8 +13,8 @@ export class Line {
     this.last_cxy = null;
   }
 
-  add_pt(cxy: [number, number]) {
-    if (cxy == null) {
+  add_pt(cxy: null | [number, number]) {
+    if (cxy === null) {
     } else if (this.last_cxy == null) {
       this.ctx.moveTo(cxy[0], cxy[1]);
     } else if (

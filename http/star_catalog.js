@@ -17,7 +17,7 @@ import { ClockCanvas } from "../javascript/clock.js";
 import { ElevationCanvas } from "../javascript/elevation.js";
 
 import { MapCanvas } from "../javascript/map_canvas.js";
-import { SkyCanvas } from "./sky_canvas.js";
+import { SkyCanvas } from "../javascript/sky_canvas.js";
 import { FindCanvas } from "../javascript/find_canvas.js";
 import { Earth } from "../javascript/earth.js";
 import { Styling } from "./styling.js";
