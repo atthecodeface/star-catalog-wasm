@@ -401,7 +401,8 @@ export class ViewProperties {
             const he = new html.HtmlElement(e);
             he.clear();
             const table = new html.Table("");
-            const name = Names.get(star.id);
+            const name = Names[star.id.toString()];
+            console.log(name);
             if (name !== null && name !== undefined) {
                 table.add_body([
                     html.HtmlElement.new_ele("span", {}, (e) => (e.innerText = `Name: ${name}`)),
@@ -424,6 +425,8 @@ export class ViewProperties {
             table.add_body([
                 html.HtmlElement.new_ele("span", {}, (e) => (e.innerText = `De: ${(star.declination * this.rad2deg).toFixed(2)}`)),
             ]);
+            console.log(table.as_html());
+            he.set_content(table.as_html());
         }
     }
     //mi update_html_elements

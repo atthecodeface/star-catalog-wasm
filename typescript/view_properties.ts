@@ -492,7 +492,10 @@ export class ViewProperties {
       const he = new html.HtmlElement(e);
       he.clear();
       const table = new html.Table("");
-      const name = (Names as any).get(star.id);
+
+      type NameKey = keyof typeof Names;
+      const name = Names[star.id.toString() as NameKey];
+      console.log(name);
       if (name !== null && name !== undefined) {
         table.add_body([
           html.HtmlElement.new_ele(
@@ -540,6 +543,8 @@ export class ViewProperties {
             (e.innerText = `De: ${(star.declination * this.rad2deg).toFixed(2)}`),
         ),
       ]);
+      console.log(table.as_html());
+      he.set_content(table.as_html());
     }
   }
 
