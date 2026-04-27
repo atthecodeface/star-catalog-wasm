@@ -10,6 +10,7 @@ export class ElevationCanvas {
         this.star_catalog = star_catalog;
         this.vp = this.star_catalog.vp;
         this.logger = new Logger(star_catalog.log, "compass");
+        this.styling = this.star_catalog.styling;
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
@@ -37,18 +38,17 @@ export class ElevationCanvas {
     }
     //mp redraw
     redraw() {
-        this.styling = this.star_catalog.styling.elevation;
         const ctx = this.ctx;
         ctx.save();
         const cx = 0;
         const cy = this.height / 2;
         // const radius = this.width * 0.95;
         // const d2r = Math.PI / 180;
-        ctx.fillStyle = this.styling.canvas;
+        ctx.fillStyle = this.styling.elevation.canvas;
         ctx.fillRect(0, 0, this.width, this.height);
-        ctx.strokeStyle = this.styling.scale;
+        ctx.strokeStyle = this.styling.elevation.scale;
         this.background.draw(ctx, (x) => x);
-        ctx.strokeStyle = this.styling.marker;
+        ctx.strokeStyle = this.styling.elevation.marker;
         Draw.set_transform(ctx, [cx, cy], null, this.vp.observer_elevation);
         this.arrow.draw(ctx, (x) => x);
         ctx.restore();

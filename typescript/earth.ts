@@ -8,6 +8,7 @@ import {
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
+import { Styling } from "./styling.js";
 import { StarCatalog } from "./star_catalog.js";
 
 class WebglObj {
@@ -116,10 +117,10 @@ export class Earth {
   texture: WebGLTexture | null = null;
   q: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
   triangle_q_ll: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
-  styling: any;
+  styling: Styling;
 
   constructor(
-    star_catalog: any,
+    star_catalog: StarCatalog,
     canvas_div_id: string,
     width: number,
     height: number,
@@ -129,6 +130,7 @@ export class Earth {
     this.star_catalog = star_catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "earth");
+    this.styling = this.star_catalog.styling;
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -415,7 +417,7 @@ export class Earth {
     }
 
     if (this.u_color != null) {
-      color.set(this.styling.color, 0);
+      color.set(this.styling.earth.color, 0);
       this.webgl.uniform4fv(this.u_color, color);
     }
     if (this.u_model != null) {
@@ -440,8 +442,6 @@ export class Earth {
   }
 
   derive_data() {
-    this.styling = this.star_catalog.styling.earth;
-
     if (this.center_on_lat < -80) {
       this.center_on_lat = -80;
     }

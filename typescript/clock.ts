@@ -34,11 +34,11 @@ export class ClockCanvas {
     this.star_catalog = star_catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "clock");
+    this.styling = this.star_catalog.styling;
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
     this.div.appendChild(this.canvas);
-    this.styling = this.star_catalog.styling;
 
     this.width = width;
     this.height = height;
@@ -137,7 +137,7 @@ export class ClockCanvas {
     ctx.fillStyle = this.styling.clock.canvas;
     ctx.fillRect(0, 0, this.width, this.height);
 
-    const style = this.styling;
+    const style = this.styling.clock;
 
     ctx.save();
     this.background.draw(ctx, (x) => (style as any)[x]);

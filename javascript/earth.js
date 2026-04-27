@@ -63,6 +63,7 @@ export class Earth {
         this.star_catalog = star_catalog;
         this.vp = this.star_catalog.vp;
         this.logger = new Logger(star_catalog.log, "earth");
+        this.styling = this.star_catalog.styling;
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
@@ -258,7 +259,7 @@ export class Earth {
             this.webgl.uniform1i(this.u_sampler, 0);
         }
         if (this.u_color != null) {
-            color.set(this.styling.color, 0);
+            color.set(this.styling.earth.color, 0);
             this.webgl.uniform4fv(this.u_color, color);
         }
         if (this.u_model != null) {
@@ -280,7 +281,6 @@ export class Earth {
         this.webgl_triangle.draw(this.webgl);
     }
     derive_data() {
-        this.styling = this.star_catalog.styling.earth;
         if (this.center_on_lat < -80) {
             this.center_on_lat = -80;
         }

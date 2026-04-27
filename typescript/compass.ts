@@ -1,6 +1,7 @@
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { StarCatalog } from "./star_catalog.js";
+import { Styling } from "./styling.js";
 import { ViewProperties } from "./view_properties.js";
 
 //a CompassCanvas
@@ -14,13 +15,13 @@ export class CompassCanvas {
   height: number;
   ctx: CanvasRenderingContext2D;
   mouse: Mouse;
-  styling: any;
+  styling: Styling;
 
   last_drag_polar: [number, number] = [0, 0];
   drag_minutes: boolean = false;
   //fp constructor
   constructor(
-    star_catalog: any,
+    star_catalog: StarCatalog,
     canvas_div_id: string,
     width: number,
     height: number,
@@ -28,6 +29,7 @@ export class CompassCanvas {
     this.star_catalog = star_catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "compass");
+    this.styling = this.star_catalog.styling;
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -66,17 +68,16 @@ export class CompassCanvas {
   // the angle offset) plus the observer compass (since the canvas
   // is upside down this inverts the rotation)
   redraw() {
-    this.styling = this.star_catalog.styling.compass;
     const ctx = this.ctx;
     ctx.save();
 
-    const color = this.styling.body;
-    const base_color = this.styling.bg;
+    const color = this.styling.compass.body;
+    const base_color = this.styling.compass.bg;
     const cx = this.width / 2;
     const cy = this.height / 2;
     const y_squash = 0.3;
 
-    ctx.fillStyle = this.styling.canvas;
+    ctx.fillStyle = this.styling.compass.canvas;
     ctx.fillRect(0, 0, this.width, this.height);
 
     const radius = this.width * 0.45;
@@ -98,7 +99,7 @@ export class CompassCanvas {
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(0, this.height / 10);
-    ctx.strokeStyle = this.styling.markers;
+    ctx.strokeStyle = this.styling.compass.markers;
     ctx.lineWidth = 4.0;
     ctx.stroke();
 
@@ -107,7 +108,7 @@ export class CompassCanvas {
     const s = Math.sin((this.vp.observer_compass + 90) * d2r);
     ctx.setTransform(c, -s * y_squash, s, c * y_squash, cx, cy);
 
-    ctx.strokeStyle = this.styling.markers;
+    ctx.strokeStyle = this.styling.compass.markers;
     ctx.lineWidth = 4.0;
     for (let angle = 0; angle < 360; angle += 15) {
       const c = Math.cos(angle * d2r);

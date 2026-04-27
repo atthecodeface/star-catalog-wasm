@@ -2,6 +2,7 @@ import { Draw } from "./draw.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
+import { Styling } from "./styling.js";
 import { StarCatalog } from "./star_catalog.js";
 
 //a ElevationCanvas
@@ -15,7 +16,7 @@ export class ElevationCanvas {
   height: number;
   ctx: CanvasRenderingContext2D;
   mouse: Mouse;
-  styling: any;
+  styling: Styling;
 
   last_drag_polar: [number, number] = [0, 0];
   drag_minutes: boolean = false;
@@ -24,7 +25,7 @@ export class ElevationCanvas {
 
   //fp constructor
   constructor(
-    star_catalog: any,
+    star_catalog: StarCatalog,
     canvas_div_id: string,
     width: number,
     height: number,
@@ -32,6 +33,7 @@ export class ElevationCanvas {
     this.star_catalog = star_catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "compass");
+    this.styling = this.star_catalog.styling;
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -72,7 +74,6 @@ export class ElevationCanvas {
 
   //mp redraw
   redraw() {
-    this.styling = this.star_catalog.styling.elevation;
     const ctx = this.ctx;
     ctx.save();
 
@@ -81,13 +82,13 @@ export class ElevationCanvas {
     // const radius = this.width * 0.95;
     // const d2r = Math.PI / 180;
 
-    ctx.fillStyle = this.styling.canvas;
+    ctx.fillStyle = this.styling.elevation.canvas;
     ctx.fillRect(0, 0, this.width, this.height);
 
-    ctx.strokeStyle = this.styling.scale;
+    ctx.strokeStyle = this.styling.elevation.scale;
     this.background.draw(ctx, (x) => x);
 
-    ctx.strokeStyle = this.styling.marker;
+    ctx.strokeStyle = this.styling.elevation.marker;
     Draw.set_transform(ctx, [cx, cy], null, this.vp.observer_elevation);
     this.arrow.draw(ctx, (x) => x);
 

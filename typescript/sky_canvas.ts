@@ -10,6 +10,7 @@ import { Mouse, MousePressActions } from "./mouse.js";
 import { Cache } from "./cache.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
+import { Styling } from "./styling.js";
 import { StarCatalog } from "./star_catalog.js";
 
 function if_ele_id(
@@ -43,7 +44,7 @@ export class SkyCanvas {
   star_cache: Cache<any>;
   tan_yx: number;
 
-  styling: any;
+  styling: Styling;
 
   win_ar: number = 0;
   // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
@@ -64,6 +65,7 @@ export class SkyCanvas {
     this.catalog = catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "clock");
+    this.styling = this.star_catalog.styling;
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -152,8 +154,6 @@ export class SkyCanvas {
 
   //mp derive_data
   derive_data() {
-    this.styling = this.star_catalog.styling.sky;
-
     this.win_ar = this.height / this.width;
     this.tan_yx = 1.0;
     // this.tan_hfovh is what half the width is horizontally in tan space
@@ -370,18 +370,18 @@ export class SkyCanvas {
 
   //mi draw_border
   draw_border(ctx: CanvasRenderingContext2D): void {
-    if (this.styling.view_border == null) {
+    if (this.styling.sky.view_border == null) {
       return;
     }
     const rx = this.canvas.width;
     const by = this.canvas.height;
-    ctx.fillStyle = this.styling.view_border[0];
+    ctx.fillStyle = this.styling.sky.view_border[0]!;
     ctx.fillRect(0, by - 2, rx, 2);
-    ctx.fillStyle = this.styling.view_border[2];
+    ctx.fillStyle = this.styling.sky.view_border[2]!;
     ctx.fillRect(0, 0, rx, 2);
-    ctx.fillStyle = this.styling.view_border[1];
+    ctx.fillStyle = this.styling.sky.view_border[1]!;
     ctx.fillRect(0, 0, 2, by);
-    ctx.fillStyle = this.styling.view_border[3];
+    ctx.fillStyle = this.styling.sky.view_border[3]!;
     ctx.fillRect(rx - 2, 0, 2, by);
   }
 
@@ -407,15 +407,19 @@ export class SkyCanvas {
       }
     }
 
-    if (this.styling.show_azimuthal) {
+    if (this.styling.sky.show_azimuthal) {
       this.draw_grid(
         ctx,
         this.vp.ecef_to_view_q.mul(this.vp.observer_to_ecef_q),
-        this.styling.azimuthal_grid,
+        this.styling.sky.azimuthal_grid,
       );
     }
-    if (this.styling.show_equatorial) {
-      this.draw_grid(ctx, this.vp.ecef_to_view_q, this.styling.equatorial_grid);
+    if (this.styling.sky.show_equatorial) {
+      this.draw_grid(
+        ctx,
+        this.vp.ecef_to_view_q,
+        this.styling.sky.equatorial_grid,
+      );
     }
 
     const stars = this.star_cache.get();

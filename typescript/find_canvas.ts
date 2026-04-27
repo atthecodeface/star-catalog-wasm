@@ -443,7 +443,7 @@ export class FindCanvas {
   selected_stars: [number, number][];
 
   constructor(
-    star_catalog: any,
+    star_catalog: StarCatalog,
     catalog: WasmCatalog,
     canvas_div_id: string,
     width: number,
