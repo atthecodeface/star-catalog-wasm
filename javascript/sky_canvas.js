@@ -1,4 +1,4 @@
-import { WasmVec3f32, WasmVec3f64, WasmQuatf64, } from "../pkg/star_catalog_wasm.js";
+import { WasmVec3f64, WasmQuatf64, } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import { Line } from "./draw.js";
 import { Mouse } from "./mouse.js";
@@ -140,7 +140,7 @@ export class SkyCanvas {
         const vx = Math.cos(yaw);
         const vy = Math.sin(yaw) * Math.cos(roll);
         const vz = Math.sin(yaw) * Math.sin(roll);
-        v.set(new Float32Array([vx, vy, vz]));
+        v.set(new Float64Array([vx, vy, vz]));
         return;
     }
     //mp cxy_of_vector
@@ -377,7 +377,7 @@ export class SkyCanvas {
     }
     user_release(_start_xy, cxy) {
         // Map click location to ECEF direction
-        const v = new WasmVec3f32(0, 0, 0);
+        const v = new WasmVec3f64(0, 0, 0);
         this.set_vector_of_cxy(v, cxy);
         v.set_apply_q3(this.vp.view_to_ecef_q);
         const qv = v.array;

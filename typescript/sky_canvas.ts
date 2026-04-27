@@ -1,5 +1,4 @@
 import {
-  WasmVec3f32,
   WasmVec3f64,
   WasmQuatf64,
   WasmCatalog,
@@ -10,6 +9,8 @@ import { Line } from "./draw.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Cache } from "./cache.js";
 import { Logger } from "./log.js";
+import { ViewProperties } from "./view_properties.js";
+import { StarCatalog } from "./star_catalog.js";
 
 function if_ele_id(
   ele_id: string,
@@ -24,9 +25,9 @@ function if_ele_id(
 
 //a SkyCanvas
 export class SkyCanvas {
-  star_catalog: any;
+  star_catalog: StarCatalog;
   catalog: WasmCatalog;
-  vp: any;
+  vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
   canvas: HTMLCanvasElement;
@@ -53,7 +54,7 @@ export class SkyCanvas {
 
   //fp constructor
   constructor(
-    star_catalog: any,
+    star_catalog: StarCatalog,
     catalog: WasmCatalog,
     canvas_div_id: string,
     width: number,
@@ -186,7 +187,7 @@ export class SkyCanvas {
 
   //mp set_vector_of_cxy
   // Set a vector of canvas coord +X right +Y down
-  set_vector_of_cxy(v: WasmVec3f32, cxy: [number, number]) {
+  set_vector_of_cxy(v: WasmVec3f64, cxy: [number, number]) {
     const fx = (-cxy[0] / this.width + 0.5) * 2;
     const fy = (-cxy[1] / this.height + 0.5) * 2;
     this.set_vector_of_fxy(v, [fx, fy]);
@@ -196,7 +197,7 @@ export class SkyCanvas {
   // Vector of *square* canvas fraction with -1,-1 being bottom left, 1,1 top right
   //
   // This assumes that -1 in the Y corresponds to a 'full' width
-  set_vector_of_fxy(v: WasmVec3f32, fxy: [number, number]) {
+  set_vector_of_fxy(v: WasmVec3f64, fxy: [number, number]) {
     const fx = fxy[0];
     const fy = (fxy[1] * this.win_ar) / this.tan_yx;
     const roll = Math.atan2(fy, fx);
@@ -205,7 +206,7 @@ export class SkyCanvas {
     const vx = Math.cos(yaw);
     const vy = Math.sin(yaw) * Math.cos(roll);
     const vz = Math.sin(yaw) * Math.sin(roll);
-    v.set(new Float32Array([vx, vy, vz]));
+    v.set(new Float64Array([vx, vy, vz]));
     return;
   }
 
@@ -254,7 +255,10 @@ export class SkyCanvas {
     // Add that rotation to the map camera
     // this.vp.view_q_pre_mul(q);
     const ce = this.vp.compass_elevation_of_ecef(ecef_v);
-    this.vp.view_observer_set(ce[0] * this.vp.deg2rad, ce[1] * this.vp.deg2rad);
+    this.vp.view_observer_set(
+      ce[0]! * this.vp.deg2rad,
+      ce[1]! * this.vp.deg2rad,
+    );
   }
 
   //mi draw_star
@@ -484,7 +488,7 @@ export class SkyCanvas {
 
   user_release(_start_xy: [number, number], cxy: [number, number]): void {
     // Map click location to ECEF direction
-    const v = new WasmVec3f32(0, 0, 0);
+    const v = new WasmVec3f64(0, 0, 0);
     this.set_vector_of_cxy(v, cxy);
     v.set_apply_q3(this.vp.view_to_ecef_q);
     const qv = v.array;

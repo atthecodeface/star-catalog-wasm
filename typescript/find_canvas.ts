@@ -8,6 +8,8 @@ import { Draw } from "./draw.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { ZoomedWindow } from "./zoomed_window.js";
 import { Logger } from "./log.js";
+import { ViewProperties } from "./view_properties.js";
+import { StarCatalog } from "./star_catalog.js";
 
 /*
 
@@ -412,9 +414,9 @@ class FindOrientation {
 }
 
 export class FindCanvas {
-  star_catalog: any;
+  star_catalog: StarCatalog;
   catalog: WasmCatalog;
-  vp: any;
+  vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
   canvas: HTMLCanvasElement;
@@ -807,7 +809,7 @@ export class FindCanvas {
       const sxy = this.zoomed_window.scr_xy_of_img_xy(ixy);
       ctx.save();
       Draw.set_transform(ctx, [sxy[0], sxy[1]]);
-      this.cross.draw(ctx, (x) => style[x]);
+      this.cross.draw(ctx, (x) => (style as any)[x]);
       ctx.restore();
     }
 
@@ -815,7 +817,7 @@ export class FindCanvas {
       ctx.save();
       const sxy = this.zoomed_window.scr_xy_of_img_xy(ixy);
       Draw.set_transform(ctx, [sxy[0], sxy[1]]);
-      this.marker.draw(ctx, (x) => style[x]);
+      this.marker.draw(ctx, (x) => (style as any)[x]);
       ctx.restore();
     }
   }

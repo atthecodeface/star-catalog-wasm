@@ -95,8 +95,8 @@ export class Styling {
         this.clock.sun = "#ff0";
         this.clock.moon = "#777";
         this.css = "night";
-        this.show_azimuthal = true;
-        this.show_equatorial = true;
+        // this.show_azimuthal = true;
+        // this.show_equatorial = true;
     }
     /// Set all elements with a 'dn' class to be also in night or day
     set_css() {

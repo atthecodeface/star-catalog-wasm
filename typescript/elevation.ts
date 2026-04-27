@@ -1,11 +1,13 @@
 import { Draw } from "./draw.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
+import { ViewProperties } from "./view_properties.js";
+import { StarCatalog } from "./star_catalog.js";
 
 //a ElevationCanvas
 export class ElevationCanvas {
-  star_catalog: any;
-  vp: any;
+  star_catalog: StarCatalog;
+  vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
   canvas: HTMLCanvasElement;

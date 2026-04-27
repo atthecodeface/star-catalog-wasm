@@ -8,11 +8,14 @@ import { Line } from "./draw.js";
 import { Cache } from "./cache.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
+import { ViewProperties } from "./view_properties.js";
+
+import { StarCatalog } from "./star_catalog.js";
 
 export class MapCanvas {
-  star_catalog: any;
+  star_catalog: StarCatalog;
   catalog: WasmCatalog;
-  vp: any;
+  vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
   canvas: HTMLCanvasElement;
@@ -28,7 +31,7 @@ export class MapCanvas {
   drag_minutes: boolean = false;
 
   constructor(
-    star_catalog: any,
+    star_catalog: StarCatalog,
     catalog: any,
     canvas_div_id: string,
     width: number,

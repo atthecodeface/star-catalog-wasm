@@ -3,42 +3,47 @@
 
 import init, {
   WasmCatalog,
-  WasmStar,
-  WasmVec3f32,
   WasmVec3f64,
   WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
-import { Tabs } from "../javascript/tabbed.js";
-import { Log, Logger, Severity } from "../javascript/log.js";
 
-import { CompassCanvas } from "../javascript/compass.js";
-import { ClockCanvas } from "../javascript/clock.js";
-import { ElevationCanvas } from "../javascript/elevation.js";
+import * as html from "./html.js";
+import { Tabs } from "./tabbed.js";
+import { Log, Logger, Severity } from "./log.js";
 
-import { MapCanvas } from "../javascript/map_canvas.js";
-import { SkyCanvas } from "../javascript/sky_canvas.js";
-import { FindCanvas } from "../javascript/find_canvas.js";
-import { Earth } from "../javascript/earth.js";
-import { Styling } from "../javascript/styling.js";
-import { ViewProperties } from "../javascript/view_properties.js";
+import { CompassCanvas } from "./compass.js";
+import { ClockCanvas } from "./clock.js";
+import { ElevationCanvas } from "./elevation.js";
 
-//a Useful functions
-//fi fract
-function fract(x) {
-  return x - Math.floor(x);
-}
+import { MapCanvas } from "./map_canvas.js";
+import { SkyCanvas } from "./sky_canvas.js";
+import { FindCanvas } from "./find_canvas.js";
+import { Earth } from "./earth.js";
+import { Styling } from "./styling.js";
+import { ViewProperties } from "./view_properties.js";
 
-//a StarCatalog
-//c StarCatalog
-class StarCatalog {
-  //cp constructor
-  constructor(params) {
+export class StarCatalog {
+  log: Log;
+  logger: Logger;
+  catalog: WasmCatalog;
+  tabs: Tabs;
+  styling: Styling;
+  vp: ViewProperties;
+  sky_canvas: SkyCanvas;
+  map_canvas: MapCanvas;
+  earth_canvas: Earth;
+  find_canvas: FindCanvas;
+  control_compass: CompassCanvas;
+  control_clock: ClockCanvas;
+  control_elevation: ElevationCanvas;
+
+  view_needs_update: boolean = false;
+  selected_css: string = "day";
+
+  constructor(params: URLSearchParams) {
     this.log = new Log("Log", Severity.Info, Severity.Warning);
     this.logger = new Logger(this.log, "main");
 
-    this.WasmCatalog = WasmCatalog;
-    this.WasmStar = WasmStar;
-    this.vec_of_ra_de = WasmStar.vec_of_ra_de;
     this.catalog = new WasmCatalog("hipp_bright");
 
     this.tabs = new Tabs("#tab-list", (id) => {
@@ -47,8 +52,8 @@ class StarCatalog {
 
     let mode = "day";
     const e = document.querySelector("#js_detect_css");
-    if (e) {
-      e.hidden = true;
+    if (e !== null) {
+      (e as any).hidden = true;
       const color_string = window.getComputedStyle(e).getPropertyValue("color");
       const m = color_string.match(/^rgb\s*\(\s*(\d+).*/i);
       if (m && m[1]) {
@@ -58,16 +63,11 @@ class StarCatalog {
       }
     }
 
-    const day_night_e = document.querySelector("input[name=day_night]");
     if (params.get("mode") == "day") {
       mode = "day";
     }
-    if (day_night_e) {
-      day_night_e.checked = mode == "day";
-    }
+    html.set_input_checked("day_night", mode == "day");
     this.styling = new Styling(mode);
-
-    this.view_needs_update = false;
 
     this.vp = new ViewProperties(this, params);
 
@@ -139,9 +139,7 @@ class StarCatalog {
 
     this.view_needs_update = false;
   }
-
-  //mp tab_selected
-  tab_selected(tab_id) {
+  tab_selected(tab_id: string) {
     const e = document.getElementById("controls");
     if (!e) {
       return;
@@ -157,8 +155,8 @@ class StarCatalog {
   //mp selected_css_toggle
   /// Invoked by the web page when day/night mode is toggled
   selected_css_toggle() {
-    const checkbox = document.querySelector("input[name=day_night]");
-    checkbox.checked = !checkbox.checked;
+    const is_day = html.get_input_checked("day_night_checkbox");
+    html.set_input_checked("day_night_checkbox", !is_day);
     this.selected_css_changed();
   }
 
@@ -166,13 +164,15 @@ class StarCatalog {
   /// Invoked by the web page when day/night mode is set, and
   /// initially to configure the styling properly.
   selected_css_changed() {
-    const checkbox = document.querySelector("input[name=day_night]");
-    const label = document.querySelector("#day_night_label");
-    this.selected_css = "night";
-    label.innerText = "Day mode";
-    if (checkbox.checked) {
+    const is_day = !html.get_input_checked("day_night_checkbox");
+    const label = document.querySelector("#day_night_label")! as HTMLElement;
+
+    if (is_day) {
       this.selected_css = "day";
       label.innerText = "Night mode";
+    } else {
+      this.selected_css = "night";
+      label.innerText = "Day mode";
     }
     this.styling.set(this.selected_css);
     this.set_view_needs_update();
@@ -194,47 +194,47 @@ class StarCatalog {
 
   //mp update_latlon
   /// Update the view, because of a view change, time change, etc
-  update_latlon(lat, lon) {
+  update_latlon(lat: number, lon: number) {
     this.vp.update_latlon(lat, lon);
     this.set_view_needs_update();
   }
 
   //mp view_q_post_mul
-  view_q_post_mul(q) {
+  view_q_post_mul(q: WasmQuatf64) {
     this.vp.view_q_post_mul(q);
     this.set_view_needs_update();
   }
 
   //mp view_q_pre_mul
-  view_q_pre_mul(q) {
+  view_q_pre_mul(q: WasmQuatf64) {
     this.vp.view_q_pre_mul(q);
     this.set_view_needs_update();
   }
 
   //mp center_lat_lon
   /// Center the earth view on a specific lat lon
-  center_lat_lon(lat, lon) {
+  center_lat_lon(lat: number, lon: number) {
     this.earth_canvas.center_lat_lon(lat, lon);
     this.set_view_needs_update();
   }
 
   //mp center_sky_view
   /// Center the sky view on a specific right ascension / declination
-  center_sky_view(ra_de) {
+  center_sky_view(ra_de: [number, number]) {
     this.sky_canvas.center(ra_de);
   }
 
   //mp sky_view_set_orientation
   /// Set the whole quaternion
-  sky_view_set_orientation(q) {
+  sky_view_set_orientation(q: WasmQuatf64) {
     this.vp.view_to_ecef_q = q;
     this.set_view_needs_update();
   }
 
   //mp sky_view_vector_of_fxy
   /// Map a frame XY into a star unit direction vector
-  sky_view_vector_of_fxy(fxy) {
-    const v = new WasmVec3f64();
+  sky_view_vector_of_fxy(fxy: [number, number]) {
+    const v = new WasmVec3f64(0, 0, 0);
     this.sky_canvas.set_vector_of_fxy(v, fxy);
     v.set_apply_q3(this.vp.view_to_ecef_q);
     return v;
@@ -254,19 +254,20 @@ class StarCatalog {
 
   //mp sky_view_zoom_by
   /// Set the zoom of the sky view window
-  sky_view_zoom_by(factor) {
-    this.sky_canvas.zoom(factor);
+  sky_view_zoom_by(factor: number) {
+    this.sky_canvas.user_zoom([0, 0], factor);
   }
 }
 
 //a Top level on load...
-window.star_catalog = null;
+(window as any).star_catalog = null;
 function complete_init() {
-  const location_url = new URL(location);
-  window.star_catalog = new StarCatalog(location_url.searchParams);
+  (window as any).star_catalog = new StarCatalog(
+    new URLSearchParams(window.location.search),
+  );
 }
 
-window.addEventListener("load", (e) => {
+window.addEventListener("load", (_e) => {
   init().then(() => {
     complete_init();
   });

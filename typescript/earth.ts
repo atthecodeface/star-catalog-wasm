@@ -7,6 +7,8 @@ import {
 } from "../pkg/star_catalog_wasm.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
+import { ViewProperties } from "./view_properties.js";
+import { StarCatalog } from "./star_catalog.js";
 
 class WebglObj {
   positions: Float32Array;
@@ -80,8 +82,8 @@ class WebglObj {
 }
 
 export class Earth {
-  star_catalog: any;
-  vp: any;
+  star_catalog: StarCatalog;
+  vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
   canvas: HTMLCanvasElement;

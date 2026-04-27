@@ -144,12 +144,24 @@ export class ViewProperties {
         this.logger = new Logger(star_catalog.log, "view_prop");
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
         this.max_stars_in_sky = 5000;
-        let lat = parseFloat(params.get("lat"));
-        let lon = parseFloat(params.get("lon"));
-        if (isNaN(lat)) {
+        const lat_param = params.get("lat");
+        const lon_param = params.get("lon");
+        const day_param = params.get("day");
+        const time_param = params.get("time");
+        const compass_param = params.get("compass");
+        const elevation_param = params.get("elevation");
+        let lat = null;
+        let lon = null;
+        if (lat_param !== null) {
+            lat = parseFloat(lat_param);
+        }
+        if (lon_param !== null) {
+            lon = parseFloat(lon_param);
+        }
+        if (lat !== null && isNaN(lat)) {
             lat = null;
         }
-        if (isNaN(lon)) {
+        if (lon !== null && isNaN(lon)) {
             lon = null;
         }
         if (lat === null || lon === null) {
@@ -163,26 +175,22 @@ export class ViewProperties {
         this.time_of_day = 18.377;
         this.date_set();
         this.time_set();
-        let day = parseInt(params.get("day"));
-        let time_of_day = parseFloat(params.get("time"));
-        if (day != null && !isNaN(day)) {
-            this.days_since_epoch = day;
+        if (day_param !== null) {
+            this.days_since_epoch = parseInt(day_param);
         }
-        if (time_of_day != null && !isNaN(time_of_day)) {
-            this.time_of_day = time_of_day;
+        if (time_param !== null) {
+            this.time_of_day = parseFloat(time_param);
         }
         this.view_to_ecef_q = WasmQuatf64.unit();
         this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
         this.ecef_to_observer_q = WasmQuatf64.unit();
         this.observer_to_ecef_q = WasmQuatf64.unit();
         this.derive_data();
-        let compass = parseFloat(params.get("compass"));
-        let elevation = parseFloat(params.get("elevation"));
-        if (compass !== null && !isNaN(compass)) {
-            this.observer_compass = compass;
+        if (compass_param !== null) {
+            this.observer_compass = parseFloat(compass_param);
         }
-        if (elevation !== null && !isNaN(elevation)) {
-            this.observer_elevation = elevation;
+        if (elevation_param !== null) {
+            this.observer_elevation = parseFloat(elevation_param);
         }
         this.view_observer_set(this.observer_compass * this.deg2rad, this.observer_elevation * this.deg2rad);
         this.earth_division = 8;

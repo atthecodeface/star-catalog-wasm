@@ -1,10 +1,12 @@
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
+import { StarCatalog } from "./star_catalog.js";
+import { ViewProperties } from "./view_properties.js";
 
 //a CompassCanvas
 export class CompassCanvas {
-  star_catalog: any;
-  vp: any;
+  star_catalog: StarCatalog;
+  vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
   canvas: HTMLCanvasElement;
