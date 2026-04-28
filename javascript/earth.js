@@ -137,20 +137,20 @@ export class Earth {
             0,
             1,
         ]));
-        (_b = this.webgl.programs[this.program]) === null || _b === void 0 ? void 0 : _b.set_projection(projection.transpose());
+        (_b = this.webgl.programs[this.program]) === null || _b === void 0 ? void 0 : _b.set_projection(projection.transpose().array);
         const matrix = WasmMat4f32.identity();
         this.q.set_rotation4(matrix);
-        (_c = this.webgl.programs[this.program]) === null || _c === void 0 ? void 0 : _c.set_view(matrix.transpose());
+        (_c = this.webgl.programs[this.program]) === null || _c === void 0 ? void 0 : _c.set_view(matrix.transpose().array);
         if (this.texture_created) {
             (_d = this.webgl.programs[this.program]) === null || _d === void 0 ? void 0 : _d.set_texture(this.texture);
         }
         (_e = this.webgl.programs[this.program]) === null || _e === void 0 ? void 0 : _e.set_color(this.styling.earth.color);
         const model = WasmMat4f32.identity();
-        (_f = this.webgl.programs[this.program]) === null || _f === void 0 ? void 0 : _f.set_model(model);
+        (_f = this.webgl.programs[this.program]) === null || _f === void 0 ? void 0 : _f.set_model(model.array);
         this.webgl_icosphere.draw(this.webgl.webgl);
         (_g = this.webgl.programs[this.program]) === null || _g === void 0 ? void 0 : _g.set_color([1, 0, 0, 0]);
         this.triangle_q_ll.set_rotation4(matrix);
-        (_h = this.webgl.programs[this.program]) === null || _h === void 0 ? void 0 : _h.set_model(matrix.transpose());
+        (_h = this.webgl.programs[this.program]) === null || _h === void 0 ? void 0 : _h.set_model(matrix.transpose().array);
         this.webgl_triangle.draw(this.webgl.webgl);
     }
     derive_data() {

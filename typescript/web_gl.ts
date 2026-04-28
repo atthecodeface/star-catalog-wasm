@@ -1,4 +1,3 @@
-import { WasmMat4f32 } from "../pkg/star_catalog_wasm";
 import { Log, Logger } from "./log.js";
 
 export class WebglObj {
@@ -92,22 +91,22 @@ export class WebglProgram {
     this.webgl = webgl;
   }
 
-  set_projection(matrix: WasmMat4f32) {
+  set_projection(matrix: ArrayLike<number>) {
     if (this.u_projection != null) {
-      this.matrix.set(matrix.array);
+      this.matrix.set(matrix);
       this.webgl.uniformMatrix4fv(this.u_projection, false, this.matrix);
     }
   }
 
-  set_view(matrix: WasmMat4f32) {
+  set_view(matrix: ArrayLike<number>) {
     if (this.u_view != null) {
-      this.matrix.set(matrix.array);
+      this.matrix.set(matrix);
       this.webgl.uniformMatrix4fv(this.u_view, false, this.matrix);
     }
   }
-  set_model(matrix: WasmMat4f32) {
+  set_model(matrix: ArrayLike<number>) {
     if (this.u_model != null) {
-      this.matrix.set(matrix.array);
+      this.matrix.set(matrix);
       this.webgl.uniformMatrix4fv(this.u_model, false, this.matrix);
     }
   }

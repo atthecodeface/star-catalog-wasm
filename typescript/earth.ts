@@ -219,11 +219,13 @@ export class Earth {
         1,
       ]),
     );
-    this.webgl.programs[this.program]?.set_projection(projection.transpose());
+    this.webgl.programs[this.program]?.set_projection(
+      projection.transpose().array,
+    );
 
     const matrix = WasmMat4f32.identity();
     this.q.set_rotation4(matrix);
-    this.webgl.programs[this.program]?.set_view(matrix.transpose());
+    this.webgl.programs[this.program]?.set_view(matrix.transpose().array);
 
     if (this.texture_created) {
       this.webgl.programs[this.program]?.set_texture(this.texture!);
@@ -232,14 +234,14 @@ export class Earth {
     this.webgl.programs[this.program]?.set_color(this.styling.earth.color);
 
     const model = WasmMat4f32.identity();
-    this.webgl.programs[this.program]?.set_model(model);
+    this.webgl.programs[this.program]?.set_model(model.array);
 
     this.webgl_icosphere!.draw(this.webgl!.webgl!);
 
     this.webgl.programs[this.program]?.set_color([1, 0, 0, 0]);
 
     this.triangle_q_ll.set_rotation4(matrix);
-    this.webgl.programs[this.program]?.set_model(matrix.transpose());
+    this.webgl.programs[this.program]?.set_model(matrix.transpose().array);
     this.webgl_triangle!.draw(this.webgl!.webgl!);
   }
 
