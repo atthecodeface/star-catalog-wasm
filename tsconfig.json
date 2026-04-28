@@ -52,6 +52,7 @@
     "typescript/tabbed.ts",
     "typescript/storage.ts",
     "typescript/zoomed_window.ts",
+    "typescript/web_gl.ts",
 
     "typescript/draw.ts",
 

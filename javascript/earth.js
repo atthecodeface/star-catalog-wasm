@@ -2,48 +2,7 @@ import { WasmIcosphere } from "../pkg/star_catalog_wasm.js";
 import { WasmVec3f32, WasmMat4f32, WasmQuatf32, } from "../pkg/star_catalog_wasm.js";
 import { Mouse } from "./mouse.js";
 import { Logger } from "./log.js";
-class WebglObj {
-    constructor(max_vertices, max_indices) {
-        this.num_vertices = 0;
-        this.num_indices = 0;
-        this.position_buf = null;
-        this.tex_coord_buf = null;
-        this.indices_buf = null;
-        this.positions = new Float32Array(3 * max_vertices);
-        this.tex_coords = new Float32Array(2 * max_vertices);
-        this.indices = new Uint16Array(3 * max_indices);
-    }
-    add_vertex(position, texcoord) {
-        this.positions.set(position, this.num_vertices * 3);
-        this.tex_coords.set(texcoord, this.num_vertices * 2);
-        this.num_vertices += 1;
-    }
-    add_face(indices) {
-        this.indices.set(indices, this.num_indices);
-        this.num_indices += indices.length;
-    }
-    webgl_create(webgl) {
-        this.position_buf = webgl.createBuffer();
-        webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
-        webgl.bufferData(webgl.ARRAY_BUFFER, this.positions.buffer, webgl.STATIC_DRAW);
-        this.tex_coord_buf = webgl.createBuffer();
-        webgl.bindBuffer(webgl.ARRAY_BUFFER, this.tex_coord_buf);
-        webgl.bufferData(webgl.ARRAY_BUFFER, this.tex_coords.buffer, webgl.STATIC_DRAW);
-        this.indices_buf = webgl.createBuffer();
-        webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, this.indices_buf);
-        webgl.bufferData(webgl.ELEMENT_ARRAY_BUFFER, this.indices.buffer, webgl.STATIC_DRAW);
-    }
-    draw(webgl) {
-        webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
-        webgl.enableVertexAttribArray(0);
-        webgl.vertexAttribPointer(0, 3, webgl.FLOAT, false, 0, 0);
-        webgl.bindBuffer(webgl.ARRAY_BUFFER, this.tex_coord_buf);
-        webgl.enableVertexAttribArray(1);
-        webgl.vertexAttribPointer(1, 2, webgl.FLOAT, false, 0, 0);
-        webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, this.indices_buf);
-        webgl.drawElements(webgl.TRIANGLES, this.num_indices, webgl.UNSIGNED_SHORT, 0);
-    }
-}
+import { WebglObj } from "./web_gl.js";
 export class Earth {
     constructor(star_catalog, canvas_div_id, width, height, use_webgl, division) {
         this.deg2rad = Math.PI / 180;
