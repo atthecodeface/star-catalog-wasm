@@ -41,7 +41,7 @@ export class WebglObj {
         webgl.drawElements(webgl.TRIANGLES, this.num_indices, webgl.UNSIGNED_SHORT, 0);
     }
 }
-export class WebGlProgram {
+export class WebglProgram {
     constructor(webgl, program) {
         this.u_projection = null;
         this.u_view = null;
@@ -81,15 +81,16 @@ export class WebGlProgram {
         }
     }
     set_texture(texture) {
-        this.webgl.activeTexture(this.webgl.TEXTURE0);
-        this.webgl.bindTexture(this.webgl.TEXTURE_2D, texture.texture);
-        this.webgl.uniform1i(this.u_sampler, 0);
+        if (this.u_sampler !== null) {
+            this.webgl.activeTexture(this.webgl.TEXTURE0);
+            this.webgl.bindTexture(this.webgl.TEXTURE_2D, texture.texture);
+            this.webgl.uniform1i(this.u_sampler, 0);
+        }
     }
 }
-export class WebGlTexture {
+export class WebglTexture {
     constructor(webgl) {
         const texture = webgl.createTexture();
-        webgl.bindTexture(webgl.TEXTURE_2D, texture);
         webgl.bindTexture(webgl.TEXTURE_2D, texture);
         webgl.texImage2D(webgl.TEXTURE_2D, 0, webgl.RGBA, 1, 1, 0, webgl.RGBA, webgl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
         webgl.texParameteri(webgl.TEXTURE_2D, webgl.TEXTURE_MIN_FILTER, webgl.LINEAR);
@@ -104,18 +105,12 @@ export class WebGlTexture {
         webgl.texImage2D(webgl.TEXTURE_2D, 0, webgl.RGBA, webgl.RGBA, webgl.UNSIGNED_BYTE, source);
     }
 }
-export class WebGl {
-    constructor(log, canvas_div_id, width, height) {
+export class Webgl {
+    constructor(log, canvas) {
         this.programs = [];
         this.webgl = null;
         this.logger = new Logger(log, "webgl");
-        this.div = document.getElementById(canvas_div_id);
-        this.canvas = document.createElement("canvas");
-        this.div.appendChild(this.canvas);
-        this.width = width;
-        this.height = height;
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
+        this.canvas = canvas;
     }
     /** Start WebGL - invoke this when the window has loaded
      *
@@ -127,13 +122,10 @@ export class WebGl {
         }
         catch (x) {
             this.logger.error("webgl", `Failed to get WebGL context`);
-            return "Failed to get context";
+            return false;
         }
         this.webgl = gl;
-        if (this.webgl === null) {
-            return "WebGL context was none";
-        }
-        return null;
+        return gl !== null;
     }
     /** Load a shader
      *
@@ -184,8 +176,14 @@ export class WebGl {
             return null;
         }
         const n = this.programs.length;
-        this.programs.push(new WebGlProgram(webgl, program));
+        this.programs.push(new WebglProgram(webgl, program));
         return n;
+    }
+    create_texture() {
+        if (this.webgl === null) {
+            return null;
+        }
+        return new WebglTexture(this.webgl);
     }
     use_program(p) {
         if (this.webgl === null) {

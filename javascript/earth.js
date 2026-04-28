@@ -2,7 +2,7 @@ import { WasmIcosphere } from "../pkg/star_catalog_wasm.js";
 import { WasmVec3f32, WasmMat4f32, WasmQuatf32, } from "../pkg/star_catalog_wasm.js";
 import { Mouse } from "./mouse.js";
 import { Logger } from "./log.js";
-import { WebglObj } from "./web_gl.js";
+import { Webgl, WebglObj } from "./web_gl.js";
 export class Earth {
     constructor(star_catalog, canvas_div_id, width, height, use_webgl, division) {
         this.deg2rad = Math.PI / 180;
@@ -10,12 +10,7 @@ export class Earth {
         this.webgl_icosphere = null;
         this.webgl_triangle = null;
         this.webgl = null;
-        this.program = null;
-        this.u_projection = null;
-        this.u_view = null;
-        this.u_model = null;
-        this.u_color = null;
-        this.u_sampler = null;
+        this.program = 0;
         this.texture = null;
         this.q = new WasmQuatf32(0, 0, 0, 1);
         this.triangle_q_ll = new WasmQuatf32(0, 0, 0, 1);
@@ -23,14 +18,15 @@ export class Earth {
         this.vp = this.star_catalog.vp;
         this.logger = new Logger(star_catalog.log, "earth");
         this.styling = this.star_catalog.styling;
+        const size = Math.min(width, height);
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
-        const size = Math.min(width, height);
         this.width = size;
         this.height = size;
         this.canvas.width = this.width;
         this.canvas.height = this.height;
+        this.webgl = new Webgl(star_catalog.log, this.canvas);
         // console.log("Earh: constructor: created with size ", this.width, this.height, " in ", canvas_div_id);
         this.use_webgl = use_webgl;
         this.ctx = null;
@@ -60,13 +56,12 @@ export class Earth {
     }
     //mi window_loaded
     window_loaded() {
-        this.webgl = null;
         if (this.use_webgl) {
-            this.start_webgl(this.canvas);
+            this.start_webgl();
         }
         // this.canvas.width = this.canvas.offsetWidth;
         // this.canvas.height = this.canvas.offsetHeight;
-        if (this.webgl == null) {
+        if (this.webgl === null) {
             this.ctx = this.canvas.getContext("2d");
             this.logger.info("webgl", `Using 2D context for the earth sphere ${this.ctx}`);
         }
@@ -75,17 +70,9 @@ export class Earth {
         }
     }
     //mi start_webgl
-    start_webgl(canvas) {
-        var gl;
-        try {
-            gl = canvas.getContext("webgl");
-        }
-        catch (x) {
-            this.logger.error("webgl", `Failed to get WebGL context`);
-            return;
-        }
-        this.webgl = gl;
-        if (this.webgl === null) {
+    start_webgl() {
+        if (!this.webgl.start_webgl()) {
+            this.webgl = null;
             return;
         }
         const vertex_e = document.getElementById("vertex_src");
@@ -96,25 +83,9 @@ export class Earth {
         }
         const vertex_src = vertex_e.innerText;
         const fragment_src = fragment_e.innerText;
-        this.program = this.webgl.createProgram();
-        const vs = this.webgl_load_shader(this.webgl.VERTEX_SHADER, vertex_src);
-        if (vs == null) {
-            this.logger.error("webgl", `Failed to compile vertex shader`);
-            return;
-        }
-        this.webgl.attachShader(this.program, vs);
-        this.webgl.deleteShader(vs);
-        const fs = this.webgl_load_shader(this.webgl.FRAGMENT_SHADER, fragment_src);
-        if (fs == null) {
-            this.logger.error("webgl", `Failed to compile fragment shader`);
-            return;
-        }
-        this.webgl.attachShader(this.program, fs);
-        this.webgl.deleteShader(fs);
-        this.webgl.linkProgram(this.program);
-        this.webgl.useProgram(this.program);
-        if (!this.webgl.getProgramParameter(this.program, this.webgl.LINK_STATUS)) {
-            this.logger.error("webgl", `Failed to load shaders ${this.webgl.getProgramInfoLog(this.program)}`);
+        const program = this.webgl.compile_program(vertex_src, fragment_src);
+        if (program === null) {
+            this.webgl = null;
             return;
         }
         this.webgl_icosphere = new WebglObj(this.icos.num_vertices, this.icos.num_faces * 3);
@@ -126,118 +97,61 @@ export class Earth {
             const f = this.icos.subdiv_face(i);
             this.webgl_icosphere.add_face([f[0], f[1], f[2]]);
         }
-        this.webgl_icosphere.webgl_create(this.webgl);
+        this.webgl_icosphere.webgl_create(this.webgl.webgl);
         this.webgl_triangle = new WebglObj(3, 3);
         this.webgl_triangle.add_vertex(new Float32Array([1.0, 0, 0.05773]), new Float32Array([0, 0]));
         this.webgl_triangle.add_vertex(new Float32Array([1.0, -0.05, -0.02887]), new Float32Array([0, 0]));
         this.webgl_triangle.add_vertex(new Float32Array([1.0, 0.05, -0.02887]), new Float32Array([0, 0]));
         this.webgl_triangle.add_face([0, 2, 1]);
-        this.webgl_triangle.webgl_create(this.webgl);
-        this.u_projection = this.webgl.getUniformLocation(this.program, "projection");
-        this.u_view = this.webgl.getUniformLocation(this.program, "view");
-        this.u_model = this.webgl.getUniformLocation(this.program, "model");
-        this.u_color = this.webgl.getUniformLocation(this.program, "color");
-        ((this.u_sampler = this.webgl.getUniformLocation(this.program, "uSampler")),
-            (this.texture = this.webgl.createTexture()));
-        this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
-        this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
-        this.webgl.texImage2D(this.webgl.TEXTURE_2D, 0, this.webgl.RGBA, 1, 1, 0, this.webgl.RGBA, this.webgl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
-        this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_MIN_FILTER, this.webgl.LINEAR);
-        this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_S, this.webgl.CLAMP_TO_EDGE);
-        this.webgl.texParameteri(this.webgl.TEXTURE_2D, this.webgl.TEXTURE_WRAP_T, this.webgl.CLAMP_TO_EDGE);
-        this.webgl.viewport(0, 0, this.width, this.height);
+        this.webgl_triangle.webgl_create(this.webgl.webgl);
+        this.texture = this.webgl.create_texture();
         this.logger.info("webgl", `WebGl started successfully`);
     }
-    webgl_load_shader(kind, src) {
-        if (this.webgl === null) {
-            return;
-        }
-        const shader = this.webgl.createShader(kind);
-        if (shader == null) {
-            this.logger.error("webgl", `Failed to create shader`);
-            return null;
-        }
-        this.webgl.shaderSource(shader, src);
-        this.webgl.compileShader(shader);
-        if (!this.webgl.getShaderParameter(shader, this.webgl.COMPILE_STATUS)) {
-            this.logger.error("webgl", `Failed to compile shader ${this.webgl.getShaderInfoLog(shader)}`);
-            return null;
-        }
-        return shader;
-    }
     webgl_draw() {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
         if (this.webgl === null) {
             return;
         }
-        const matrix = new Float32Array(16);
-        const color = new Float32Array(4);
-        this.webgl.useProgram(this.program);
-        // this.webgl.enable(this.webgl.CULL_FACE);
-        // this.webgl.cullFace(this.webgl.BACK);
-        this.webgl.enable(this.webgl.DEPTH_TEST); // Enable depth testing
-        this.webgl.depthFunc(this.webgl.LEQUAL); // Near things obscure far things
-        // Clear the canvas before we start drawing on it.
-        this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
+        this.webgl.webgl.viewport(0, 0, this.width, this.height);
+        this.webgl.use_program(this.program);
         if (this.texture_loaded && !this.texture_created) {
-            this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
-            this.webgl.texImage2D(this.webgl.TEXTURE_2D, 0, this.webgl.RGBA, this.webgl.RGBA, this.webgl.UNSIGNED_BYTE, this.texture_image);
+            (_a = this.texture) === null || _a === void 0 ? void 0 : _a.bind_to_image(this.texture_image);
             this.texture_created = true;
         }
-        if (this.u_projection != null) {
-            // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
-            const x = WasmMat4f32.from_array(new Float32Array([
-                0,
-                this.view_scale,
-                0,
-                0,
-                0,
-                0,
-                this.view_scale,
-                0,
-                -this.view_scale,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                1,
-            ]));
-            matrix.set(x.transpose().array, 0);
-            this.webgl.uniformMatrix4fv(this.u_projection, false, matrix);
-        }
-        if (this.u_view != null) {
-            const x = WasmMat4f32.identity();
-            this.q.set_rotation4(x);
-            matrix.set(x.transpose().array, 0);
-            this.webgl.uniformMatrix4fv(this.u_view, false, matrix);
-        }
+        // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
+        const projection = WasmMat4f32.from_array(new Float32Array([
+            0,
+            this.view_scale,
+            0,
+            0,
+            0,
+            0,
+            this.view_scale,
+            0,
+            -this.view_scale,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+        ]));
+        (_b = this.webgl.programs[this.program]) === null || _b === void 0 ? void 0 : _b.set_projection(projection.transpose());
+        const matrix = WasmMat4f32.identity();
+        this.q.set_rotation4(matrix);
+        (_c = this.webgl.programs[this.program]) === null || _c === void 0 ? void 0 : _c.set_view(matrix.transpose());
         if (this.texture_created) {
-            this.webgl.activeTexture(this.webgl.TEXTURE0);
-            this.webgl.bindTexture(this.webgl.TEXTURE_2D, this.texture);
-            this.webgl.uniform1i(this.u_sampler, 0);
+            (_d = this.webgl.programs[this.program]) === null || _d === void 0 ? void 0 : _d.set_texture(this.texture);
         }
-        if (this.u_color != null) {
-            color.set(this.styling.earth.color, 0);
-            this.webgl.uniform4fv(this.u_color, color);
-        }
-        if (this.u_model != null) {
-            const x = WasmMat4f32.identity();
-            matrix.set(x.transpose().array, 0);
-            this.webgl.uniformMatrix4fv(this.u_model, false, matrix);
-        }
-        this.webgl_icosphere.draw(this.webgl);
-        if (this.u_color != null) {
-            color.set([1, 0, 0, 0], 0);
-            this.webgl.uniform4fv(this.u_color, color);
-        }
-        if (this.u_model != null) {
-            const x = WasmMat4f32.identity();
-            this.triangle_q_ll.set_rotation4(x);
-            matrix.set(x.transpose().array, 0);
-            this.webgl.uniformMatrix4fv(this.u_model, false, matrix);
-        }
-        this.webgl_triangle.draw(this.webgl);
+        (_e = this.webgl.programs[this.program]) === null || _e === void 0 ? void 0 : _e.set_color(this.styling.earth.color);
+        const model = WasmMat4f32.identity();
+        (_f = this.webgl.programs[this.program]) === null || _f === void 0 ? void 0 : _f.set_model(model);
+        this.webgl_icosphere.draw(this.webgl.webgl);
+        (_g = this.webgl.programs[this.program]) === null || _g === void 0 ? void 0 : _g.set_color([1, 0, 0, 0]);
+        this.triangle_q_ll.set_rotation4(matrix);
+        (_h = this.webgl.programs[this.program]) === null || _h === void 0 ? void 0 : _h.set_model(matrix.transpose());
+        this.webgl_triangle.draw(this.webgl.webgl);
     }
     derive_data() {
         if (this.center_on_lat < -80) {

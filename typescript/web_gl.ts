@@ -72,7 +72,7 @@ export class WebglObj {
   }
 }
 
-export class WebGlProgram {
+export class WebglProgram {
   webgl: WebGLRenderingContext;
   program: WebGLProgram;
   u_projection: WebGLUniformLocation | null = null;
@@ -118,20 +118,20 @@ export class WebGlProgram {
     }
   }
 
-  set_texture(texture: WebGlTexture) {
-    this.webgl.activeTexture(this.webgl.TEXTURE0);
-    this.webgl.bindTexture(this.webgl.TEXTURE_2D, texture.texture);
-    this.webgl.uniform1i(this.u_sampler, 0);
+  set_texture(texture: WebglTexture) {
+    if (this.u_sampler !== null) {
+      this.webgl.activeTexture(this.webgl.TEXTURE0);
+      this.webgl.bindTexture(this.webgl.TEXTURE_2D, texture.texture);
+      this.webgl.uniform1i(this.u_sampler, 0);
+    }
   }
 }
 
-export class WebGlTexture {
+export class WebglTexture {
   webgl: WebGLRenderingContext;
   texture: WebGLTexture;
   constructor(webgl: WebGLRenderingContext) {
     const texture = webgl.createTexture();
-    webgl.bindTexture(webgl.TEXTURE_2D, texture);
-
     webgl.bindTexture(webgl.TEXTURE_2D, texture);
     webgl.texImage2D(
       webgl.TEXTURE_2D,
@@ -181,47 +181,33 @@ export class WebGlTexture {
   }
 }
 
-export class WebGl {
+export class Webgl {
   logger: Logger;
-  div: HTMLElement;
   canvas: HTMLCanvasElement;
-  width: number;
-  height: number;
 
-  programs: WebGlProgram[] = [];
+  programs: WebglProgram[] = [];
 
   webgl: WebGLRenderingContext | null = null;
 
-  constructor(log: Log, canvas_div_id: string, width: number, height: number) {
+  constructor(log: Log, canvas: HTMLCanvasElement) {
     this.logger = new Logger(log, "webgl");
 
-    this.div = document.getElementById(canvas_div_id)!;
-    this.canvas = document.createElement("canvas");
-    this.div.appendChild(this.canvas);
-
-    this.width = width;
-    this.height = height;
-
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
+    this.canvas = canvas;
   }
 
   /** Start WebGL - invoke this when the window has loaded
    *
    */
-  start_webgl(): string | null {
+  start_webgl(): boolean {
     var gl: WebGLRenderingContext | null;
     try {
       gl = this.canvas.getContext("webgl");
     } catch (x) {
       this.logger.error("webgl", `Failed to get WebGL context`);
-      return "Failed to get context";
+      return false;
     }
     this.webgl = gl;
-    if (this.webgl === null) {
-      return "WebGL context was none";
-    }
-    return null;
+    return gl !== null;
   }
 
   /** Load a shader
@@ -283,8 +269,15 @@ export class WebGl {
     }
 
     const n = this.programs.length;
-    this.programs.push(new WebGlProgram(webgl, program));
+    this.programs.push(new WebglProgram(webgl, program));
     return n;
+  }
+
+  create_texture(): null | WebglTexture {
+    if (this.webgl === null) {
+      return null;
+    }
+    return new WebglTexture(this.webgl);
   }
 
   use_program(p: number): void {
