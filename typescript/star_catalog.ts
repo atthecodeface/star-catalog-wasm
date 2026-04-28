@@ -13,6 +13,7 @@ import { Log, Logger, Severity } from "./log.js";
 
 import { CompassCanvas } from "./compass.js";
 import { ClockCanvas } from "./clock.js";
+import { CalendarCanvas } from "./calendar.js";
 import { ElevationCanvas } from "./elevation.js";
 
 import { MapCanvas } from "./map_canvas.js";
@@ -35,6 +36,7 @@ export class StarCatalog {
   find_canvas: FindCanvas;
   control_compass: CompassCanvas;
   control_clock: ClockCanvas;
+  control_calendar: CalendarCanvas;
   control_elevation: ElevationCanvas;
 
   view_needs_update: boolean = false;
@@ -90,6 +92,12 @@ export class StarCatalog {
     );
     this.control_compass = new CompassCanvas(this, "ControlCompass", 200, 100);
     this.control_clock = new ClockCanvas(this, "ControlClock", 100, 100);
+    this.control_calendar = new CalendarCanvas(
+      this,
+      "ControlCalendar",
+      100,
+      100,
+    );
     this.control_elevation = new ElevationCanvas(
       this,
       "ControlElevation",

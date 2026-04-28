@@ -6,6 +6,7 @@ import { Tabs } from "./tabbed.js";
 import { Log, Logger, Severity } from "./log.js";
 import { CompassCanvas } from "./compass.js";
 import { ClockCanvas } from "./clock.js";
+import { CalendarCanvas } from "./calendar.js";
 import { ElevationCanvas } from "./elevation.js";
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
@@ -47,6 +48,7 @@ export class StarCatalog {
         this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas", 600, 400);
         this.control_compass = new CompassCanvas(this, "ControlCompass", 200, 100);
         this.control_clock = new ClockCanvas(this, "ControlClock", 100, 100);
+        this.control_calendar = new CalendarCanvas(this, "ControlCalendar", 100, 100);
         this.control_elevation = new ElevationCanvas(this, "ControlElevation", 50, 100);
         this.selected_css_changed();
         this.set_view_needs_update();

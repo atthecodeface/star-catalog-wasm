@@ -191,6 +191,15 @@ export class Draw {
           ctx.fill();
           break;
         }
+        case "R": {
+          ctx.fillRect(
+            c[1] as number,
+            c[2] as number,
+            c[3] as number,
+            c[4] as number,
+          );
+          break;
+        }
       }
     }
   }
