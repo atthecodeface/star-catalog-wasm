@@ -116,6 +116,7 @@ impl WasmCatalog {
     }
 
     //mp find_stars_around
+    /// Find stars around a vector within a given angle in radians
     pub fn find_stars_around(
         &self,
         v: &WasmVec3f64,
@@ -138,6 +139,7 @@ impl WasmCatalog {
     }
 
     //mp find_star_triangles
+    /// Find stars around a vector within a given angle in radians
     pub fn find_star_triangles(
         &self,
         max_angle_delta: f64,
