@@ -326,7 +326,7 @@ export class HtmlElement {
     return new HtmlElement(label);
   }
 
-  set_content(content: any) {
+  set_content(content: Node | HtmlElement | string): HtmlElement {
     //console.log(this.ele);
     if (content instanceof Node) {
       this.ele.appendChild(content);
@@ -335,6 +335,7 @@ export class HtmlElement {
     } else {
       this.ele.insertAdjacentText("afterbegin", content);
     }
+    return this;
   }
 
   set_style(style: string, value?: string) {
@@ -355,9 +356,9 @@ export class HtmlElement {
 
 export class Table {
   classes: string;
-  headings: Array<HtmlElement>;
+  headings: Array<HtmlElement | string>;
   heading_classes: string;
-  body: Array<Array<HtmlElement>>;
+  body: Array<Array<HtmlElement | string>>;
 
   constructor(classes: string) {
     this.classes = classes;
@@ -366,24 +367,24 @@ export class Table {
     this.body = [];
   }
 
-  add_headings(headings: Array<HtmlElement>) {
+  add_headings(headings: Array<HtmlElement | string>) {
     for (const h of headings) {
       this.headings.push(h);
     }
   }
 
-  add_body(body_elements: Array<HtmlElement>) {
+  add_body(body_elements: Array<HtmlElement | string>) {
     this.body.push(body_elements);
   }
 
-  as_html() {
+  as_html(): HtmlElement {
     const table = HtmlElement.new_ele("table", { classes: this.classes });
 
     if (this.headings.length > 0) {
       const tr = table.add_ele("tr", { classes: this.heading_classes });
       let i = 0;
       for (const h of this.headings) {
-        const th = tr.add_ele("th", { id: "th" + i });
+        const th = tr.add_ele("th");
         th.set_content(h);
         i += 1;
       }
@@ -394,6 +395,23 @@ export class Table {
       for (const d of c) {
         const td = tr.add_ele("td");
         td.set_content(d);
+      }
+    }
+    return table;
+  }
+
+  as_vertical_html(): HtmlElement {
+    const table = HtmlElement.new_ele("table", { classes: this.classes });
+
+    for (let i = 0; i < this.body.length; i++) {
+      const tr = table.add_ele("tr");
+      const th = tr.add_ele("th", { classes: this.heading_classes });
+      if (i < this.headings.length) {
+        th.set_content(this.headings[i]!);
+      }
+      const c = this.body[i]!;
+      for (const d of c) {
+        tr.add_ele("td").set_content(d);
       }
     }
     return table;

@@ -495,56 +495,21 @@ export class ViewProperties {
 
       type NameKey = keyof typeof Names;
       const name = Names[star.id.toString() as NameKey];
-      console.log(name);
+      const data = [];
       if (name !== null && name !== undefined) {
-        table.add_body([
-          html.HtmlElement.new_ele(
-            "span",
-            {},
-            (e) => (e.innerText = `Name: ${name}`),
-          ),
-        ]);
+        data.push(["Name", name]);
       } else {
-        table.add_body([
-          html.HtmlElement.new_ele(
-            "span",
-            {},
-            (e) => (e.innerText = "Name: <unnamed>"),
-          ),
-        ]);
+        data.push(["Name", "<unnamed>"]);
       }
-      table.add_body([
-        html.HtmlElement.new_ele(
-          "span",
-          {},
-          (e) => (e.innerText = `Id: ${star.id}`),
-        ),
-      ]);
-      table.add_body([
-        html.HtmlElement.new_ele(
-          "span",
-          {},
-          (e) => (e.innerText = `Mag: ${star.magnitude.toFixed(2)}`),
-        ),
-      ]);
-      table.add_body([
-        html.HtmlElement.new_ele(
-          "span",
-          {},
-          (e) =>
-            (e.innerText = `Ra: ${(star.right_ascension * this.rad2deg).toFixed(2)}`),
-        ),
-      ]);
-      table.add_body([
-        html.HtmlElement.new_ele(
-          "span",
-          {},
-          (e) =>
-            (e.innerText = `De: ${(star.declination * this.rad2deg).toFixed(2)}`),
-        ),
-      ]);
-      console.log(table.as_html());
-      he.set_content(table.as_html());
+      data.push(["Hip #", star.id.toString()]);
+      data.push(["Mag", `${star.magnitude.toFixed(2)}`]);
+      data.push(["Ra", `${(star.right_ascension * this.rad2deg).toFixed(2)}`]);
+      data.push(["De", `${(star.declination * this.rad2deg).toFixed(2)}`]);
+      for (const [h, t] of data) {
+        table.add_headings([h!]);
+        table.add_body([t!]);
+      }
+      he.set_content(table.as_vertical_html());
     }
   }
 

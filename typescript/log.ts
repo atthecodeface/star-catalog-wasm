@@ -38,11 +38,11 @@ class LogEntry {
     this.reason = reason;
     this.message = message;
   }
-  severity_as_string(): String {
+  severity_as_string(): string {
     return LogEntry.severity_to_string(this.severity);
   }
 
-  static severity_to_string(s: Severity): String {
+  static severity_to_string(s: Severity): string {
     switch (s) {
       case Severity.Verbose: {
         return "Verbose";

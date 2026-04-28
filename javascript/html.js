@@ -275,6 +275,7 @@ export class HtmlElement {
         else {
             this.ele.insertAdjacentText("afterbegin", content);
         }
+        return this;
     }
     set_style(style, value) {
         /* This is not supported by FireFox
@@ -313,7 +314,7 @@ export class Table {
             const tr = table.add_ele("tr", { classes: this.heading_classes });
             let i = 0;
             for (const h of this.headings) {
-                const th = tr.add_ele("th", { id: "th" + i });
+                const th = tr.add_ele("th");
                 th.set_content(h);
                 i += 1;
             }
@@ -323,6 +324,21 @@ export class Table {
             for (const d of c) {
                 const td = tr.add_ele("td");
                 td.set_content(d);
+            }
+        }
+        return table;
+    }
+    as_vertical_html() {
+        const table = HtmlElement.new_ele("table", { classes: this.classes });
+        for (let i = 0; i < this.body.length; i++) {
+            const tr = table.add_ele("tr");
+            const th = tr.add_ele("th", { classes: this.heading_classes });
+            if (i < this.headings.length) {
+                th.set_content(this.headings[i]);
+            }
+            const c = this.body[i];
+            for (const d of c) {
+                tr.add_ele("td").set_content(d);
             }
         }
         return table;
