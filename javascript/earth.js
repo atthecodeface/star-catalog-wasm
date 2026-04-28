@@ -119,25 +119,24 @@ export class Earth {
             this.texture_created = true;
         }
         // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
-        const projection = WasmMat4f32.from_array(new Float32Array([
+        (_b = this.webgl.programs[this.program]) === null || _b === void 0 ? void 0 : _b.set_projection([
             0,
-            this.view_scale,
-            0,
-            0,
-            0,
-            0,
-            this.view_scale,
             0,
             -this.view_scale,
             0,
+            this.view_scale,
+            0,
+            0,
+            0,
+            0,
+            this.view_scale,
             0,
             0,
             0,
             0,
             0,
             1,
-        ]));
-        (_b = this.webgl.programs[this.program]) === null || _b === void 0 ? void 0 : _b.set_projection(projection.transpose().array);
+        ]);
         const matrix = WasmMat4f32.identity();
         this.q.set_rotation4(matrix);
         (_c = this.webgl.programs[this.program]) === null || _c === void 0 ? void 0 : _c.set_view(matrix.transpose().array);
