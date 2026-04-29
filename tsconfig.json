@@ -59,6 +59,7 @@
     "typescript/styling.ts",
 
     "typescript/clock.ts",
+    "typescript/calendar.ts",
     "typescript/compass.ts",
     "typescript/elevation.ts",
 

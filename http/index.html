@@ -155,7 +155,7 @@
         <li><a href="#tab-help">Help</a></li>
         <li><a href="#tab-skyview">Sky View</a></li>
         <li><a href="#tab-skymap">Sky Map</a></li>
-        <li><a href="#tab-location">Location/Date/Time</a></li>
+        <li><a href="#tab-location">Location</a></li>
         <li><a href="#tab-log">Log</a></li>
         <li><a href="#tab-find">Find</a></li>
         <li>
@@ -334,7 +334,7 @@
             <tr>
               <td>
             <label for="find_get_image">Select a star-field image
-              <input id="find_get_image" name="find_get_image" type="file" accept="image/x-png,image/jpeg,image/gif" capture="environment"/></label>
+              <input id="find_get_image" name="find_get_image" type="file" accept="image/x-png,image/jpeg,image/gif" old_only_give_camera_on_ios_capture="environment"/></label>
           </td>
               <td>
             <button id="find_best_matches" name="find_best_matches" type="button">Find best star matches</button>
@@ -350,13 +350,13 @@
               </td>
               <td>
                 <label for="find_max_angle" class="dn" id="find_ma">Max angle</label><br>
-                <input type="range" class="range dn" id="find_max_angle"style="width:150px;" name="find_max_angle" step="0.1" min="0.1" max="2.0"/>
+                <input type="range" class="range dn" id="find_max_angle"style="width:150px;" name="find_max_angle" step="0.01" min="0.1" max="0.7"/>
               </td>
             </tr>
             <tr>
               <td colspan="4" width="100%">
                 <label id="find_fh" for="find_fovh" class="dn">35mm eq</label><br>
-                <input type="range" class="range dn" id="find_fovh" name="find_fovh" style="width:100%;" step="0.1" min="14" max="150"/>
+                <input type="range" class="range dn" id="find_fovh" name="find_fovh" style="width:100%;" step="0.1" min="0" max="100"/>
               </td>
             </tr>
           </table>

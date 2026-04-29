@@ -18,6 +18,7 @@ export class StarCatalog {
     constructor(params) {
         this.view_needs_update = false;
         this.selected_css = "day";
+        console.log(params);
         this.log = new Log("Log", Severity.Info, Severity.Warning);
         this.logger = new Logger(this.log, "main");
         this.catalog = new WasmCatalog("hipp_bright");
@@ -80,8 +81,9 @@ export class StarCatalog {
         this.vp.derive_data();
         this.sky_canvas.update();
         this.map_canvas.update();
-        this.control_compass.update();
         this.control_clock.update();
+        this.control_calendar.update();
+        this.control_compass.update();
         this.control_elevation.update();
         this.earth_canvas.update();
         this.find_canvas.update();

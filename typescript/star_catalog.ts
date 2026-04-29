@@ -43,6 +43,7 @@ export class StarCatalog {
   selected_css: string = "day";
 
   constructor(params: URLSearchParams) {
+    console.log(params);
     this.log = new Log("Log", Severity.Info, Severity.Warning);
     this.logger = new Logger(this.log, "main");
 
@@ -139,8 +140,9 @@ export class StarCatalog {
 
     this.sky_canvas.update();
     this.map_canvas.update();
-    this.control_compass.update();
     this.control_clock.update();
+    this.control_calendar.update();
+    this.control_compass.update();
     this.control_elevation.update();
     this.earth_canvas.update();
     this.find_canvas.update();

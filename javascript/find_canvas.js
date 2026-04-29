@@ -290,7 +290,7 @@ export class FindCanvas {
         find_max_angle.value = this.max_angle_delta.toString();
         const find_fovh = document.querySelector("#find_fovh");
         find_fovh.addEventListener("input", this.set_parameters.bind(this));
-        find_fovh.value = this.mm_equiv.toString();
+        find_fovh.value = this.map_mm_equiv_to_fovh().toString();
         this.set_parameters();
         this.selected_stars = [];
         let mrk_contents = [
@@ -316,6 +316,24 @@ export class FindCanvas {
         this.cross = new Draw(cross_contents);
         this.mouse = new Mouse(this, this.canvas);
         this.logger.info(`Created find canvas`);
+    }
+    map_mm_equiv_to_fovh() {
+        // fovh is 0 to 100
+        //
+        // mm_equiv is 14 to 100
+        //
+        // fovh 0 : 14 mm_equiv
+        //
+        // fovh 80 : 50 mm_equiv
+        //
+        // fovh 100 : 100 mm_equiv
+        const mm = this.mm_equiv;
+        // return Math.pow(((mm - 14) * 10000) / 86, 0.5);
+        return 150 - 150 / ((mm - 14) / 43 + 1);
+    }
+    map_fovh_to_mm(fovh) {
+        // return (fovh / 100) * (fovh / 100) * 86 + 14;
+        return (150 / (150 - fovh) - 1) * 43 + 14;
     }
     image_loaded(_event) {
         // const ctx = this.canvas.getContext("2d");
@@ -352,7 +370,7 @@ export class FindCanvas {
         }
         const f = document.getElementById("find_fovh");
         if (f instanceof HTMLInputElement) {
-            f.value = this.mm_equiv.toString();
+            f.value = this.map_mm_equiv_to_fovh().toString();
         }
     }
     set_parameters() {
@@ -370,7 +388,7 @@ export class FindCanvas {
         }
         const f = document.getElementById("find_fovh");
         if (f instanceof HTMLInputElement) {
-            this.mm_equiv = Number.parseFloat(f.value) / 1;
+            this.mm_equiv = this.map_fovh_to_mm(Number.parseFloat(f.value));
             const deg_fov = (Math.atan(18 / this.mm_equiv) * 2 * 180) / Math.PI;
             document.getElementById("find_fh").innerText =
                 `${this.mm_equiv.toFixed(1)}mm (35mm eq) FOVH ${deg_fov.toFixed(1)}`;

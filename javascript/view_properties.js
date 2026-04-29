@@ -205,6 +205,7 @@ export class ViewProperties {
         }
         this.lat = lat;
         this.lon = lon;
+        this.date = new Date();
         this.days_since_epoch = 19711;
         this.time_of_day = 18.377;
         this.date_set();
@@ -400,6 +401,7 @@ export class ViewProperties {
         this.star_catalog.styling.map.show_equatorial = show_equatorial;
         this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
         this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
+        this.date.setTime(this.days_since_epoch * 24 * 60 * 60 * 1000);
         this.derive_de_ra();
         this.derive_observer_frame();
         this.update_html_elements();
@@ -420,10 +422,8 @@ export class ViewProperties {
         const secs_s = ("00" + Math.floor(secs).toString()).slice(-2);
         return `${hour_s}:${mins_s}:${secs_s}`;
     }
-    date_text(days_since_epoch) {
-        const date = new Date();
-        date.setTime(days_since_epoch * 24 * 60 * 60 * 1000);
-        return date.toDateString();
+    date_text(_days_since_epoch) {
+        return this.date.toDateString();
     }
     update_html_star_info() {
         if (this.selected_star) {
@@ -463,6 +463,7 @@ export class ViewProperties {
         const date = new Date(Date.now());
         date.setUTCHours(0, 0, 0);
         this.days_since_epoch = Math.round(date.valueOf() / (24 * 60 * 60 * 1000));
+        this.date.setTime(this.days_since_epoch * 24 * 60 * 60 * 1000);
         this.star_catalog.set_view_needs_update();
     }
     /** Set the time-of-day to *now* */
@@ -546,11 +547,22 @@ export class ViewProperties {
             this.time_of_day -= 24;
             this.days_since_epoch += 1;
         }
+        this.date.setTime(this.days_since_epoch * 24 * 60 * 60 * 1000);
         if (true) {
             this.derive_de_ra();
             this.derive_observer_frame();
             this.view_observer_set(compass, elevation);
         }
+        this.star_catalog.set_view_needs_update();
+    }
+    view_day_change(by_days) {
+        this.days_since_epoch += by_days;
+        this.date.setTime(this.days_since_epoch * 24 * 60 * 60 * 1000);
+        const elevation = this.observer_elevation * this.deg2rad;
+        const compass = this.observer_compass * this.deg2rad;
+        this.derive_de_ra();
+        this.derive_observer_frame();
+        this.view_observer_set(compass, elevation);
         this.star_catalog.set_view_needs_update();
     }
     view_q_post_mul(q) {
