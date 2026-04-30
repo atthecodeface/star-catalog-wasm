@@ -73,8 +73,9 @@ class ViewPropertiesHtml {
   }
 }
 
-//a ViewProperties
-//c ViewProperties
+/**
+ *
+ */
 /// There are *three* XYZ coordinate systems:
 ///
 ///  1. ECEF - earth centered, earth fixed; the stars are in this
@@ -370,6 +371,27 @@ export class ViewProperties {
     return [compass, elevation];
   }
 
+  map_mm_equiv_to_fovh(mm_equiv: number): number {
+    const tan_hfovh = 18 / mm_equiv;
+    return 2 * Math.atan(tan_hfovh);
+  }
+
+  map_fovh_to_zoom(fovh: number): number {
+    const tan_hfovh = Math.tan(fovh / 2);
+    const mm_equiv = 18 / tan_hfovh;
+    const mm_equiv_0_1 = (mm_equiv - 14) / 86;
+    // zoom is 0 to 100
+    // mm_equiv is 14 to 100
+    return 150 - 150 / (mm_equiv_0_1 * 2 + 1);
+  }
+
+  map_zoom_to_fovh(zoom: number): number {
+    const mm_equiv_0_1 = (150 / (150 - zoom) - 1) / 2;
+    const mm_equiv = 86 * mm_equiv_0_1 + 14;
+    const tan_hfovh = 18 / mm_equiv;
+    return 2 * Math.atan(tan_hfovh);
+  }
+
   //mp derive_de_ra
   /// Derive data for the internals based on the time, date, lat and lon
   ///
@@ -585,8 +607,8 @@ export class ViewProperties {
   update_html_elements() {
     const e_zoom = document.getElementById("ctl_zoom");
     if (e_zoom !== null) {
-      (e_zoom as HTMLInputElement).value = (
-        this.fovh * this.rad2deg
+      (e_zoom as HTMLInputElement).value = this.map_fovh_to_zoom(
+        this.fovh,
       ).toString();
     }
     const e_mag = document.getElementById("ctl_magnitude");
@@ -734,8 +756,8 @@ export class ViewProperties {
   }
 
   zoom_set() {
-    const zoom = html.get_input_float("ctl_zoom", 1, 120);
-    this.fovh = zoom * this.deg2rad;
+    const zoom = html.get_input_float("ctl_zoom", 0, 100);
+    this.fovh = this.map_zoom_to_fovh(zoom);
     this.star_catalog.set_view_needs_update();
   }
 

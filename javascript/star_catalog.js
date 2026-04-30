@@ -128,7 +128,8 @@ export class StarCatalog {
         if (e_ctl !== null) {
             switch (this.selected_tab) {
                 case SelectedTab.SkyMap:
-                case SelectedTab.SkyView: {
+                case SelectedTab.SkyView:
+                case SelectedTab.Find: {
                     e_ctl.hidden = false;
                     break;
                 }

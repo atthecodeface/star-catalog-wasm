@@ -429,9 +429,7 @@ export class FindCanvas {
   img_cx: number = 0;
   img_cy: number = 0;
 
-  max_magnitude: number = 3.5;
   max_angle_delta: number = 1.0;
-  mm_equiv: number = 80.0;
 
   zoomed_window: ZoomedWindow;
 
@@ -474,24 +472,11 @@ export class FindCanvas {
     const clear_selection = document.querySelector("#find_clear_selection")!;
     clear_selection.addEventListener("click", this.clear_selection.bind(this));
 
-    const find_max_magnitude = document.querySelector(
-      "#find_max_magnitude",
-    )! as HTMLInputElement;
-    find_max_magnitude.addEventListener(
-      "input",
-      this.set_parameters.bind(this),
-    );
-    find_max_magnitude.value = this.max_magnitude.toString();
-
     const find_max_angle = document.querySelector(
       "#find_max_angle",
     )! as HTMLInputElement;
     find_max_angle.addEventListener("input", this.set_parameters.bind(this));
     find_max_angle.value = this.max_angle_delta.toString();
-
-    const find_fovh = document.querySelector("#find_fovh")! as HTMLInputElement;
-    find_fovh.addEventListener("input", this.set_parameters.bind(this));
-    find_fovh.value = this.map_mm_equiv_to_fovh().toString();
 
     this.set_parameters();
 
@@ -520,25 +505,6 @@ export class FindCanvas {
 
     this.mouse = new Mouse(this, this.canvas);
     this.logger.info(`Created find canvas`);
-  }
-
-  map_mm_equiv_to_fovh(): number {
-    // fovh is 0 to 100
-    //
-    // mm_equiv is 14 to 100
-    //
-    // fovh 0 : 14 mm_equiv
-    //
-    // fovh 80 : 50 mm_equiv
-    //
-    // fovh 100 : 100 mm_equiv
-    const mm = this.mm_equiv;
-    // return Math.pow(((mm - 14) * 10000) / 86, 0.5);
-    return 150 - 150 / ((mm - 14) / 43 + 1);
-  }
-  map_fovh_to_mm(fovh: number): number {
-    // return (fovh / 100) * (fovh / 100) * 86 + 14;
-    return (150 / (150 - fovh) - 1) * 43 + 14;
   }
 
   image_loaded(_event: Event): void {
@@ -570,45 +536,26 @@ export class FindCanvas {
   }
 
   populate_html() {
-    const m = document.getElementById("find_max_magnitude");
-    if (m instanceof HTMLInputElement) {
-      m.value = this.max_magnitude.toString();
-    }
     const a = document.getElementById("find_max_angle");
     if (a instanceof HTMLInputElement) {
       a.value = this.max_angle_delta.toString();
     }
-    const f = document.getElementById("find_fovh");
-    if (f instanceof HTMLInputElement) {
-      f.value = this.map_mm_equiv_to_fovh().toString();
-    }
   }
   set_parameters() {
-    const m = document.getElementById("find_max_magnitude");
-    if (m instanceof HTMLInputElement) {
-      this.max_magnitude = Number.parseFloat(m.value);
-      document.getElementById("find_mm")!.innerText =
-        `Max magnitude ${this.max_magnitude}`;
-    }
     const a = document.getElementById("find_max_angle");
     if (a instanceof HTMLInputElement) {
       this.max_angle_delta = Number.parseFloat(a.value);
       document.getElementById("find_ma")!.innerText =
         `Max angle ${this.max_angle_delta}`;
     }
-    const f = document.getElementById("find_fovh");
-    if (f instanceof HTMLInputElement) {
-      this.mm_equiv = this.map_fovh_to_mm(Number.parseFloat(f.value));
-      const deg_fov = (Math.atan(18 / this.mm_equiv) * 2 * 180) / Math.PI;
-      document.getElementById("find_fh")!.innerText =
-        `${this.mm_equiv.toFixed(1)}mm (35mm eq) FOVH ${deg_fov.toFixed(1)}`;
-    }
   }
 
   test_img_5005() {
-    this.max_magnitude = 3.6;
+    this.vp.brightness = 3.6;
     this.max_angle_delta = 1.5;
-    this.mm_equiv = 23.5;
+    this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82.0);
+
+    this.vp.fovh = 74.7 * this.vp.deg2rad;
     this.selected_stars = [
       [1677.4173872350161, 1979.4762361019548],
       [1774.5592213798122, 1778.9920252073755],
@@ -628,9 +575,9 @@ export class FindCanvas {
   }
 
   test_img_4924() {
-    this.max_magnitude = 3.0;
+    this.vp.brightness = 3.0;
     this.max_angle_delta = 0.5;
-    this.mm_equiv = 82;
+    this.vp.fovh = this.vp.map_mm_equiv_to_fovh(80);
     this.selected_stars = [
       [1080, 1278.72],
       [3214.08, 1736.64],
@@ -653,8 +600,36 @@ export class FindCanvas {
       0.06227921709839514,
     );
   }
+
+  test_img_5362() {
+    this.vp.brightness = 3.2;
+    this.max_angle_delta = 0.5;
+    this.vp.fovh = this.vp.map_mm_equiv_to_fovh(27.15); // 27,15 measured on photo on Apr 28 2026 on iphone 17
+    this.selected_stars = [
+      [975.3465426853106, 1499.0187564811429],
+      [1234.689852832872, 1468.893018433699],
+      [1365.6713226043678, 2170.6231944025917],
+      [2819.186515471793, 1842.9496588425773],
+    ];
+    this.img_w = 4032;
+    this.img_h = 3024;
+    this.img_cx = this.img_w / 2;
+    this.img_cy = this.img_h / 2;
+
+    // The 'find best' is a quaternion that maps image to ECEF
+    //
+    // The crosses are placed at ecef_to_view_q * star.vector
+    // view_to_ecef_q
+    // ijkr
+    (window as any).star_catalog.vp.view_to_ecef_q = new WasmQuatf64(
+      0.0431495295840751,
+      -0.5034733698270468,
+      0.5860184618327926,
+      0.6334311693963323,
+    );
+  }
   test() {
-    this.test_img_5005();
+    this.test_img_4924();
     this.zoomed_window.set_img(this.img_w, this.img_h);
 
     this.populate_html();
@@ -675,7 +650,7 @@ export class FindCanvas {
     const find_orientation = new FindOrientation(
       this.catalog,
       star_vectors,
-      this.max_magnitude,
+      this.vp.brightness,
       this.max_angle_delta,
     );
     find_orientation.add_initial_triangles();
@@ -701,7 +676,7 @@ export class FindCanvas {
     const find_orientation = new FindOrientation(
       this.catalog,
       star_vectors,
-      this.max_magnitude,
+      this.vp.brightness,
       this.max_angle_delta,
     );
     find_orientation.add_initial_triangles();
@@ -751,16 +726,13 @@ export class FindCanvas {
     }
   }
 
-  //mi vector_of_img_xy
   vector_of_img_xy(ixy: [number, number]): WasmVec3f64 {
-    const px_per_mm_div_x_lens_to_sensor_mm = this.img_w / (36 / this.mm_equiv);
-    const dx = ixy[0] - this.img_w / 2;
-    const dy = ixy[1] - this.img_h / 2;
-    const roll = Math.atan2(dy, dx);
-    const sensor_yaw = Math.atan2(
-      Math.sqrt(dx * dx + dy * dy),
-      px_per_mm_div_x_lens_to_sensor_mm,
-    );
+    const rdx = ((ixy[0] - this.img_w / 2) / this.img_w) * 2;
+    const rdy = ((ixy[1] - this.img_h / 2) / this.img_w) * 2;
+    const r = Math.sqrt(rdx * rdx + rdy * rdy);
+    const roll = Math.atan2(rdy, rdx);
+    const sensor_yaw = Math.atan(this.vp.tan_hfovh * r);
+
     const world_yaw =
       (1 - 0.031) * sensor_yaw +
       0.3444 * sensor_yaw * sensor_yaw * sensor_yaw +
@@ -779,26 +751,20 @@ export class FindCanvas {
     return world_dir;
   }
 
-  //mi img_xy_of_vector
-  /// Assuming it is a unit vector with z into the page
-  //
-  // THIS IS NOT USED
-  img_xy_of_vector(vector: WasmVec3f64): [number, number] {
-    const xyz = vector.array;
-    const roll = Math.atan2(xyz[1]!, xyz[0]!);
-    const world_yaw = Math.acos(xyz[2]!);
-    const sensor_yaw =
-      (1 + 0.03212) * world_yaw +
-      -0.393289 * world_yaw * world_yaw * world_yaw +
-      0.2281345 * world_yaw * world_yaw * world_yaw * world_yaw * world_yaw;
-    // const sensor_yaw = world_yaw;
-    const iy =
-      Math.sin(sensor_yaw) * Math.sin(roll) * this.img_w + this.img_h / 2;
-    const ix =
-      Math.sin(sensor_yaw) * Math.cos(roll) * this.img_w + this.img_w / 2;
+  img_xy_of_vector(vec: WasmVec3f64): [number, number] {
+    const v = vec.array;
+    const x = v[0]!;
+    const y = -v[1]!;
+    const z = -v[2]!;
+    const r = Math.sqrt(y * y + z * z);
+    const world_yaw = Math.atan2(r, x);
+    const roll = Math.atan2(z, y);
+    const sensor_yaw = world_yaw;
+    const img_r = Math.tan(sensor_yaw) / this.vp.tan_hfovh;
+    const ix = (Math.cos(roll) * img_r * this.img_w) / 2 + this.img_w / 2;
+    const iy = (Math.sin(roll) * img_r * this.img_w) / 2 + this.img_h / 2;
     return [ix, iy];
   }
-
   update() {
     this.redraw_canvas();
   }
@@ -819,12 +785,7 @@ export class FindCanvas {
     for (const star of stars.stars) {
       star.set_vector(this.star_vector);
       this.star_vector.set_apply_q3(this.vp.ecef_to_view_q);
-      const v = this.star_vector.array;
-      // star_vector now is in the observer with Z up, Y left, X +1 straight ahead
-      const ixy: [number, number] = [
-        this.img_w / 2 - ((v[1]! / v[0]!) * this.img_w * this.mm_equiv) / 36,
-        this.img_h / 2 - ((v[2]! / v[0]!) * this.img_w * this.mm_equiv) / 36,
-      ];
+      const ixy = this.img_xy_of_vector(this.star_vector);
       const sxy = this.zoomed_window.scr_xy_of_img_xy(ixy);
       ctx.save();
       Draw.set_transform(ctx, [sxy[0], sxy[1]]);
