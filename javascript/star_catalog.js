@@ -14,10 +14,30 @@ import { FindCanvas } from "./find_canvas.js";
 import { Earth } from "./earth.js";
 import { Styling } from "./styling.js";
 import { ViewProperties } from "./view_properties.js";
+var SelectedTab;
+(function (SelectedTab) {
+    SelectedTab[SelectedTab["Help"] = 0] = "Help";
+    SelectedTab[SelectedTab["SkyView"] = 1] = "SkyView";
+    SelectedTab[SelectedTab["SkyMap"] = 2] = "SkyMap";
+    SelectedTab[SelectedTab["Location"] = 3] = "Location";
+    SelectedTab[SelectedTab["Find"] = 4] = "Find";
+    SelectedTab[SelectedTab["Log"] = 5] = "Log";
+    SelectedTab[SelectedTab["Info"] = 6] = "Info";
+})(SelectedTab || (SelectedTab = {}));
 export class StarCatalog {
     constructor(params) {
         this.view_needs_update = false;
         this.selected_css = "day";
+        this.selected_tab = SelectedTab.Help;
+        this.tab_ids = new Map([
+            [SelectedTab.Help, "#tab-help"],
+            [SelectedTab.SkyView, "#tab-skyview"],
+            [SelectedTab.SkyMap, "#tab-skymap"],
+            [SelectedTab.Location, "#tab-location"],
+            [SelectedTab.Find, "#tab-find"],
+            [SelectedTab.Log, "#tab-log"],
+            [SelectedTab.Info, "#tab-info"],
+        ]);
         console.log(params);
         this.log = new Log("Log", Severity.Info, Severity.Warning);
         this.logger = new Logger(this.log, "main");
@@ -79,27 +99,45 @@ export class StarCatalog {
             return;
         }
         this.vp.derive_data();
-        this.sky_canvas.update();
-        this.map_canvas.update();
         this.control_clock.update();
         this.control_calendar.update();
         this.control_compass.update();
         this.control_elevation.update();
-        this.earth_canvas.update();
-        this.find_canvas.update();
+        if (this.selected_tab == SelectedTab.SkyView) {
+            this.sky_canvas.update();
+        }
+        if (this.selected_tab == SelectedTab.SkyMap) {
+            this.map_canvas.update();
+        }
+        if (this.selected_tab == SelectedTab.Location) {
+            this.earth_canvas.update();
+        }
+        if (this.selected_tab == SelectedTab.Find) {
+            this.find_canvas.update();
+        }
         this.view_needs_update = false;
     }
     tab_selected(tab_id) {
-        const e = document.getElementById("controls");
-        if (!e) {
-            return;
+        this.selected_tab = SelectedTab.Help;
+        for (const x of this.tab_ids) {
+            if (x[1] === tab_id) {
+                this.selected_tab = x[0];
+            }
         }
-        if (tab_id == "#tab-skyview" || tab_id == "#tab-skymap") {
-            e.hidden = false;
+        const e_ctl = document.getElementById("controls");
+        if (e_ctl !== null) {
+            switch (this.selected_tab) {
+                case SelectedTab.SkyMap:
+                case SelectedTab.SkyView: {
+                    e_ctl.hidden = false;
+                    break;
+                }
+                default: {
+                    e_ctl.hidden = true;
+                }
+            }
         }
-        else {
-            e.hidden = true;
-        }
+        this.set_view_needs_update();
     }
     //mp selected_css_toggle
     /// Invoked by the web page when day/night mode is toggled
@@ -181,12 +219,12 @@ export class StarCatalog {
     //mp sky_view_brightness_set
     /// Set the maximum magnitude of the stars shown in the sky view
     sky_view_brightness_set() {
-        this.sky_canvas.brightness_set();
+        this.vp.brightness_set();
     }
     //mp sky_view_zoom_set
     /// Set the zoom of the sky view window
     sky_view_zoom_set() {
-        this.sky_canvas.zoom_set();
+        this.vp.zoom_set();
     }
     //mp sky_view_zoom_by
     /// Set the zoom of the sky view window

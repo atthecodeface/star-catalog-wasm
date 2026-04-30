@@ -67,6 +67,21 @@ body {
     touch-action: none;
 }
 
+/* Sizing */
+#controls {
+    table {
+        width: 100%;
+        .zoom_mag {
+            .mag {
+                width: 150px;
+            }
+            .zoom input {
+                width: 100%;
+            }
+        }
+    }
+}
+
 /*a Night mode  - default */
 body {
     background: black;

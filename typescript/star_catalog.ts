@@ -23,6 +23,16 @@ import { Earth } from "./earth.js";
 import { Styling } from "./styling.js";
 import { ViewProperties } from "./view_properties.js";
 
+enum SelectedTab {
+  Help,
+  SkyView,
+  SkyMap,
+  Location,
+  Find,
+  Log,
+  Info,
+}
+
 export class StarCatalog {
   log: Log;
   logger: Logger;
@@ -41,6 +51,17 @@ export class StarCatalog {
 
   view_needs_update: boolean = false;
   selected_css: string = "day";
+  selected_tab: SelectedTab = SelectedTab.Help;
+
+  tab_ids: Map<SelectedTab, string> = new Map([
+    [SelectedTab.Help, "#tab-help"],
+    [SelectedTab.SkyView, "#tab-skyview"],
+    [SelectedTab.SkyMap, "#tab-skymap"],
+    [SelectedTab.Location, "#tab-location"],
+    [SelectedTab.Find, "#tab-find"],
+    [SelectedTab.Log, "#tab-log"],
+    [SelectedTab.Info, "#tab-info"],
+  ]);
 
   constructor(params: URLSearchParams) {
     console.log(params);
@@ -138,28 +159,49 @@ export class StarCatalog {
     }
     this.vp.derive_data();
 
-    this.sky_canvas.update();
-    this.map_canvas.update();
     this.control_clock.update();
     this.control_calendar.update();
     this.control_compass.update();
     this.control_elevation.update();
-    this.earth_canvas.update();
-    this.find_canvas.update();
+
+    if (this.selected_tab == SelectedTab.SkyView) {
+      this.sky_canvas.update();
+    }
+    if (this.selected_tab == SelectedTab.SkyMap) {
+      this.map_canvas.update();
+    }
+    if (this.selected_tab == SelectedTab.Location) {
+      this.earth_canvas.update();
+    }
+    if (this.selected_tab == SelectedTab.Find) {
+      this.find_canvas.update();
+    }
 
     this.view_needs_update = false;
   }
+
   tab_selected(tab_id: string) {
-    const e = document.getElementById("controls");
-    if (!e) {
-      return;
+    this.selected_tab = SelectedTab.Help;
+    for (const x of this.tab_ids) {
+      if (x[1] === tab_id) {
+        this.selected_tab = x[0];
+      }
     }
 
-    if (tab_id == "#tab-skyview" || tab_id == "#tab-skymap") {
-      e.hidden = false;
-    } else {
-      e.hidden = true;
+    const e_ctl = document.getElementById("controls");
+    if (e_ctl !== null) {
+      switch (this.selected_tab) {
+        case SelectedTab.SkyMap:
+        case SelectedTab.SkyView: {
+          e_ctl.hidden = false;
+          break;
+        }
+        default: {
+          e_ctl.hidden = true;
+        }
+      }
     }
+    this.set_view_needs_update();
   }
 
   //mp selected_css_toggle
@@ -253,13 +295,13 @@ export class StarCatalog {
   //mp sky_view_brightness_set
   /// Set the maximum magnitude of the stars shown in the sky view
   sky_view_brightness_set() {
-    this.sky_canvas.brightness_set();
+    this.vp.brightness_set();
   }
 
   //mp sky_view_zoom_set
   /// Set the zoom of the sky view window
   sky_view_zoom_set() {
-    this.sky_canvas.zoom_set();
+    this.vp.zoom_set();
   }
 
   //mp sky_view_zoom_by

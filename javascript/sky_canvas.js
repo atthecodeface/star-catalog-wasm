@@ -1,21 +1,12 @@
 import { WasmVec3f64, WasmQuatf64, } from "../pkg/star_catalog_wasm.js";
-import * as html from "./html.js";
 import { Line } from "./draw.js";
 import { Mouse } from "./mouse.js";
 import { Cache } from "./cache.js";
 import { Logger } from "./log.js";
-function if_ele_id(ele_id, v, f) {
-    const e = document.getElementById(ele_id);
-    if (e != null) {
-        f(e, v);
-    }
-}
 //a SkyCanvas
 export class SkyCanvas {
     //fp constructor
     constructor(star_catalog, catalog, canvas_div_id, width, height) {
-        // is what half the width is horizontally in tan space
-        this.tan_hfovh = 0;
         this.win_ar = 0;
         // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
         this.tan_pixh = 0;
@@ -34,10 +25,8 @@ export class SkyCanvas {
         this.star_vector = new WasmVec3f64(0, 0, 0);
         this.canvas.width = this.width;
         this.canvas.height = this.height;
-        this.fovh = Math.PI / 2;
         // Aspect ratio in 'tan' space of a single Y pixel compared to a single X pixel
         this.tan_yx = 1.0;
-        this.brightness = 5.0;
         this.star_cache = this.make_star_cache();
         this.star_cache.force_refresh();
         this.mouse = new Mouse(this, this.canvas);
@@ -59,7 +48,7 @@ export class SkyCanvas {
         if (stars.stars.length == 0) {
             return true;
         }
-        if (stars.brightness != this.brightness) {
+        if (stars.brightness != this.vp.brightness) {
             return true;
         }
         const c = this.vp.view_ecef_center_dir.dot(stars.center);
@@ -67,7 +56,7 @@ export class SkyCanvas {
             return true;
         }
         const angle = Math.acos(c);
-        if (angle + this.fovh > stars.angle) {
+        if (angle + this.vp.fovh > stars.angle) {
             return true;
         }
         return false;
@@ -75,10 +64,10 @@ export class SkyCanvas {
     //mi try_to_fill_star_cache
     try_to_fill_star_cache(stars) {
         this.catalog.clear_filter();
-        this.catalog.filter_max_magnitude(this.brightness);
-        stars.brightness = this.brightness;
+        this.catalog.filter_max_magnitude(this.vp.brightness);
+        stars.brightness = this.vp.brightness;
         stars.center = this.vp.view_ecef_center_dir;
-        const angle = 1.5 * this.fovh;
+        const angle = 1.5 * this.vp.fovh;
         stars.angle = angle;
         stars.stars = [];
         const s = this.catalog.find_stars_around(this.vp.view_ecef_center_dir, angle, 0, this.vp.max_stars_in_sky);
@@ -94,26 +83,9 @@ export class SkyCanvas {
     derive_data() {
         this.win_ar = this.height / this.width;
         this.tan_yx = 1.0;
-        // this.tan_hfovh is what half the width is horizontally in tan space
-        this.tan_hfovh = Math.tan(this.fovh / 2);
         // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
-        this.tan_pixh = (2 * this.tan_hfovh) / this.width;
+        this.tan_pixh = (2 * this.vp.tan_hfovh) / this.width;
         this.tan_pixv = (2 * this.tan_pixh) / this.tan_yx;
-        if_ele_id("focal_length", this.tan_hfovh, function (e, v) {
-            e.innerText = `${(18 / v).toFixed(2)}mm equiv`;
-        });
-        if_ele_id("fov", this.fovh * this.vp.rad2deg, function (e, v) {
-            e.innerText = `${v.toFixed(2)} degrees`;
-        });
-        if_ele_id("brightness", this.brightness, function (e, v) {
-            e.value = v;
-        });
-        if_ele_id("max_mag", this.brightness, function (e, v) {
-            e.innerText = `Max magnitude: ${v.toFixed(2)}`;
-        });
-        if_ele_id("zoom", this.fovh * this.vp.rad2deg, function (e, v) {
-            e.value = v;
-        });
     }
     //mp update
     update() {
@@ -136,7 +108,7 @@ export class SkyCanvas {
         const fy = (fxy[1] * this.win_ar) / this.tan_yx;
         const roll = Math.atan2(fy, fx);
         const f = Math.sqrt(fx * fx + fy * fy);
-        const yaw = Math.atan(f * this.tan_hfovh);
+        const yaw = Math.atan(f * this.vp.tan_hfovh);
         const vx = Math.cos(yaw);
         const vy = Math.sin(yaw) * Math.cos(roll);
         const vz = Math.sin(yaw) * Math.sin(roll);
@@ -315,7 +287,9 @@ export class SkyCanvas {
         }
         const stars = this.star_cache.get();
         if (stars.stars.length == 0) {
-            this.brightness = this.brightness * 0.9;
+            this.vp.brightness = this.vp.brightness * 0.9;
+            this.vp.update_html_elements();
+            // this.star_catalog.set_view_needs_update();
             this.derive_data();
             this.redraw_canvas();
         }
@@ -324,21 +298,6 @@ export class SkyCanvas {
                 this.draw_star(ctx, star);
             }
         }
-    }
-    zoom_set() {
-        const zoom = html.get_input_float("zoom", 1, 120);
-        this.fovh = zoom * this.vp.deg2rad;
-        if (this.fovh > (Math.PI * 3) / 4) {
-            this.fovh = (Math.PI * 3) / 4;
-        }
-        else if (this.fovh < 0.01) {
-            this.fovh = 0.01;
-        }
-        this.star_catalog.set_view_needs_update();
-    }
-    brightness_set() {
-        this.brightness = html.get_input_float("brightness", 1, 12);
-        this.star_catalog.set_view_needs_update();
     }
     drag_end(_start_xy, _xy) { }
     user_press(_xy, _actions) { }
@@ -384,17 +343,11 @@ export class SkyCanvas {
         const ra = Math.atan2(qv[1], qv[0]);
         const de = Math.asin(qv[2]);
         this.catalog.clear_filter();
-        this.catalog.filter_max_magnitude(this.brightness);
+        this.catalog.filter_max_magnitude(this.vp.brightness);
         this.select(this.catalog.closest_to_ra_de(ra, de));
     }
     user_zoom(_cxy, factor) {
-        this.fovh = 2 * Math.atan(factor * Math.tan(this.fovh / 2));
-        if (this.fovh > (Math.PI * 3) / 4) {
-            this.fovh = (Math.PI * 3) / 4;
-        }
-        else if (this.fovh < 0.01) {
-            this.fovh = 0.01;
-        }
+        this.vp.fovh = 2 * Math.atan(factor * Math.tan(this.vp.fovh / 2));
         this.star_catalog.set_view_needs_update();
     }
     user_rotate(_xy, angle) {

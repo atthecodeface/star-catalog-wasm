@@ -16,12 +16,18 @@ class ViewPropertiesHtml {
         this.elevs = [];
         this.times = [];
         this.dates = [];
+        this.fovs = [];
+        this.focal_lengths = [];
+        this.magnitudes = [];
         this.reload_links = html.HtmlElement.all_of(".vp_sky_view_link");
         this.lats = html.HtmlElement.all_of(".vp_lat");
         this.lons = html.HtmlElement.all_of(".vp_lon");
         this.elevs = html.HtmlElement.all_of(".vp_elev");
         this.times = html.HtmlElement.all_of(".vp_time");
         this.dates = html.HtmlElement.all_of(".vp_date");
+        this.fovs = html.HtmlElement.all_of(".vp_fov");
+        this.focal_lengths = html.HtmlElement.all_of(".vp_focal_length");
+        this.magnitudes = html.HtmlElement.all_of(".vp_magnitude");
     }
     populate(vp) {
         for (const e of this.reload_links) {
@@ -44,6 +50,15 @@ class ViewPropertiesHtml {
         }
         for (const e of this.dates) {
             e.clear().set_content(vp.date_text(vp.days_since_epoch));
+        }
+        for (const e of this.fovs) {
+            e.clear().set_content(`${(vp.fovh * vp.rad2deg).toFixed(1)}`);
+        }
+        for (const e of this.focal_lengths) {
+            e.clear().set_content(`${(18 / vp.tan_hfovh).toFixed(2)}`);
+        }
+        for (const e of this.magnitudes) {
+            e.clear().set_content(`${vp.brightness.toFixed(2)}`);
         }
     }
 }
@@ -173,6 +188,10 @@ export class ViewProperties {
         this.de = 0;
         this.observer_compass = 0;
         this.observer_elevation = 0;
+        this.fovh = 0;
+        // this.tan_hfovh is what half the width is horizontally in tan space
+        this.tan_hfovh = 0;
+        this.brightness = 4;
         this.star_catalog = star_catalog;
         this.logger = new Logger(star_catalog.log, "view_prop");
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
@@ -220,6 +239,8 @@ export class ViewProperties {
         this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
         this.ecef_to_observer_q = WasmQuatf64.unit();
         this.observer_to_ecef_q = WasmQuatf64.unit();
+        this.fovh = Math.PI / 2;
+        this.tan_hfovh = 0;
         this.derive_data();
         if (compass_param !== null) {
             this.observer_compass = parseFloat(compass_param);
@@ -393,6 +414,13 @@ export class ViewProperties {
     /// Derive data for the internals based on the time, date, lat and lon
     ///
     derive_data() {
+        if (this.fovh > (Math.PI * 3) / 4) {
+            this.fovh = (Math.PI * 3) / 4;
+        }
+        else if (this.fovh < 0.01) {
+            this.fovh = 0.01;
+        }
+        this.tan_hfovh = Math.tan(this.fovh / 2);
         const show_azimuthal = html.get_input_checked("show_azimuthal");
         this.star_catalog.styling.sky.show_azimuthal = show_azimuthal;
         this.star_catalog.styling.map.show_azimuthal = show_azimuthal;
@@ -456,6 +484,14 @@ export class ViewProperties {
     }
     /** Update HTML elements with date/time/lat/lon/elev/link */
     update_html_elements() {
+        const e_zoom = document.getElementById("ctl_zoom");
+        if (e_zoom !== null) {
+            e_zoom.value = (this.fovh * this.rad2deg).toString();
+        }
+        const e_mag = document.getElementById("ctl_magnitude");
+        if (e_mag !== null) {
+            e_mag.value = this.brightness.toString();
+        }
         this.vp_html.populate(this);
     }
     /** Set the date to today */
@@ -571,6 +607,15 @@ export class ViewProperties {
     }
     view_q_pre_mul(q) {
         this.view_to_ecef_q = q.mul(this.view_to_ecef_q);
+        this.star_catalog.set_view_needs_update();
+    }
+    zoom_set() {
+        const zoom = html.get_input_float("ctl_zoom", 1, 120);
+        this.fovh = zoom * this.deg2rad;
+        this.star_catalog.set_view_needs_update();
+    }
+    brightness_set() {
+        this.brightness = html.get_input_float("ctl_magnitude", 1, 12);
         this.star_catalog.set_view_needs_update();
     }
 }
