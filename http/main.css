@@ -63,6 +63,10 @@
     background: #c33;
 }
 
+body {
+    touch-action: none;
+}
+
 /*a Night mode  - default */
 body {
     background: black;

@@ -255,13 +255,13 @@ class ClientInteraction {
                 ];
                 if (old_cxy[0] != new_cxy[0] || old_cxy[0] != new_cxy[0]) {
                     this.client.user_pan(new_cxy, [
-                        new_cxy[0] - old_cxy[0],
-                        new_cxy[1] - old_cxy[1],
+                        -new_cxy[0] + old_cxy[0],
+                        -new_cxy[1] + old_cxy[1],
                     ]);
                 }
                 if (d_orig != d_new) {
                     if (d_new > 0 && d_orig > 0) {
-                        this.client.user_zoom(new_cxy, d_orig / d_new);
+                        this.client.user_zoom(new_cxy, d_new / d_orig);
                     }
                 }
                 const a_orig = Math.atan2(dy_orig, dx_orig);
