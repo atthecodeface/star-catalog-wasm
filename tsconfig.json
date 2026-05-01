@@ -49,6 +49,7 @@
 
   "files": [
     "typescript/html.ts",
+    "typescript/animate.ts",
     "typescript/log.ts",
     "typescript/mouse.ts",
     "typescript/tabbed.ts",
@@ -64,6 +65,7 @@
     "typescript/calendar.ts",
     "typescript/compass.ts",
     "typescript/elevation.ts",
+    "typescript/controls.ts",
 
     "typescript/cache.ts",
     "typescript/hipparcos.ts",

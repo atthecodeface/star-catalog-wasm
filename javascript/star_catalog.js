@@ -4,6 +4,7 @@ import init, { WasmCatalog, WasmVec3f64, } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import { Tabs } from "./tabbed.js";
 import { Log, Logger, Severity } from "./log.js";
+import { Controls } from "./controls.js";
 import { CompassCanvas } from "./compass.js";
 import { ClockCanvas } from "./clock.js";
 import { CalendarCanvas } from "./calendar.js";
@@ -67,6 +68,7 @@ export class StarCatalog {
         const resizable_content = document.getElementById("resizable-content");
         this.resize_observer = new ResizeObserver(this.resize_canvas.bind(this));
         this.resize_observer.observe(resizable_content);
+        this.controls = new Controls(this, "controls");
         this.sky_canvas = new SkyCanvas(this, this.catalog, "SkyCanvas", 800, 400);
         this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 800, 300);
         this.earth_canvas = new Earth(this, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);

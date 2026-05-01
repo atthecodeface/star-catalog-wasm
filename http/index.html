@@ -287,11 +287,31 @@
             </table>
         </div>
 
+        <div class="control selectors">
+            <div class="zoom_mag">
+                <input
+                    type="radio"
+                    id="ctl_sel_zoom_mag"
+                    name="ctl_sel"
+                    required="false"
+                />
+                <label for="ctl_sel_zoom_mag">Zoom</label>
+            </div>
+            <div class="time_date">
+                <input
+                    type="radio"
+                    id="ctl_sel_time_date"
+                    name="ctl_sel"
+                    required="false"
+                />
+                <label for="ctl_sel_time_date">Time/Date</label>
+            </div>
+        </div>
         <div id="controls">
             <table>
                 <tr>
                     <td>
-                        <table class="zoom_mag">
+                        <table id="zoom_mag" class="zoom_mag">
                             <tr>
                                 <td class="mag">
                                     <label
@@ -345,7 +365,7 @@
                 </tr>
             </table>
             <table>
-                <tr>
+                <tr id="time_date">
                     <td>
                         <div id="ControlCompass" />
                     </td>

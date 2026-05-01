@@ -140,6 +140,21 @@ html {
     }
 }
 
+.control.selectors {
+    position: absolute;
+    top: 40px;
+    right: 10px;
+    z-index: 1;
+    .zoom_mag {
+        position: relative;
+        top: 0px;
+    }
+    .time_date {
+        position: relative;
+        top: 40px;
+    }
+}
+
 #controls {
     position: absolute;
     bottom: 0px;
@@ -193,6 +208,11 @@ body {
 }
 
 /* Change colors on checkboxes and ranges throughout */
+input[type="radio"] {
+    /* change "blue" browser chrome to yellow */
+    filter: invert(100%) hue-rotate(320deg) brightness(0.7);
+}
+
 input[type="checkbox"] {
     /* change "blue" browser chrome to yellow */
     filter: invert(100%) hue-rotate(320deg) brightness(0.7);
