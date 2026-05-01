@@ -54,14 +54,14 @@ export class Styling {
         this.map.equatorial_grid = ["#292", "#292", "#4f4", "#4f4", "#3c3"];
         this.map.view_border = ["#f77", "#77f", "#7f7", "#77f"];
         this.earth.color = [1, 1, 1, 1];
-        this.compass.canvas = "white";
+        this.compass.canvas = "rgb(0,0,0,1)";
         this.compass.body = "#888";
         this.compass.bg = "#445";
         this.compass.markers = "#bb8";
-        this.elevation.canvas = "white";
+        this.elevation.canvas = "rgb(0,0,0,1)";
         this.elevation.scale = "#888";
         this.elevation.marker = "#445";
-        this.clock.canvas = "white";
+        this.clock.canvas = "rgb(0,0,0,1)";
         this.clock.rim = "#888";
         this.clock.face = "#445";
         this.clock.minute = "#aa7";

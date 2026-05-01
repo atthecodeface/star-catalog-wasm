@@ -177,7 +177,6 @@ export class ZoomedWindow {
         this.zoom_scr_ofs = [scr_lx, scr_ty];
     }
     scr_resize(w, h) {
-        console.log("scr_resize", w, h);
         const zoom_factor = Math.sqrt((w * h) / (this.scr_wh[0] * this.scr_wh[1]));
         const new_zoom = this.zoom * zoom_factor;
         this.scr_wh = [w, h];

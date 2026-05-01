@@ -127,7 +127,7 @@ export class Controls {
         display = "block";
       }
       const e = document.getElementById(id);
-      console.log(e_ctl, id, display, e);
+
       if (e !== null) {
         new HtmlElement(e).set_style("display", display);
       }

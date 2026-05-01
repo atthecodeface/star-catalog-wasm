@@ -74,8 +74,6 @@ export class Earth {
     this.canvas.height = this.height;
     this.webgl = new Webgl(star_catalog.log, this.canvas);
 
-    // console.log("Earh: constructor: created with size ", this.width, this.height, " in ", canvas_div_id);
-
     this.use_webgl = use_webgl;
     this.ctx = null;
 
@@ -140,23 +138,6 @@ export class Earth {
     const e = new EarthShader();
     const vertex_src = e.vertex;
     const fragment_src = e.fragment;
-
-    /*
-    const vertex_e = document.getElementById("vertex_src");
-    console.log(vertex_e);
-    const fragment_e = document.getElementById("fragment_src");
-    if (vertex_e == null || fragment_e == null) {
-      this.logger.error(
-        "webgl",
-        `Could not find both vertex and fragment src in the page`,
-      );
-      return;
-    }
-    const vertex_src = vertex_e.textContent;
-    const fragment_src = fragment_e.innerText;
-     */
-    console.log(vertex_src);
-    // console.log(fragment_src);
 
     const program = this.webgl!.compile_program(vertex_src, fragment_src);
     if (program === null) {
