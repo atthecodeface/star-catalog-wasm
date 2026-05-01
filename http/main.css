@@ -81,6 +81,20 @@ body {
         }
     }
 }
+#tab-find {
+    table {
+        width: 100%;
+    }
+    #FindCanvas {
+        height: 100%;
+        width: 100%;
+        canvas {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+        }
+    }
+}
 
 /*a Night mode  - default */
 body {

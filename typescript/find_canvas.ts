@@ -439,7 +439,7 @@ export class FindCanvas {
 
   star_vector: WasmVec3f64;
   selected_stars: [number, number][];
-
+  resize_observer: ResizeObserver;
   constructor(
     star_catalog: StarCatalog,
     catalog: WasmCatalog,
@@ -462,6 +462,9 @@ export class FindCanvas {
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.zoomed_window = new ZoomedWindow([this.width, this.height]);
+
+    this.resize_observer = new ResizeObserver(this.resize_canvas.bind(this));
+    this.resize_observer.observe(this.canvas);
 
     const get_image = document.querySelector("#find_get_image")!;
     get_image.addEventListener("change", this.get_image.bind(this));
@@ -507,13 +510,26 @@ export class FindCanvas {
     this.logger.info(`Created find canvas`);
   }
 
+  resize_canvas(e: ResizeObserverEntry[]): void {
+    for (const x of e) {
+      this.zoomed_window.scr_resize(x.contentRect.width, x.contentRect.height);
+      this.canvas.width = x.contentRect.width;
+      this.canvas.height = (x.contentRect.width * this.img_h) / this.img_w;
+      this.zoomed_window.scr_resize(this.canvas.width, this.canvas.height);
+      this.redraw_canvas();
+    }
+  }
   image_loaded(_event: Event): void {
     // const ctx = this.canvas.getContext("2d");
     this.img_w = this.img!.naturalWidth;
     this.img_h = this.img!.naturalHeight;
     this.img_cx = this.img_w / 2;
     this.img_cy = this.img_h / 2;
+    const img_ar = this.img_w / this.img_h;
     this.zoomed_window.set_img(this.img_w, this.img_h);
+    this.canvas.height = this.canvas.width / img_ar;
+    const scr_w = this.zoomed_window.get_scr_wh()[0];
+    this.zoomed_window.scr_resize(scr_w, scr_w / img_ar);
     this.redraw_canvas();
   }
 
@@ -629,7 +645,7 @@ export class FindCanvas {
     );
   }
   test() {
-    this.test_img_4924();
+    this.test_img_5362();
     this.zoomed_window.set_img(this.img_w, this.img_h);
 
     this.populate_html();
@@ -672,6 +688,7 @@ export class FindCanvas {
     for (const ixy of this.selected_stars) {
       star_vectors.push(this.vector_of_img_xy(ixy));
     }
+    console.log(this.selected_stars);
 
     const find_orientation = new FindOrientation(
       this.catalog,
@@ -775,7 +792,13 @@ export class FindCanvas {
     const h = this.canvas.height;
     const ctx = this.canvas.getContext("2d")!;
     ctx.clearRect(0, 0, w, h);
-
+    console.log(
+      w,
+      h,
+      ctx,
+      this.img,
+      this.zoomed_window.get_zoomed_img_bounds(),
+    );
     if (this.img !== null) {
       const ib = this.zoomed_window.get_zoomed_img_bounds();
       ctx.drawImage(this.img, ib[0], ib[1], ib[2], ib[3], 0, 0, w, h);

@@ -274,6 +274,8 @@ export class FindCanvas {
         this.canvas.width = this.width;
         this.canvas.height = this.height;
         this.zoomed_window = new ZoomedWindow([this.width, this.height]);
+        this.resize_observer = new ResizeObserver(this.resize_canvas.bind(this));
+        this.resize_observer.observe(this.canvas);
         const get_image = document.querySelector("#find_get_image");
         get_image.addEventListener("change", this.get_image.bind(this));
         const best_matches = document.querySelector("#find_best_matches");
@@ -309,13 +311,26 @@ export class FindCanvas {
         this.mouse = new Mouse(this, this.canvas);
         this.logger.info(`Created find canvas`);
     }
+    resize_canvas(e) {
+        for (const x of e) {
+            this.zoomed_window.scr_resize(x.contentRect.width, x.contentRect.height);
+            this.canvas.width = x.contentRect.width;
+            this.canvas.height = (x.contentRect.width * this.img_h) / this.img_w;
+            this.zoomed_window.scr_resize(this.canvas.width, this.canvas.height);
+            this.redraw_canvas();
+        }
+    }
     image_loaded(_event) {
         // const ctx = this.canvas.getContext("2d");
         this.img_w = this.img.naturalWidth;
         this.img_h = this.img.naturalHeight;
         this.img_cx = this.img_w / 2;
         this.img_cy = this.img_h / 2;
+        const img_ar = this.img_w / this.img_h;
         this.zoomed_window.set_img(this.img_w, this.img_h);
+        this.canvas.height = this.canvas.width / img_ar;
+        const scr_w = this.zoomed_window.get_scr_wh()[0];
+        this.zoomed_window.scr_resize(scr_w, scr_w / img_ar);
         this.redraw_canvas();
     }
     data_fetched(event) {
@@ -350,7 +365,7 @@ export class FindCanvas {
     test_img_5005() {
         this.vp.brightness = 3.6;
         this.max_angle_delta = 1.5;
-        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(26.8);
+        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82.0);
         this.vp.fovh = 74.7 * this.vp.deg2rad;
         this.selected_stars = [
             [1677.4173872350161, 1979.4762361019548],
@@ -387,7 +402,7 @@ export class FindCanvas {
     test_img_5362() {
         this.vp.brightness = 3.2;
         this.max_angle_delta = 0.5;
-        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(26.8);
+        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(27.15); // 27,15 measured on photo on Apr 28 2026 on iphone 17
         this.selected_stars = [
             [975.3465426853106, 1499.0187564811429],
             [1234.689852832872, 1468.893018433699],
@@ -434,6 +449,7 @@ export class FindCanvas {
         for (const ixy of this.selected_stars) {
             star_vectors.push(this.vector_of_img_xy(ixy));
         }
+        console.log(this.selected_stars);
         const find_orientation = new FindOrientation(this.catalog, star_vectors, this.vp.brightness, this.max_angle_delta);
         find_orientation.add_initial_triangles();
         switch (this.selected_stars.length) {
@@ -514,6 +530,7 @@ export class FindCanvas {
         const h = this.canvas.height;
         const ctx = this.canvas.getContext("2d");
         ctx.clearRect(0, 0, w, h);
+        console.log(w, h, ctx, this.img, this.zoomed_window.get_zoomed_img_bounds());
         if (this.img !== null) {
             const ib = this.zoomed_window.get_zoomed_img_bounds();
             ctx.drawImage(this.img, ib[0], ib[1], ib[2], ib[3], 0, 0, w, h);

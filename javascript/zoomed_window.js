@@ -102,7 +102,7 @@ export class ZoomedWindow {
         if (zoom > this.max_zoom) {
             zoom = this.max_zoom;
         }
-        if (zoom < this.min_zoom) {
+        if (isNaN(zoom) || zoom < this.min_zoom) {
             zoom = this.min_zoom;
         }
         const rescale_factor = zoom / this.zoom;
@@ -174,5 +174,12 @@ export class ZoomedWindow {
         const scr_lx = img_xy[0] * this.zoom_px_of_img_px - this.scr_wh[0] / 2;
         const scr_ty = img_xy[1] * this.zoom_px_of_img_px - this.scr_wh[1] / 2;
         this.zoom_scr_ofs = [scr_lx, scr_ty];
+    }
+    scr_resize(w, h) {
+        console.log("scr_resize", w, h);
+        const zoom_factor = Math.sqrt((w * h) / (this.scr_wh[0] * this.scr_wh[1]));
+        const new_zoom = this.zoom * zoom_factor;
+        this.scr_wh = [w, h];
+        this.zoom_set(new_zoom);
     }
 }
