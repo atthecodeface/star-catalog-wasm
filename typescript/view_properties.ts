@@ -231,10 +231,13 @@ export class ViewProperties {
   selected_star: number | null;
 
   vp_html: ViewPropertiesHtml;
+  resizable_content_size: [number, number];
 
   constructor(star_catalog: StarCatalog, params: URLSearchParams) {
     this.star_catalog = star_catalog;
     this.logger = new Logger(star_catalog.log, "view_prop");
+
+    this.resizable_content_size = [100, 100];
 
     this.vec_of_ra_de = WasmStar.vec_of_ra_de;
 
@@ -315,6 +318,13 @@ export class ViewProperties {
     this.update_latlon(this.lat, this.lon);
   }
 
+  get_resizable_content_size(): [number, number] {
+    return this.resizable_content_size;
+  }
+
+  set_resizable_content_size(wh: [number, number]) {
+    this.resizable_content_size = wh;
+  }
   //mi request_geolocation
   request_geolocation() {
     const options = {

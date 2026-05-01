@@ -63,6 +63,9 @@ export class StarCatalog {
     [SelectedTab.Info, "#tab-info"],
   ]);
 
+  resize_observer: ResizeObserver;
+  pending_resize: [number, number] | null = null;
+
   constructor(params: URLSearchParams) {
     console.log(params);
     this.log = new Log("Log", Severity.Info, Severity.Warning);
@@ -95,6 +98,10 @@ export class StarCatalog {
 
     this.vp = new ViewProperties(this, params);
 
+    const resizable_content = document.getElementById("resizable-content")!;
+    this.resize_observer = new ResizeObserver(this.resize_canvas.bind(this));
+    this.resize_observer.observe(resizable_content);
+
     this.sky_canvas = new SkyCanvas(this, this.catalog, "SkyCanvas", 800, 400);
     this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 800, 300);
     this.earth_canvas = new Earth(
@@ -105,13 +112,7 @@ export class StarCatalog {
       this.vp.earth_webgl,
       this.vp.earth_division,
     );
-    this.find_canvas = new FindCanvas(
-      this,
-      this.catalog,
-      "FindCanvas",
-      600,
-      400,
-    );
+    this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas");
     this.control_compass = new CompassCanvas(this, "ControlCompass", 200, 100);
     this.control_clock = new ClockCanvas(this, "ControlClock", 100, 100);
     this.control_calendar = new CalendarCanvas(
@@ -127,8 +128,16 @@ export class StarCatalog {
       100,
     );
 
+    this.pending_resize = null;
     this.selected_css_changed();
     this.set_view_needs_update();
+  }
+
+  resize_canvas(e: ResizeObserverEntry[]): void {
+    for (const ele of e) {
+      this.pending_resize = [ele.contentRect.width, ele.contentRect.height];
+      this.set_view_needs_update();
+    }
   }
 
   //mp set_styling
@@ -153,6 +162,10 @@ export class StarCatalog {
   update_view() {
     if (this.vp === undefined) {
       return;
+    }
+    if (this.pending_resize !== null) {
+      this.vp.set_resizable_content_size(this.pending_resize);
+      this.pending_resize = null;
     }
     if (!this.view_needs_update) {
       return;

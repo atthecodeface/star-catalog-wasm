@@ -254,7 +254,7 @@ class FindOrientation {
     }
 }
 export class FindCanvas {
-    constructor(star_catalog, catalog, canvas_div_id, width, height) {
+    constructor(star_catalog, catalog, canvas_div_id) {
         this.img = null;
         this.img_w = 0;
         this.img_h = 0;
@@ -269,13 +269,10 @@ export class FindCanvas {
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
         this.star_vector = new WasmVec3f64(0, 0, 0);
-        this.width = width;
-        this.height = height;
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
-        this.zoomed_window = new ZoomedWindow([this.width, this.height]);
-        this.resize_observer = new ResizeObserver(this.resize_canvas.bind(this));
-        this.resize_observer.observe(this.canvas);
+        this.current_wh = [10, 10];
+        this.canvas.width = this.current_wh[0];
+        this.canvas.height = this.current_wh[1];
+        this.zoomed_window = new ZoomedWindow(this.current_wh);
         const get_image = document.querySelector("#find_get_image");
         get_image.addEventListener("change", this.get_image.bind(this));
         const best_matches = document.querySelector("#find_best_matches");
@@ -310,15 +307,6 @@ export class FindCanvas {
         this.cross = new Draw(cross_contents);
         this.mouse = new Mouse(this, this.canvas);
         this.logger.info(`Created find canvas`);
-    }
-    resize_canvas(e) {
-        for (const x of e) {
-            this.zoomed_window.scr_resize(x.contentRect.width, x.contentRect.height);
-            this.canvas.width = x.contentRect.width;
-            this.canvas.height = (x.contentRect.width * this.img_h) / this.img_w;
-            this.zoomed_window.scr_resize(this.canvas.width, this.canvas.height);
-            this.redraw_canvas();
-        }
     }
     image_loaded(_event) {
         // const ctx = this.canvas.getContext("2d");
@@ -522,6 +510,13 @@ export class FindCanvas {
         return [ix, iy];
     }
     update() {
+        const wh = this.vp.get_resizable_content_size();
+        if (this.current_wh != wh) {
+            this.canvas.width = wh[0];
+            this.canvas.height = (wh[0] * this.img_h) / this.img_w;
+            this.zoomed_window.scr_resize(wh[0], wh[1]);
+            this.current_wh = wh;
+        }
         this.redraw_canvas();
     }
     redraw_canvas() {

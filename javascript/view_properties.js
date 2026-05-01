@@ -195,6 +195,7 @@ export class ViewProperties {
         this.brightness = 4;
         this.star_catalog = star_catalog;
         this.logger = new Logger(star_catalog.log, "view_prop");
+        this.resizable_content_size = [100, 100];
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
         this.max_stars_in_sky = 5000;
         this.vp_html = new ViewPropertiesHtml();
@@ -254,6 +255,12 @@ export class ViewProperties {
         this.earth_webgl = true;
         this.selected_star = null;
         this.update_latlon(this.lat, this.lon);
+    }
+    get_resizable_content_size() {
+        return this.resizable_content_size;
+    }
+    set_resizable_content_size(wh) {
+        this.resizable_content_size = wh;
     }
     //mi request_geolocation
     request_geolocation() {

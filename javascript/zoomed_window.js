@@ -63,7 +63,8 @@ export class ZoomedWindow {
         const lx = this.zoom_scr_ofs[0] / this.zoom_px_of_img_px;
         const ty = this.zoom_scr_ofs[1] / this.zoom_px_of_img_px;
         const w = this.img_wh[0] / this.zoom;
-        const h = ((this.img_wh[0] / this.zoom) * this.scr_wh[1]) / this.scr_wh[0];
+        // const h = ((this.img_wh[0] / this.zoom) * this.scr_wh[1]) / this.scr_wh[0];
+        const h = this.img_wh[1] / this.zoom;
         return [lx, ty, w, h];
     }
     set_img(w, h) {

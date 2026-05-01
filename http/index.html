@@ -8,16 +8,14 @@
     <body class="dn">
         <link href="main.css" rel="stylesheet" type="text/css" />
         <script type="module" src="../javascript/star_catalog.js"></script>
-
-        </script>
         <div id="tab-list" class="tab-list">
             <ul>
                 <li><a href="#tab-help">Help</a></li>
                 <li><a href="#tab-skyview">Sky View</a></li>
                 <li><a href="#tab-skymap">Sky Map</a></li>
                 <li><a href="#tab-location">Location</a></li>
-                <li><a href="#tab-log">Log</a></li>
                 <li><a href="#tab-find">Find</a></li>
+                <li><a href="#tab-log">Log</a></li>
                 <li><a href="#tab-info">Info</a></li>
                 <li>
                     <input
@@ -115,34 +113,24 @@
             constant elevation (for every 30 degrees of elevation).
         </div>
 
-        <div id="tab-skyview">
-            <table>
-                <tr>
-                    <td>
-                        <div id="SkyCanvas"></div>
-                    </td>
-                </tr>
-            </table>
-        </div>
+        <div class="flex box">
+            <div class="flex content" id="resizable-content">
+                <div id="tab-skyview">
+                    <div class="flex box">
+                        <div id="SkyCanvas" class="flex content"></div>
+                    </div>
+                </div>
 
-        <div id="tab-skymap">
-            <table>
-                <tr>
-                    <td>
-                        <div id="MapCanvas"></div>
-                    </td>
-                </tr>
-            </table>
-        </div>
+                <div id="tab-skymap">
+                    <div class="flex box">
+                        <div id="MapCanvas" class="flex content"></div>
+                    </div>
+                </div>
 
-        <div id="tab-location">
-            <table>
-                <tr>
-                    <td>
-                        <div id="EarthCanvas"></div>
-                    </td>
-                    <td>
-                        <table>
+                <div id="tab-location">
+                    <div class="flex box">
+                        <div id="EarthCanvas" class="flex content"></div>
+                        <table class="flex fixed">
                             <tr>
                                 <td class="vp_lat"></td>
                             </tr>
@@ -179,105 +167,107 @@
                                 </td>
                             </tr>
                         </table>
-                    </td>
-                </tr>
-            </table>
+                        <div class="flex footer"></div>
+                    </div>
+                </div>
+
+                <div id="tab-find">
+                    <div class="flex box">
+                        <table class="flex fixed">
+                            <tr>
+                                <td>
+                                    <table>
+                                        <tr>
+                                            <td>
+                                                <label for="find_get_image"
+                                                    >Select a star-field image
+                                                    <input
+                                                        id="find_get_image"
+                                                        name="find_get_image"
+                                                        type="file"
+                                                        accept="image/x-png,image/jpeg,image/gif"
+                                                        old_only_give_camera_on_ios_capture="environment"
+                                                /></label>
+                                            </td>
+                                            <td>
+                                                <button
+                                                    id="find_best_matches"
+                                                    name="find_best_matches"
+                                                    type="button"
+                                                >
+                                                    Find best star matches
+                                                </button>
+                                            </td>
+                                            <td>
+                                                <button
+                                                    id="find_clear_selection"
+                                                    name="find_clear_selection"
+                                                    type="button"
+                                                >
+                                                    Clear selection
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <label
+                                                    for="find_max_angle"
+                                                    class="dn"
+                                                    id="find_ma"
+                                                    >Max angle</label
+                                                ><br />
+                                                <input
+                                                    type="range"
+                                                    class="range dn"
+                                                    id="find_max_angle"
+                                                    style="width: 150px"
+                                                    name="find_max_angle"
+                                                    step="0.02"
+                                                    min="0.01"
+                                                    max="0.2"
+                                                />
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <table>
+                                        <tr>
+                                            <td>
+                                                <button
+                                                    id="test"
+                                                    name="test"
+                                                    type="button"
+                                                    onclick="
+                                                        window.star_catalog.find_canvas.test()
+                                                    "
+                                                >
+                                                    Test
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td id="find_results">
+                                    There are no results yet
+                                </td>
+                            </tr>
+                        </table>
+                        <div id="FindCanvas" class="flex content"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex footer"></div>
         </div>
 
         <div id="tab-log">
             <table>
                 <div id="Log"></div>
-            </table>
-        </div>
-
-        <div id="tab-find">
-            <table>
-                <tr>
-                    <td>
-                        <table>
-                            <tr>
-                                <td>
-                                    <label for="find_get_image"
-                                        >Select a star-field image
-                                        <input
-                                            id="find_get_image"
-                                            name="find_get_image"
-                                            type="file"
-                                            accept="image/x-png,image/jpeg,image/gif"
-                                            old_only_give_camera_on_ios_capture="environment"
-                                    /></label>
-                                </td>
-                                <td>
-                                    <button
-                                        id="find_best_matches"
-                                        name="find_best_matches"
-                                        type="button"
-                                    >
-                                        Find best star matches
-                                    </button>
-                                </td>
-                                <td>
-                                    <button
-                                        id="find_clear_selection"
-                                        name="find_clear_selection"
-                                        type="button"
-                                    >
-                                        Clear selection
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <label
-                                        for="find_max_angle"
-                                        class="dn"
-                                        id="find_ma"
-                                        >Max angle</label
-                                    ><br />
-                                    <input
-                                        type="range"
-                                        class="range dn"
-                                        id="find_max_angle"
-                                        style="width: 150px"
-                                        name="find_max_angle"
-                                        step="0.02"
-                                        min="0.01"
-                                        max="0.2"
-                                    />
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <table>
-                            <tr>
-                                <td>
-                                    <button
-                                        id="test"
-                                        name="test"
-                                        type="button"
-                                        onclick="
-                                            window.star_catalog.find_canvas.test()
-                                        "
-                                    >
-                                        Test
-                                    </button>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>
-                        <div id="FindCanvas"></div>
-                    </td>
-                </tr>
-                <tr>
-                    <td id="find_results">There are no results yet</td>
-                </tr>
             </table>
         </div>
 
@@ -326,6 +316,8 @@
                                         "
                                     />
                                 </td>
+                            </tr>
+                            <tr>
                                 <td class="zoom">
                                     <label for="zoom" class="dn"
                                         >Focal length
@@ -411,6 +403,6 @@
             </table>
         </div>
 
-        <div id="js_detect_css" />
+        <div id="js_detect_css"></div>
     </body>
 </html>

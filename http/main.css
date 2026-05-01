@@ -99,19 +99,80 @@ Overlay for time / date
 Overlay for settings
 
 */
+html {
+    height: 100%;
+    margin: 0px;
+    body {
+        height: 100%;
+        margin: 0px;
+    }
+    td {
+        padding: 0px;
+        margin: 0px;
+    }
+    input {
+        padding: 0px;
+        margin: 0px;
+    }
+}
+
+.flex.box {
+    display: flex;
+    flex-flow: column;
+    height: 100%;
+
+    .flex.content {
+        flex-grow: 1;
+        flex-shrink: 1;
+        flex-basis: auto;
+    }
+
+    .flex.fixed {
+        flex-grow: 0;
+        flex-shrink: 1;
+        flex-basis: min-content;
+    }
+
+    .flex.footer {
+        flex-grow: 0;
+        flex-shrink: 1;
+        flex-basis: 0px;
+    }
+}
+
 #controls {
+    position: absolute;
+    bottom: 0px;
+    z-index: 1;
+    width: 100%;
     table {
         width: 100%;
         .zoom_mag {
-            .mag {
-                width: 150px;
+            .mag input {
+                box-sizing: border-box;
+                width: 100%;
+                max-width: 800px;
             }
             .zoom input {
+                box-sizing: border-box;
                 width: 100%;
+                max-width: 800px;
             }
         }
     }
 }
+
+#tab-help {
+    padding: 8px;
+}
+
+#tab-skyview {
+    height: 100%;
+    table {
+        border-spacing: 0px;
+    }
+}
+
 #tab-find {
     table {
         width: 100%;
@@ -121,8 +182,6 @@ Overlay for settings
         width: 100%;
         canvas {
             position: absolute;
-            width: 100px;
-            height: 100px;
         }
     }
 }
