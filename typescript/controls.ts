@@ -22,10 +22,16 @@ export class Controls {
   calendar: CalendarCanvas;
   elevation: ElevationCanvas;
 
+  ctl_ena_orient: HtmlElement;
   constructor(star_catalog: StarCatalog, div_id: string) {
     this.star_catalog = star_catalog;
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "controls");
+
+    this.ctl_ena_orient = new HtmlElement(
+      document.getElementById("ctl_ena_orient")!,
+    );
+    this.ctl_ena_orient.ele.oninput = this.orient_ena.bind(this);
 
     this.compass = new CompassCanvas(
       this,
@@ -82,6 +88,19 @@ export class Controls {
     div = div;
     this.set_display();
   }
+
+  orient_ena(_e: any): void {
+    if (this.ctl_ena_orient.input_checked()) {
+      if (!this.star_catalog.orientation_ctl.permitted) {
+        this.star_catalog.orientation_ctl.request_permission();
+      } else {
+        this.star_catalog.orientation_ctl.enable();
+      }
+    } else {
+      this.star_catalog.orientation_ctl.disable();
+    }
+  }
+
   update() {
     this.clock.update();
     this.calendar.update();

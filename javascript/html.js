@@ -274,6 +274,14 @@ export class HtmlElement {
         this.ele.appendChild(label);
         return new HtmlElement(label);
     }
+    input_checked() {
+        if (this.ele instanceof HTMLInputElement) {
+            return this.ele.checked;
+        }
+        else {
+            return false;
+        }
+    }
     set_content(content) {
         //console.log(this.ele);
         if (content instanceof Node) {

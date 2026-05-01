@@ -11,6 +11,8 @@ export class Controls {
         this.star_catalog = star_catalog;
         this.vp = this.star_catalog.vp;
         this.logger = new Logger(star_catalog.log, "controls");
+        this.ctl_ena_orient = new HtmlElement(document.getElementById("ctl_ena_orient"));
+        this.ctl_ena_orient.ele.oninput = this.orient_ena.bind(this);
         this.compass = new CompassCanvas(this, this.vp, star_catalog.log, star_catalog.styling, "ControlCompass", 200, 100);
         this.clock = new ClockCanvas(this, this.vp, star_catalog.log, star_catalog.styling, "ControlClock", 100, 100);
         this.calendar = new CalendarCanvas(this, this.vp, star_catalog.log, star_catalog.styling, "ControlCalendar", 100, 100);
@@ -30,6 +32,19 @@ export class Controls {
         let div = document.getElementById(div_id);
         div = div;
         this.set_display();
+    }
+    orient_ena(_e) {
+        if (this.ctl_ena_orient.input_checked()) {
+            if (!this.star_catalog.orientation_ctl.permitted) {
+                this.star_catalog.orientation_ctl.request_permission();
+            }
+            else {
+                this.star_catalog.orientation_ctl.enable();
+            }
+        }
+        else {
+            this.star_catalog.orientation_ctl.disable();
+        }
     }
     update() {
         this.clock.update();

@@ -4,6 +4,7 @@ import init, { WasmCatalog, WasmVec3f64, } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import { Tabs } from "./tabbed.js";
 import { Log, Logger, Severity } from "./log.js";
+import { Orientation } from "./orientation.js";
 import { Controls } from "./controls.js";
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
@@ -43,6 +44,7 @@ export class StarCatalog {
         this.tabs = new Tabs("#tab-list", (id) => {
             this.tab_selected(id);
         });
+        this.orientation_ctl = new Orientation(this);
         let mode = "day";
         const e = document.querySelector("#js_detect_css");
         if (e !== null) {
@@ -72,6 +74,28 @@ export class StarCatalog {
         this.pending_resize = null;
         this.selected_css_changed();
         this.set_view_needs_update();
+    }
+    orientation_permitted(permitted) {
+        if (permitted) {
+            this.logger.info("Device orientation permitted");
+            this.orientation_ctl.enable();
+        }
+        else {
+            this.logger.warning("Device orientation not permitted");
+        }
+    }
+    orientation(e) {
+        console.log("Orientation", e.alpha, e.beta, e.gamma);
+        let elev = 90 - e.gamma;
+        let compass = e.alpha;
+        if (e.gamma < 0) {
+            elev = -90 - e.gamma;
+            compass = 90 - e.alpha;
+        }
+        else {
+            compass = -90 - e.alpha;
+        }
+        this.vp.view_observer_set(compass * this.vp.deg2rad, elev * this.vp.deg2rad);
     }
     resize_canvas(e) {
         for (const ele of e) {
@@ -132,17 +156,27 @@ export class StarCatalog {
                 this.selected_tab = x[0];
             }
         }
-        const e_ctl = document.getElementById("controls");
-        if (e_ctl !== null) {
-            switch (this.selected_tab) {
-                case SelectedTab.SkyMap:
-                case SelectedTab.SkyView:
-                case SelectedTab.Find: {
+        const e_ctl = document.getElementById("ctl_selectors");
+        const e_resizable = document.getElementById("resizable-tabs");
+        switch (this.selected_tab) {
+            case SelectedTab.SkyMap:
+            case SelectedTab.SkyView:
+            case SelectedTab.Location:
+            case SelectedTab.Find: {
+                if (e_ctl !== null) {
                     e_ctl.hidden = false;
-                    break;
                 }
-                default: {
+                if (e_resizable !== null) {
+                    new html.HtmlElement(e_resizable).set_style("display", "");
+                }
+                break;
+            }
+            default: {
+                if (e_ctl !== null) {
                     e_ctl.hidden = true;
+                }
+                if (e_resizable !== null) {
+                    new html.HtmlElement(e_resizable).set_style("display", "none");
                 }
             }
         }

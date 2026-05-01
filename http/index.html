@@ -113,7 +113,7 @@
             constant elevation (for every 30 degrees of elevation).
         </div>
 
-        <div class="flex box">
+        <div id="resizable-tabs" class="flex box">
             <div class="flex content" id="resizable-content">
                 <div id="tab-skyview">
                     <div class="flex box">
@@ -287,7 +287,7 @@
             </table>
         </div>
 
-        <div class="control selectors">
+        <div id="ctl_selectors" class="control selectors">
             <div class="zoom_mag">
                 <input
                     type="radio"
@@ -314,6 +314,14 @@
                     required="false"
                 />
                 <label for="ctl_sel_time_date">Time/Date</label>
+            </div>
+            <div class="orient_device">
+                <input
+                    type="checkbox"
+                    id="ctl_ena_orient"
+                    name="ctl_ena_orient"
+                />
+                <label for="ctl_ena_orient">Orient</label>
             </div>
         </div>
         <div id="controls">

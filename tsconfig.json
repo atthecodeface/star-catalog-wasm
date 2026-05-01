@@ -53,6 +53,7 @@
     "typescript/log.ts",
     "typescript/mouse.ts",
     "typescript/tabbed.ts",
+    "typescript/orientation.ts",
     "typescript/storage.ts",
     "typescript/zoomed_window.ts",
     "typescript/web_gl.ts",

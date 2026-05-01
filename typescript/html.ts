@@ -337,6 +337,14 @@ export class HtmlElement {
     return new HtmlElement(label);
   }
 
+  input_checked(): boolean {
+    if (this.ele instanceof HTMLInputElement) {
+      return this.ele.checked;
+    } else {
+      return false;
+    }
+  }
+
   set_content(content: Node | HtmlElement | string): HtmlElement {
     //console.log(this.ele);
     if (content instanceof Node) {

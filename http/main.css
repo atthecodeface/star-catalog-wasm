@@ -50,11 +50,6 @@
     text-decoration: none;
 }
 
-.log {
-    overflow: scroll;
-    height: 100px;
-}
-
 #day_night_checkbox {
     position: absolute;
     left: 0;
@@ -67,6 +62,22 @@
 
 body {
     touch-action: none;
+    overflow: hidden;
+    #tab-help {
+        touch-action: auto;
+        overflow: scroll;
+        height: 100%;
+    }
+    #tab-log {
+        touch-action: auto;
+        overflow: scroll;
+        height: 100%;
+    }
+    #tab-info {
+        touch-action: auto;
+        overflow: scroll;
+        height: 100%;
+    }
 }
 
 /* Sizing
@@ -153,6 +164,10 @@ html {
         position: relative;
         top: 80px;
     }
+    .orient_device {
+        position: relative;
+        top: 120px;
+    }
 }
 
 #SkyCanvas canvas {
@@ -186,7 +201,6 @@ html {
 
 #tab-help {
     padding: 8px;
-    touch-action: auto;
 }
 
 #tab-skyview {
