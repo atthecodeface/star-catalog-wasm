@@ -3,6 +3,7 @@ import { WasmVec3f32, WasmMat4f32, WasmQuatf32, } from "../pkg/star_catalog_wasm
 import { Mouse } from "./mouse.js";
 import { Logger } from "./log.js";
 import { Webgl, WebglObj } from "./web_gl.js";
+import { EarthShader } from "./earth_shaders.js";
 export class Earth {
     constructor(star_catalog, canvas_div_id, width, height, use_webgl, division) {
         this.deg2rad = Math.PI / 180;
@@ -75,14 +76,25 @@ export class Earth {
             this.webgl = null;
             return;
         }
+        const e = new EarthShader();
+        const vertex_src = e.vertex;
+        const fragment_src = e.fragment;
+        /*
         const vertex_e = document.getElementById("vertex_src");
+        console.log(vertex_e);
         const fragment_e = document.getElementById("fragment_src");
         if (vertex_e == null || fragment_e == null) {
-            this.logger.error("webgl", `Could not find both vertex and fragment src in the page`);
-            return;
+          this.logger.error(
+            "webgl",
+            `Could not find both vertex and fragment src in the page`,
+          );
+          return;
         }
-        const vertex_src = vertex_e.innerText;
+        const vertex_src = vertex_e.textContent;
         const fragment_src = fragment_e.innerText;
+         */
+        console.log(vertex_src);
+        // console.log(fragment_src);
         const program = this.webgl.compile_program(vertex_src, fragment_src);
         if (program === null) {
             this.webgl = null;

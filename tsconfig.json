@@ -40,7 +40,9 @@
       // "jest",
       // Enable 'node' for use with some jest tests
       // "node",
+      // "shaders",
     ],
+    // "typeRoots": ["./typescript/@types"],
   },
 
   // "include": ["pkg/*"],
@@ -67,6 +69,8 @@
     "typescript/hipparcos.ts",
 
     "typescript/view_properties.ts",
+
+    "typescript/earth_shaders.ts",
 
     "typescript/earth.ts",
     "typescript/map_canvas.ts",

@@ -5,6 +5,7 @@ import {
   WasmMat4f32,
   WasmQuatf32,
 } from "../pkg/star_catalog_wasm.js";
+
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { WebglTexture, Webgl, WebglObj } from "./web_gl.js";
@@ -12,6 +13,8 @@ import { WebglTexture, Webgl, WebglObj } from "./web_gl.js";
 import { ViewProperties } from "./view_properties.js";
 import { Styling } from "./styling.js";
 import { StarCatalog } from "./star_catalog.js";
+
+import { EarthShader } from "./earth_shaders.js";
 
 export class Earth {
   star_catalog: StarCatalog;
@@ -134,7 +137,13 @@ export class Earth {
       return;
     }
 
+    const e = new EarthShader();
+    const vertex_src = e.vertex;
+    const fragment_src = e.fragment;
+
+    /*
     const vertex_e = document.getElementById("vertex_src");
+    console.log(vertex_e);
     const fragment_e = document.getElementById("fragment_src");
     if (vertex_e == null || fragment_e == null) {
       this.logger.error(
@@ -143,8 +152,11 @@ export class Earth {
       );
       return;
     }
-    const vertex_src = vertex_e.innerText;
+    const vertex_src = vertex_e.textContent;
     const fragment_src = fragment_e.innerText;
+     */
+    console.log(vertex_src);
+    // console.log(fragment_src);
 
     const program = this.webgl!.compile_program(vertex_src, fragment_src);
     if (program === null) {

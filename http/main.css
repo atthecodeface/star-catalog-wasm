@@ -67,7 +67,38 @@ body {
     touch-action: none;
 }
 
-/* Sizing */
+/* Sizing
+
+The layout for mobile landscape is
+
++-----------------------------------+
+| Tab | Tab | Tab | Tab | Tab       |
++-----------------------------------+
+
+Box flex flow column height 100% for sky / map / location / find
+  Content (flex grow 1 shrink 1 auto)
+
+    Div per tab
+
+     Canvas
+
+     Potential overlay with loaded photo
+
+  Footer (flex grow 0 shrink 0 0px)
+
+Div for help height 100% overflow y-scroll
+
+Div for info height 100% overflow y-scroll
+
+Div for log height 100% overflow y-scroll
+
+Overlay for elevation / direction
+
+Overlay for time / date
+
+Overlay for settings
+
+*/
 #controls {
     table {
         width: 100%;

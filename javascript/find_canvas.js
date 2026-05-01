@@ -421,7 +421,7 @@ export class FindCanvas {
         window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.0431495295840751, -0.5034733698270468, 0.5860184618327926, 0.6334311693963323);
     }
     test() {
-        this.test_img_4924();
+        this.test_img_5362();
         this.zoomed_window.set_img(this.img_w, this.img_h);
         this.populate_html();
         console.log("Perfect-ish view q array", window.star_catalog.vp.view_to_ecef_q.array);
