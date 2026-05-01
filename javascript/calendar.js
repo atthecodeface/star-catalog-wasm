@@ -95,12 +95,12 @@ class CalendarMonthDraw {
 //a CalendarCanvas
 export class CalendarCanvas {
     //fp constructor
-    constructor(star_catalog, canvas_div_id, width, height) {
+    constructor(controls, vp, log, styling, canvas_div_id, width, height) {
         this.calendar_cache = new Map();
-        this.star_catalog = star_catalog;
-        this.vp = this.star_catalog.vp;
-        this.logger = new Logger(star_catalog.log, "calendar");
-        this.styling = this.star_catalog.styling;
+        this.controls = controls;
+        this.vp = vp;
+        this.logger = new Logger(log, "calendar");
+        this.styling = styling;
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
@@ -193,13 +193,18 @@ export class CalendarCanvas {
             // this.vp.view_day_change(-1);
             this.select_day([xy[0], xy[1] - 25]);
         }
+        this.controls.set_active();
     }
     user_press_move(_start_xy, xy) {
         // this.vp.view_day_change(-1);
         this.select_day([xy[0], xy[1] - 25]);
     }
-    user_press_cancel(_start_xy) { }
-    user_release(_start_xy, _xy) { }
+    user_press_cancel(_start_xy) {
+        this.controls.set_inactive();
+    }
+    user_release(_start_xy, _xy) {
+        this.controls.set_inactive();
+    }
     user_zoom(_cxy, _factor) { }
     user_pan(_xy, _dxy) { }
     user_rotate(_xy, _angle) { }

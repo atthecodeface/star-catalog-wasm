@@ -3,13 +3,13 @@ import { Logger } from "./log.js";
 //a CompassCanvas
 export class CompassCanvas {
     //fp constructor
-    constructor(star_catalog, canvas_div_id, width, height) {
+    constructor(controls, vp, log, styling, canvas_div_id, width, height) {
         this.last_drag_polar = [0, 0];
         this.drag_minutes = false;
-        this.star_catalog = star_catalog;
-        this.vp = this.star_catalog.vp;
-        this.logger = new Logger(star_catalog.log, "compass");
-        this.styling = this.star_catalog.styling;
+        this.controls = controls;
+        this.vp = vp;
+        this.logger = new Logger(log, "compass");
+        this.styling = styling;
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
@@ -111,15 +111,22 @@ export class CompassCanvas {
         const dx = xy[0] - this.width / 2;
         return [Math.sqrt(dx * dx + dy * dy), Math.atan2(dy, dx)];
     }
-    user_press(_xy, _actions) { }
+    user_press(_xy, _actions) {
+        this.controls.set_active();
+    }
     user_press_move(_start_xy, _xy) { }
-    user_press_cancel(_start_xy) { }
-    user_release(_start_xy, _xy) { }
+    user_press_cancel(_start_xy) {
+        this.controls.set_inactive();
+    }
+    user_release(_start_xy, _xy) {
+        this.controls.set_inactive();
+    }
     user_zoom(_cxy, _factor) { }
     user_pan(_xy, _dxy) { }
     user_rotate(_xy, _angle) { }
     drag_start(_start_xy, xy) {
         this.last_drag_polar = this.drag_polar(xy);
+        this.controls.set_active();
     }
     drag_to(_start_xy, _old_xy, new_xy) {
         const d_ra = this.drag_polar(new_xy);
@@ -135,5 +142,6 @@ export class CompassCanvas {
     }
     drag_end(_start_xy, _xy) {
         this.vp.log_compass_elevation_update();
+        this.controls.set_inactive();
     }
 }

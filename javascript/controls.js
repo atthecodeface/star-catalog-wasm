@@ -11,10 +11,10 @@ export class Controls {
         this.star_catalog = star_catalog;
         this.vp = this.star_catalog.vp;
         this.logger = new Logger(star_catalog.log, "controls");
-        this.compass = new CompassCanvas(star_catalog, "ControlCompass", 200, 100);
-        this.clock = new ClockCanvas(star_catalog, "ControlClock", 100, 100);
-        this.calendar = new CalendarCanvas(star_catalog, "ControlCalendar", 100, 100);
-        this.elevation = new ElevationCanvas(star_catalog, "ControlElevation", 50, 100);
+        this.compass = new CompassCanvas(this, this.vp, star_catalog.log, star_catalog.styling, "ControlCompass", 200, 100);
+        this.clock = new ClockCanvas(this, this.vp, star_catalog.log, star_catalog.styling, "ControlClock", 100, 100);
+        this.calendar = new CalendarCanvas(this, this.vp, star_catalog.log, star_catalog.styling, "ControlCalendar", 100, 100);
+        this.elevation = new ElevationCanvas(this, this.vp, star_catalog.log, star_catalog.styling, "ControlElevation", 50, 100);
         this.animate = new Animate(this.animate_cb.bind(this));
         this.ctl_sel = [];
         for (const e of document.getElementsByName("ctl_sel")) {
@@ -24,6 +24,9 @@ export class Controls {
                 e.oninput = this.ctl_sel_input_cb.bind(this);
             }
         }
+        document.getElementById("ctl_magnitude").oninput =
+            this.set_ctl_magnitude.bind(this);
+        document.getElementById("ctl_zoom").oninput = this.set_ctl_zoom.bind(this);
         let div = document.getElementById(div_id);
         div = div;
         this.set_display();
@@ -34,8 +37,19 @@ export class Controls {
         this.compass.update();
         this.elevation.update();
     }
-    ctl_sel_input_cb(_e) {
+    set_ctl_magnitude() {
+        this.star_catalog.sky_view_brightness_set();
+        this.schedule_animation();
+    }
+    set_ctl_zoom() {
+        this.star_catalog.sky_view_zoom_set();
+        this.schedule_animation();
+    }
+    schedule_animation() {
         this.animate.schedule(this.visibility_time);
+    }
+    ctl_sel_input_cb(_e) {
+        this.schedule_animation();
         this.set_display();
     }
     animate_cb(_time) {
@@ -44,12 +58,18 @@ export class Controls {
         }
         this.set_display();
     }
+    set_active() {
+        this.animate.stop();
+    }
+    set_inactive() {
+        this.schedule_animation();
+    }
     set_display() {
         for (const e_ctl of this.ctl_sel) {
             const id = e_ctl.id.slice(8);
             let display = "none";
             if (e_ctl.checked) {
-                display = "inline";
+                display = "block";
             }
             const e = document.getElementById(id);
             console.log(e_ctl, id, display, e);

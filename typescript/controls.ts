@@ -27,16 +27,38 @@ export class Controls {
     this.vp = this.star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "controls");
 
-    this.compass = new CompassCanvas(star_catalog, "ControlCompass", 200, 100);
-    this.clock = new ClockCanvas(star_catalog, "ControlClock", 100, 100);
+    this.compass = new CompassCanvas(
+      this,
+      this.vp,
+      star_catalog.log,
+      star_catalog.styling,
+      "ControlCompass",
+      200,
+      100,
+    );
+    this.clock = new ClockCanvas(
+      this,
+      this.vp,
+      star_catalog.log,
+      star_catalog.styling,
+      "ControlClock",
+      100,
+      100,
+    );
     this.calendar = new CalendarCanvas(
-      star_catalog,
+      this,
+      this.vp,
+      star_catalog.log,
+      star_catalog.styling,
       "ControlCalendar",
       100,
       100,
     );
     this.elevation = new ElevationCanvas(
-      star_catalog,
+      this,
+      this.vp,
+      star_catalog.log,
+      star_catalog.styling,
       "ControlElevation",
       50,
       100,
@@ -52,6 +74,10 @@ export class Controls {
       }
     }
 
+    document.getElementById("ctl_magnitude")!.oninput =
+      this.set_ctl_magnitude.bind(this);
+    document.getElementById("ctl_zoom")!.oninput = this.set_ctl_zoom.bind(this);
+
     let div = document.getElementById(div_id)!;
     div = div;
     this.set_display();
@@ -62,8 +88,22 @@ export class Controls {
     this.compass.update();
     this.elevation.update();
   }
-  ctl_sel_input_cb(_e: InputEvent): void {
+
+  set_ctl_magnitude(): void {
+    this.star_catalog.sky_view_brightness_set();
+    this.schedule_animation();
+  }
+
+  set_ctl_zoom(): void {
+    this.star_catalog.sky_view_zoom_set();
+    this.schedule_animation();
+  }
+
+  schedule_animation(): void {
     this.animate.schedule(this.visibility_time);
+  }
+  ctl_sel_input_cb(_e: InputEvent): void {
+    this.schedule_animation();
     this.set_display();
   }
 
@@ -73,12 +113,18 @@ export class Controls {
     }
     this.set_display();
   }
+  set_active(): void {
+    this.animate.stop();
+  }
+  set_inactive(): void {
+    this.schedule_animation();
+  }
   set_display(): void {
     for (const e_ctl of this.ctl_sel) {
       const id = e_ctl.id.slice(8);
       let display = "none";
       if (e_ctl.checked) {
-        display = "inline";
+        display = "block";
       }
       const e = document.getElementById(id);
       console.log(e_ctl, id, display, e);

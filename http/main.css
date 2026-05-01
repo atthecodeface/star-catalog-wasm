@@ -22,6 +22,8 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
+    border-top: 2px;
+    border-top-style: solid;
     border-bottom-width: 3px;
     border-bottom-style: solid;
 }
@@ -149,9 +151,13 @@ html {
         position: relative;
         top: 0px;
     }
-    .time_date {
+    .comp_elev {
         position: relative;
         top: 40px;
+    }
+    .time_date {
+        position: relative;
+        top: 80px;
     }
 }
 
@@ -160,20 +166,20 @@ html {
     bottom: 0px;
     z-index: 1;
     width: 100%;
+    .zoom_mag {
+        .mag input {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 800px;
+        }
+        .zoom input {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 800px;
+        }
+    }
     table {
         width: 100%;
-        .zoom_mag {
-            .mag input {
-                box-sizing: border-box;
-                width: 100%;
-                max-width: 800px;
-            }
-            .zoom input {
-                box-sizing: border-box;
-                width: 100%;
-                max-width: 800px;
-            }
-        }
     }
 }
 

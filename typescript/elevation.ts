@@ -1,13 +1,13 @@
 import { Draw } from "./draw.js";
 import { Mouse, MousePressActions } from "./mouse.js";
-import { Logger } from "./log.js";
+import { Log, Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Styling } from "./styling.js";
-import { StarCatalog } from "./star_catalog.js";
+import { Controls } from "./controls.js";
 
 //a ElevationCanvas
 export class ElevationCanvas {
-  star_catalog: StarCatalog;
+  controls: Controls;
   vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
@@ -22,18 +22,19 @@ export class ElevationCanvas {
   drag_minutes: boolean = false;
   background: Draw;
   arrow: Draw;
-
-  //fp constructor
   constructor(
-    star_catalog: StarCatalog,
+    controls: Controls,
+    vp: ViewProperties,
+    log: Log,
+    styling: Styling,
     canvas_div_id: string,
     width: number,
     height: number,
   ) {
-    this.star_catalog = star_catalog;
-    this.vp = this.star_catalog.vp;
-    this.logger = new Logger(star_catalog.log, "compass");
-    this.styling = this.star_catalog.styling;
+    this.controls = controls;
+    this.vp = vp;
+    this.logger = new Logger(log, "calendar");
+    this.styling = styling;
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -103,15 +104,23 @@ export class ElevationCanvas {
     // this.styling = this.star_catalog.styling.map;
   }
 
-  user_press(_xy: [number, number], _actions: MousePressActions): void {}
+  user_press(_xy: [number, number], _actions: MousePressActions): void {
+    this.controls.set_active();
+  }
   user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
-  user_press_cancel(_start_xy: [number, number]): void {}
-  user_release(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press_cancel(_start_xy: [number, number]): void {
+    this.controls.set_inactive();
+  }
+  user_release(_start_xy: [number, number], _xy: [number, number]): void {
+    this.controls.set_inactive();
+  }
   user_zoom(_cxy: [number, number], _factor: number): void {}
   user_pan(_xy: [number, number], _dxy: [number, number]): void {}
   user_rotate(_xy: [number, number], _angle: number): void {}
 
-  drag_start(_start_xy: [number, number], _xy: [number, number]): void {}
+  drag_start(_start_xy: [number, number], _xy: [number, number]): void {
+    this.controls.set_active();
+  }
 
   drag_to(
     _start_xy: [number, number],
@@ -125,5 +134,6 @@ export class ElevationCanvas {
 
   drag_end(_start_xy: [number, number], _xy: [number, number]): void {
     this.vp.log_compass_elevation_update();
+    this.controls.set_inactive();
   }
 }

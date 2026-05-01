@@ -297,6 +297,15 @@
                 />
                 <label for="ctl_sel_zoom_mag">Zoom</label>
             </div>
+            <div class="comp_elev">
+                <input
+                    type="radio"
+                    id="ctl_sel_comp_elev"
+                    name="ctl_sel"
+                    required="false"
+                />
+                <label for="ctl_sel_comp_elev">View</label>
+            </div>
             <div class="time_date">
                 <input
                     type="radio"
@@ -308,119 +317,116 @@
             </div>
         </div>
         <div id="controls">
-            <table>
-                <tr>
-                    <td>
-                        <table id="zoom_mag" class="zoom_mag">
-                            <tr>
-                                <td class="mag">
-                                    <label
-                                        for="brightness"
-                                        class="dn"
-                                        id="vp_magnitude"
-                                        >Max mag:
-                                        <span
-                                            class="vp_magnitude"
-                                        ></span></label
-                                    ><br />
-                                    <input
-                                        type="range"
-                                        class="range dn"
-                                        id="ctl_magnitude"
-                                        name="brightness"
-                                        step="0.2"
-                                        min="1"
-                                        max="12"
-                                        oninput="
-                                            window.star_catalog.sky_view_brightness_set()
-                                        "
-                                    />
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="zoom">
-                                    <label for="zoom" class="dn"
-                                        >Focal length
-                                        <span class="vp_focal_length"></span>mm
-                                        eq, HFov
-                                        <span class="vp_fov"></span
-                                        >&deg; </label
-                                    ><br />
-                                    <input
-                                        type="range"
-                                        class="range dn"
-                                        id="ctl_zoom"
-                                        name="zoom"
-                                        step="0.1"
-                                        min="0"
-                                        max="100"
-                                        oninput="
-                                            window.star_catalog.sky_view_zoom_set()
-                                        "
-                                    />
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-            <table>
-                <tr id="time_date">
-                    <td>
-                        <div id="ControlCompass" />
-                    </td>
-                    <td>
-                        <div id="ControlElevation" />
-                    </td>
-                    <td>
-                        <div id="ControlClock" />
-                    </td>
-                    <td>
-                        <div id="ControlCalendar" />
-                    </td>
-                    <td>
-                        <table>
-                            <tr>
-                                <td>
-                                    <input
-                                        class="dn"
-                                        type="checkbox"
-                                        name="show_azimuthal"
-                                        id="show_azimuthal"
-                                        onclick="
-                                            window.star_catalog.set_styling()
-                                        "
-                                    />
-                                    <label for="show_azimuthal"
-                                        >Azimuthal</label
-                                    >
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <input
-                                        class="dn"
-                                        type="checkbox"
-                                        name="show_equatorial"
-                                        id="show_equatorial"
-                                        onclick="
-                                            window.star_catalog.set_styling()
-                                        "
-                                    />
-                                    <label for="show_equatorial"
-                                        >Equatorial</label
-                                    >
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="vp_date">
-                                    <i>current date</i>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
+            <div id="zoom_mag">
+                <table class="zoom_mag">
+                    <tr>
+                        <td class="mag">
+                            <label for="brightness" class="dn" id="vp_magnitude"
+                                >Max mag:
+                                <span class="vp_magnitude"></span></label
+                            ><br />
+                            <input
+                                type="range"
+                                class="range dn"
+                                id="ctl_magnitude"
+                                name="brightness"
+                                step="0.2"
+                                min="1"
+                                max="12"
+                                oninput="
+                                    window.star_catalog.sky_view_brightness_set()
+                                "
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="zoom">
+                            <label for="zoom" class="dn"
+                                >Focal length
+                                <span class="vp_focal_length"></span>mm eq, HFov
+                                <span class="vp_fov"></span>&deg; </label
+                            ><br />
+                            <input
+                                type="range"
+                                class="range dn"
+                                id="ctl_zoom"
+                                name="zoom"
+                                step="0.1"
+                                min="0"
+                                max="100"
+                                oninput="
+                                    window.star_catalog.sky_view_zoom_set()
+                                "
+                            />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div id="comp_elev">
+                <table class="comp_elev">
+                    <tr>
+                        <td>
+                            <div id="ControlCompass" />
+                        </td>
+                        <td>
+                            <div id="ControlElevation" />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div id="time_date">
+                <table class="time_date">
+                    <tr>
+                        <td>
+                            <div id="ControlClock" />
+                        </td>
+                        <td>
+                            <div id="ControlCalendar" />
+                        </td>
+                        <td>
+                            <table>
+                                <tr>
+                                    <td>
+                                        <input
+                                            class="dn"
+                                            type="checkbox"
+                                            name="show_azimuthal"
+                                            id="show_azimuthal"
+                                            onclick="
+                                                window.star_catalog.set_styling()
+                                            "
+                                        />
+                                        <label for="show_azimuthal"
+                                            >Azimuthal</label
+                                        >
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <input
+                                            class="dn"
+                                            type="checkbox"
+                                            name="show_equatorial"
+                                            id="show_equatorial"
+                                            onclick="
+                                                window.star_catalog.set_styling()
+                                            "
+                                        />
+                                        <label for="show_equatorial"
+                                            >Equatorial</label
+                                        >
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="vp_date">
+                                        <i>current date</i>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </div>
         </div>
 
         <div id="js_detect_css"></div>
