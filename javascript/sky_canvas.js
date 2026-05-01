@@ -82,10 +82,9 @@ export class SkyCanvas {
     //mp derive_data
     derive_data() {
         const wh = this.vp.get_resizable_content_size();
-        const set_w = wh[0];
-        const set_h = wh[1];
+        let set_w = wh[0];
+        let set_h = wh[1];
         if (set_w != this.width || set_h != this.height) {
-            console.log(this.width, this.height, set_w, set_h);
             this.width = set_w;
             this.height = set_h;
             this.canvas.width = this.width;

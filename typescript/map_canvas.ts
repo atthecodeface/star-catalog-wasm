@@ -98,7 +98,25 @@ export class MapCanvas {
   }
 
   //mi derive_data
-  derive_data() {}
+  derive_data() {
+    const wh = this.vp.get_resizable_content_size();
+    let set_w = wh[0];
+    let set_h = wh[1];
+    const ar = 2.0;
+    if (set_w > set_h * ar) {
+      set_w = set_h * ar;
+    }
+    if (set_h > set_w / ar) {
+      set_h = set_w / ar;
+    }
+
+    if (set_w != this.width || set_h != this.height) {
+      this.width = set_w;
+      this.height = set_h;
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+    }
+  }
 
   //mi ra_de_of_cxy
   ra_de_of_cxy(cxy: [number, number]): [number, number] {

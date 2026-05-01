@@ -158,6 +158,10 @@ html {
 #SkyCanvas canvas {
     position: absolute;
 }
+#MapCanvas canvas {
+    position: absolute;
+}
+
 #controls {
     position: absolute;
     bottom: 0px;
@@ -182,6 +186,7 @@ html {
 
 #tab-help {
     padding: 8px;
+    touch-action: auto;
 }
 
 #tab-skyview {
