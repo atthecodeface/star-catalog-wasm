@@ -13,11 +13,6 @@ import { Log, Logger, Severity } from "./log.js";
 
 import { Controls } from "./controls.js";
 
-import { CompassCanvas } from "./compass.js";
-import { ClockCanvas } from "./clock.js";
-import { CalendarCanvas } from "./calendar.js";
-import { ElevationCanvas } from "./elevation.js";
-
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
 import { FindCanvas } from "./find_canvas.js";
@@ -46,10 +41,6 @@ export class StarCatalog {
   map_canvas: MapCanvas;
   earth_canvas: Earth;
   find_canvas: FindCanvas;
-  control_compass: CompassCanvas;
-  control_clock: ClockCanvas;
-  control_calendar: CalendarCanvas;
-  control_elevation: ElevationCanvas;
   controls: Controls;
 
   view_needs_update: boolean = false;
@@ -119,21 +110,6 @@ export class StarCatalog {
     );
 
     this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas");
-    this.control_compass = new CompassCanvas(this, "ControlCompass", 200, 100);
-    this.control_clock = new ClockCanvas(this, "ControlClock", 100, 100);
-    this.control_calendar = new CalendarCanvas(
-      this,
-      "ControlCalendar",
-      100,
-      100,
-    );
-    this.control_elevation = new ElevationCanvas(
-      this,
-      "ControlElevation",
-      50,
-      100,
-    );
-
     this.pending_resize = null;
     this.selected_css_changed();
     this.set_view_needs_update();
@@ -178,10 +154,7 @@ export class StarCatalog {
     }
     this.vp.derive_data();
 
-    this.control_clock.update();
-    this.control_calendar.update();
-    this.control_compass.update();
-    this.control_elevation.update();
+    this.controls.update();
 
     if (this.selected_tab == SelectedTab.SkyView) {
       this.sky_canvas.update();
