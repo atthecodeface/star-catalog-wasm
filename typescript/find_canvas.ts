@@ -785,13 +785,6 @@ export class FindCanvas {
     const h = this.canvas.height;
     const ctx = this.canvas.getContext("2d")!;
     ctx.clearRect(0, 0, w, h);
-    console.log(
-      w,
-      h,
-      ctx,
-      this.img,
-      this.zoomed_window.get_zoomed_img_bounds(),
-    );
     if (this.img !== null) {
       const ib = this.zoomed_window.get_zoomed_img_bounds();
       ctx.drawImage(this.img, ib[0], ib[1], ib[2], ib[3], 0, 0, w, h);

@@ -124,21 +124,15 @@ html {
     height: 100%;
 
     .flex.content {
-        flex-grow: 1;
-        flex-shrink: 1;
-        flex-basis: auto;
+        flex: 1 1 auto;
     }
 
     .flex.fixed {
-        flex-grow: 0;
-        flex-shrink: 1;
-        flex-basis: min-content;
+        flex: 0 1 min-content;
     }
 
     .flex.footer {
-        flex-grow: 0;
-        flex-shrink: 1;
-        flex-basis: 0px;
+        flex: 0 1 0px;
     }
 }
 
@@ -161,6 +155,9 @@ html {
     }
 }
 
+#SkyCanvas canvas {
+    position: absolute;
+}
 #controls {
     position: absolute;
     bottom: 0px;

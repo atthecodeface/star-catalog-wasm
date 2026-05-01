@@ -98,8 +98,8 @@ export class StarCatalog {
 
     this.controls = new Controls(this, "controls");
 
-    this.sky_canvas = new SkyCanvas(this, this.catalog, "SkyCanvas", 800, 400);
-    this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 800, 300);
+    this.sky_canvas = new SkyCanvas(this, this.catalog, "SkyCanvas", 50, 50);
+    this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 50, 50);
     this.earth_canvas = new Earth(
       this,
       "EarthCanvas",
