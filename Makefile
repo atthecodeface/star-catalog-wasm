@@ -24,8 +24,12 @@ help:
 js:
 	npx tsc -b
 
-.PHONY: star_catalog.zip
-star_catalog.zip:
+.PHONY: zip
+zip: star_catalog.zip
+
+star_catalog.zip: http pkg javascript
+	rm star_catalog.zip
+
 	zip star_catalog.zip favicon.ico
 	zip star_catalog.zip http/Blue_Marble_2002_x10.jpg
 	zip star_catalog.zip http/main.css

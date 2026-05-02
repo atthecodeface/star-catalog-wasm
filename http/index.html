@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <title>Star Catalog</title>
     </head>
-    <body class="dn">
+    <body classs="dn">
         <link href="main.css" rel="stylesheet" type="text/css" />
         <script type="module" src="../javascript/star_catalog.js"></script>
         <div id="tab-list" class="tab-list">
@@ -35,7 +35,7 @@
             </ul>
         </div>
 
-        <div id="tab-help">
+        <div id="tab-help" class="main content">
             <h1>Introduction</h1>
             This page provides a view of the stars from where you are, and a map
             of all the stars in the sky.
@@ -72,11 +72,11 @@
                 <dd>
                     The location tab allows the setting of the location, by
                     using a 3D model of the earth to select latitude and
-                    longitude. This is used for the <b>observer position</b> -
-                    which impacts the concept of 'up', and the direction of the
-                    compass, for example. It also permits the setting of the
-                    date and time to 'today'. More control is probably
-                    required...
+                    longitude. This is used for the
+                    <b>observer position</b> - which impacts the concept of
+                    'up', and the direction of the compass, for example. It also
+                    permits the setting of the date and time to 'today'. More
+                    control is probably required...
                 </dd>
                 <dt>Log</dt>
                 <dd>
@@ -106,172 +106,186 @@
             <h2>Azimuthal grid</h2>
 
             An 'azimuthal' grid can be overlayed on top of the sky view and map,
-            showing the grid as seen by the <b>observer position</b> (given by
-            the location and time). This grid shows the great circles (for every
-            15 degrees of the compass, with north/south highlighted) that pass
-            through the location of the observer, the horizon and circles of
-            constant elevation (for every 30 degrees of elevation).
+            showing the grid as seen by the
+            <b>observer position</b> (given by the location and time). This grid
+            shows the great circles (for every 15 degrees of the compass, with
+            north/south highlighted) that pass through the location of the
+            observer, the horizon and circles of constant elevation (for every
+            30 degrees of elevation).
         </div>
 
-        <div id="resizable-tabs" class="flex box">
-            <div class="flex content" id="resizable-content">
-                <div id="tab-skyview">
-                    <div class="flex box">
-                        <div id="SkyCanvas" class="flex content"></div>
-                    </div>
-                </div>
-
-                <div id="tab-skymap">
-                    <div class="flex box">
-                        <div id="MapCanvas" class="flex content"></div>
-                    </div>
-                </div>
-
-                <div id="tab-location">
-                    <div class="flex box">
-                        <div id="EarthCanvas" class="flex content"></div>
-                        <table class="flex fixed">
-                            <tr>
-                                <td class="vp_lat"></td>
-                            </tr>
-                            <tr>
-                                <td class="vp_lon"></td>
-                            </tr>
-                            <tr>
-                                <td class="vp_date"></td>
-                            </tr>
-                            <tr>
-                                <td class="vp_time"></td>
-                            </tr>
-                            <tr>
-                                <td class="vp_sky_view_link" colspan="2"></td>
-                            </tr>
-                            <tr>
-                                <td id="today">
-                                    <input
-                                        class="date_button dn"
-                                        type="button"
-                                        value="Set day to today"
-                                        onclick="window.star_catalog.date_set()"
-                                    />
-                                </td>
-                            </tr>
-                            <tr>
-                                <td id="now">
-                                    <input
-                                        class="date_button dn"
-                                        type="button"
-                                        value="Set time to now"
-                                        onclick="window.star_catalog.time_set()"
-                                    />
-                                </td>
-                            </tr>
-                        </table>
-                        <div class="flex footer"></div>
-                    </div>
-                </div>
-
-                <div id="tab-find">
-                    <div class="flex box">
-                        <table class="flex fixed">
-                            <tr>
-                                <td>
-                                    <table>
-                                        <tr>
-                                            <td>
-                                                <label for="find_get_image"
-                                                    >Select a star-field image
-                                                    <input
-                                                        id="find_get_image"
-                                                        name="find_get_image"
-                                                        type="file"
-                                                        accept="image/x-png,image/jpeg,image/gif"
-                                                        old_only_give_camera_on_ios_capture="environment"
-                                                /></label>
-                                            </td>
-                                            <td>
-                                                <button
-                                                    id="find_best_matches"
-                                                    name="find_best_matches"
-                                                    type="button"
-                                                >
-                                                    Find best star matches
-                                                </button>
-                                            </td>
-                                            <td>
-                                                <button
-                                                    id="find_clear_selection"
-                                                    name="find_clear_selection"
-                                                    type="button"
-                                                >
-                                                    Clear selection
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <label
-                                                    for="find_max_angle"
-                                                    class="dn"
-                                                    id="find_ma"
-                                                    >Max angle</label
-                                                ><br />
-                                                <input
-                                                    type="range"
-                                                    class="range dn"
-                                                    id="find_max_angle"
-                                                    style="width: 150px"
-                                                    name="find_max_angle"
-                                                    step="0.02"
-                                                    min="0.01"
-                                                    max="0.2"
-                                                />
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <table>
-                                        <tr>
-                                            <td>
-                                                <button
-                                                    id="test"
-                                                    name="test"
-                                                    type="button"
-                                                    onclick="
-                                                        window.star_catalog.find_canvas.test()
-                                                    "
-                                                >
-                                                    Test
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td id="find_results">
-                                    There are no results yet
-                                </td>
-                            </tr>
-                        </table>
-                        <div id="FindCanvas" class="flex content"></div>
-                    </div>
+        <!-- Everything in resizable-tabs is hidden if we are not displaying *any* of them
+        -->
+        <div id="resizable-tabs">
+            <!-- tab-skyview is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
+            <div id="tab-skyview">
+                <div class="main content flex box">
+                    <div
+                        id="SkyCanvas"
+                        class="flex content resizable-content"
+                    ></div>
                 </div>
             </div>
-            <div class="flex footer"></div>
+
+            <!-- tab-skymap is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
+            <div id="tab-skymap">
+                <div class="main content flex box">
+                    <div
+                        id="MapCanvas"
+                        class="flex content resizable-content"
+                    ></div>
+                </div>
+            </div>
+
+            <!-- tab-location is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
+            <div id="tab-location">
+                <div class="main content flex box">
+                    <div
+                        id="EarthCanvas"
+                        class="flex content resizable-content"
+                    ></div>
+                    <table class="flex fixed">
+                        <tr>
+                            <td class="vp_lat"></td>
+                        </tr>
+                        <tr>
+                            <td class="vp_lon"></td>
+                        </tr>
+                        <tr>
+                            <td class="vp_date"></td>
+                        </tr>
+                        <tr>
+                            <td class="vp_time"></td>
+                        </tr>
+                        <tr>
+                            <td class="vp_sky_view_link" colspan="2"></td>
+                        </tr>
+                        <tr>
+                            <td id="today">
+                                <input
+                                    class="date_button dn"
+                                    type="button"
+                                    value="Set day to today"
+                                    onclick="window.star_catalog.date_set()"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td id="now">
+                                <input
+                                    class="date_button dn"
+                                    type="button"
+                                    value="Set time to now"
+                                    onclick="window.star_catalog.time_set()"
+                                />
+                            </td>
+                        </tr>
+                    </table>
+                    <div class="flex footer"></div>
+                </div>
+            </div>
+
+            <!-- tab-find is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
+            <div id="tab-find">
+                <div class="main content flex box">
+                    <table class="flex fixed">
+                        <tr>
+                            <td>
+                                <table>
+                                    <tr>
+                                        <td>
+                                            <label for="find_get_image"
+                                                >Select a star-field image
+                                                <input
+                                                    id="find_get_image"
+                                                    name="find_get_image"
+                                                    type="file"
+                                                    accept="image/x-png,image/jpeg,image/gif"
+                                                    old_only_give_camera_on_ios_capture="environment"
+                                            /></label>
+                                        </td>
+                                        <td>
+                                            <button
+                                                id="find_best_matches"
+                                                name="find_best_matches"
+                                                type="button"
+                                            >
+                                                Find best star matches
+                                            </button>
+                                        </td>
+                                        <td>
+                                            <button
+                                                id="find_clear_selection"
+                                                name="find_clear_selection"
+                                                type="button"
+                                            >
+                                                Clear selection
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <label
+                                                for="find_max_angle"
+                                                class="dn"
+                                                id="find_ma"
+                                                >Max angle</label
+                                            ><br />
+                                            <input
+                                                type="range"
+                                                class="range dn"
+                                                id="find_max_angle"
+                                                style="width: 150px"
+                                                name="find_max_angle"
+                                                step="0.02"
+                                                min="0.01"
+                                                max="0.2"
+                                            />
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <table>
+                                    <tr>
+                                        <td>
+                                            <button
+                                                id="test"
+                                                name="test"
+                                                type="button"
+                                                onclick="
+                                                    window.star_catalog.find_canvas.test()
+                                                "
+                                            >
+                                                Test
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td id="find_results">There are no results yet</td>
+                        </tr>
+                    </table>
+                    <div
+                        id="FindCanvas"
+                        class="flex content resizable-content"
+                    ></div>
+                </div>
+            </div>
         </div>
 
-        <div id="tab-log">
+        <div id="tab-log" class="main content">
             <table>
                 <div id="Log"></div>
             </table>
         </div>
 
-        <div id="tab-info">
+        <div id="tab-info" class="main content">
             <table>
                 <tr>
                     <td colspan="4">
@@ -324,6 +338,7 @@
                 <label for="ctl_ena_orient">Orient</label>
             </div>
         </div>
+
         <div id="controls">
             <div id="zoom_mag">
                 <table class="zoom_mag">

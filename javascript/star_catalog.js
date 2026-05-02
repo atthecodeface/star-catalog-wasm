@@ -1,5 +1,6 @@
 //a To do
 // Orbit, more names
+// precession, catalog in j2000 precession maps j2000 to current ecef (sky map is in ecef, optionally j2000)
 import init, { WasmCatalog, WasmVec3f64, } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import { Tabs } from "./tabbed.js";
@@ -63,9 +64,7 @@ export class StarCatalog {
         html.set_input_checked("day_night", mode == "day");
         this.styling = new Styling(mode);
         this.vp = new ViewProperties(this, params);
-        const resizable_content = document.getElementById("resizable-content");
         this.resize_observer = new ResizeObserver(this.resize_canvas.bind(this));
-        this.resize_observer.observe(resizable_content);
         this.controls = new Controls(this, "controls");
         this.sky_canvas = new SkyCanvas(this, this.catalog, "SkyCanvas", 50, 50);
         this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 50, 50);
@@ -73,6 +72,9 @@ export class StarCatalog {
         this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas");
         this.pending_resize = null;
         this.selected_css_changed();
+        for (const resizable_content of document.getElementsByClassName("resizable-content")) {
+            this.resize_observer.observe(resizable_content);
+        }
         this.set_view_needs_update();
     }
     orientation_permitted(permitted) {
@@ -99,8 +101,11 @@ export class StarCatalog {
     }
     resize_canvas(e) {
         for (const ele of e) {
-            this.pending_resize = [ele.contentRect.width, ele.contentRect.height];
-            this.set_view_needs_update();
+            console.log(ele.contentRect, ele.target.id);
+            if (ele.contentRect.width > 0 && ele.contentRect.height > 0) {
+                this.pending_resize = [ele.contentRect.width, ele.contentRect.height];
+                this.set_view_needs_update();
+            }
         }
     }
     //mp set_styling

@@ -35,6 +35,12 @@ export class CompassCanvas {
     this.styling = styling;
 
     this.div = document.getElementById(canvas_div_id)!;
+    console.log(canvas_div_id);
+    console.log(this.div);
+    if (this.div === null) {
+      throw "Failed to load canvas";
+    }
+
     this.canvas = document.createElement("canvas");
     this.div.appendChild(this.canvas);
 

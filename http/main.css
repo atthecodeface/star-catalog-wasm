@@ -66,17 +66,14 @@ body {
     #tab-help {
         touch-action: auto;
         overflow: scroll;
-        height: 100%;
     }
     #tab-log {
         touch-action: auto;
         overflow: scroll;
-        height: 100%;
     }
     #tab-info {
         touch-action: auto;
         overflow: scroll;
-        height: 100%;
     }
 }
 
@@ -132,7 +129,6 @@ html {
 .flex.box {
     display: flex;
     flex-flow: column;
-    height: 100%;
 
     .flex.content {
         flex: 1 1 auto;
@@ -170,6 +166,34 @@ html {
     }
 }
 
+.main.content {
+    position: absolute;
+    top: 35px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+}
+
+#tab-skyview {
+    table {
+        border-spacing: 0px;
+    }
+}
+
+#tab-find {
+    table {
+        width: 100%;
+    }
+    #FindCanvas {
+        /* Are these two necessary? */
+        height: 100%;
+        width: 100%;
+        canvas {
+            position: absolute;
+        }
+    }
+}
+
 #SkyCanvas canvas {
     position: absolute;
 }
@@ -201,26 +225,6 @@ html {
 
 #tab-help {
     padding: 8px;
-}
-
-#tab-skyview {
-    height: 100%;
-    table {
-        border-spacing: 0px;
-    }
-}
-
-#tab-find {
-    table {
-        width: 100%;
-    }
-    #FindCanvas {
-        height: 100%;
-        width: 100%;
-        canvas {
-            position: absolute;
-        }
-    }
 }
 
 /*a Night mode  - default */
