@@ -197,7 +197,9 @@ const ICOSTRIP_VERTICES_1: IcoStripVertices = IcoStripVertices {
 };
 
 //tp IcoStrip
+
 /// A representation of one of the two strips that makes up an icosphere
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 struct IcoStrip {
     pub strip: [IcoStripVertex; 30],
