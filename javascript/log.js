@@ -204,10 +204,10 @@ export class Log {
         const table = this.div.add_ele("table", { id: "log_table" });
         for (const e of this.log) {
             const tr = table.add_ele("tr", { classes: `log_entry_${e.severity}` });
-            tr.add_ele("th").set_content(e.severity_as_string());
-            tr.add_ele("td").set_content(e.src.src);
-            tr.add_ele("td").set_content(e.reason);
-            tr.add_ele("td").set_content(e.message);
+            tr.add_ele("th").add_content(e.severity_as_string());
+            tr.add_ele("td").add_content(e.src.src);
+            tr.add_ele("td").add_content(e.reason);
+            tr.add_ele("td").add_content(e.message);
         }
     }
 }

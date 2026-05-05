@@ -33,32 +33,32 @@ class ViewPropertiesHtml {
         for (const e of this.reload_links) {
             e.clear()
                 .add_ele("a")
-                .set_content("Sky View Link")
+                .add_content("Sky View Link")
                 .add_tags([["href", vp.get_href()]]);
         }
         for (const e of this.lats) {
-            e.clear().set_content(`Lat: ${vp.lat.toFixed(1)}`);
+            e.clear().add_content(`Lat: ${vp.lat.toFixed(1)}`);
         }
         for (const e of this.lons) {
-            e.clear().set_content(`Lon: ${vp.lon.toFixed(1)}`);
+            e.clear().add_content(`Lon: ${vp.lon.toFixed(1)}`);
         }
         for (const e of this.elevs) {
-            e.clear().set_content(`Elev: ${vp.observer_elevation.toFixed(1)}`);
+            e.clear().add_content(`Elev: ${vp.observer_elevation.toFixed(1)}`);
         }
         for (const e of this.times) {
-            e.clear().set_content(`UTC Time: ${vp.time_text(vp.time_of_day)}`);
+            e.clear().add_content(`UTC Time: ${vp.time_text(vp.time_of_day)}`);
         }
         for (const e of this.dates) {
-            e.clear().set_content(vp.date_text(vp.days_since_epoch));
+            e.clear().add_content(vp.date_text(vp.days_since_epoch));
         }
         for (const e of this.fovs) {
-            e.clear().set_content(`${(vp.fovh * vp.rad2deg).toFixed(1)}`);
+            e.clear().add_content(`${(vp.fovh * vp.rad2deg).toFixed(1)}`);
         }
         for (const e of this.focal_lengths) {
-            e.clear().set_content(`${(18 / vp.tan_hfovh).toFixed(2)}`);
+            e.clear().add_content(`${(18 / vp.tan_hfovh).toFixed(2)}`);
         }
         for (const e of this.magnitudes) {
-            e.clear().set_content(`${vp.brightness.toFixed(2)}`);
+            e.clear().add_content(`${vp.brightness.toFixed(2)}`);
         }
     }
 }
@@ -505,7 +505,7 @@ export class ViewProperties {
                 table.add_headings([h]);
                 table.add_body([t]);
             }
-            he.set_content(table.as_vertical_html());
+            he.add_content(table.as_vertical_html());
         }
     }
     /** Update HTML elements with date/time/lat/lon/elev/link */
