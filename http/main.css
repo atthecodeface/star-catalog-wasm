@@ -201,12 +201,47 @@ html {
     position: absolute;
 }
 
+#ctl_selectors {
+    label {
+        padding-left: 5px;
+        font-size: 150%;
+    }
+}
 #controls {
     position: absolute;
     bottom: 0px;
     z-index: 1;
     width: 100%;
+
+    #ControlCompass {
+        position: absolute;
+        bottom: 0px;
+        left: 20%;
+        z-index: 1;
+    }
+    #ControlElevation {
+        position: absolute;
+        bottom: 0px;
+        right: 20%;
+        z-index: 1;
+    }
+    #ControlClock {
+        position: absolute;
+        bottom: 0px;
+        left: 20%;
+        z-index: 1;
+    }
+    #ControlCalendar {
+        position: absolute;
+        bottom: 0px;
+        right: 20%;
+        z-index: 1;
+    }
     .zoom_mag {
+        z-index: 1;
+        width: 100%;
+        position: absolute;
+        bottom: 0px;
         .mag input {
             box-sizing: border-box;
             width: 100%;
