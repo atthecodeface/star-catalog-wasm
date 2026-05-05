@@ -174,8 +174,17 @@ interface Range {
   step?: number;
 }
 
+/** Type properties required to specify a range for a 'Range' input */
+interface DefinedRange {
+  min: number;
+  max: number;
+  value: number;
+  step: number;
+}
+
 export class HtmlElement {
   ele: HTMLElement;
+  range: DefinedRange;
 
   static set_id_classes(doc_ele: Element, id_classes: IdClasses): void {
     if (id_classes.id !== undefined) {
@@ -194,14 +203,15 @@ export class HtmlElement {
   static new_ele(
     ele_type: string,
     id_classes: IdClasses = {},
-    map: null | ((e: HTMLElement) => void) = null,
+    tag_values: Array<[string, string]> = [],
+    map: null | ((e: HtmlElement) => void) = null,
   ) {
     const ele = document.createElement(ele_type);
-    HtmlElement.set_id_classes(ele, id_classes);
+    const self = new HtmlElement(ele, id_classes, tag_values);
     if (map !== null) {
-      map(ele);
+      map(self);
     }
-    return new HtmlElement(ele);
+    return self;
   }
 
   static all_of(selector: string): HtmlElement[] {
@@ -214,8 +224,15 @@ export class HtmlElement {
     return result;
   }
 
-  constructor(ele: HTMLElement) {
+  constructor(
+    ele: HTMLElement,
+    id_classes: IdClasses = {},
+    tag_values: Array<[string, string]> = [],
+  ) {
     this.ele = ele;
+    this.range = { min: 0, max: 0, value: 0, step: 1 };
+    HtmlElement.set_id_classes(ele, id_classes);
+    this.add_tags(tag_values);
   }
 
   clear(): HtmlElement {
@@ -225,11 +242,14 @@ export class HtmlElement {
     return this;
   }
 
-  add_ele(ele_type: string, id_classes: IdClasses = {}) {
+  add_ele(
+    ele_type: string,
+    id_classes: IdClasses = {},
+    tag_values: Array<[string, string]> = [],
+  ) {
     const ele = document.createElement(ele_type);
-    HtmlElement.set_id_classes(ele, id_classes);
     this.ele.appendChild(ele);
-    return new HtmlElement(ele);
+    return new HtmlElement(ele, id_classes, tag_values);
   }
 
   add_tags(tag_values: Array<[string, string]>): HtmlElement {
@@ -239,114 +259,7 @@ export class HtmlElement {
     return this;
   }
 
-  add_input_button(
-    value: string,
-    callback: () => void,
-    id_classes: IdClasses = {},
-  ) {
-    const input = document.createElement("input");
-    input.setAttribute("type", "button");
-    input.setAttribute("value", value);
-    input.onclick = callback;
-    HtmlElement.set_id_classes(input, id_classes);
-    this.ele.appendChild(input);
-    return new HtmlElement(input);
-  }
-
-  add_input_checkbox(name: string, id_classes: IdClasses = {}) {
-    const input = document.createElement("input");
-    input.setAttribute("type", "checkbox");
-    input.setAttribute("name", name);
-    HtmlElement.set_id_classes(input, id_classes);
-    this.ele.appendChild(input);
-    return new HtmlElement(input);
-  }
-
-  add_input_radio(
-    name: string,
-    value: string,
-    required: boolean,
-    id_classes: IdClasses = {},
-  ) {
-    const input = document.createElement("input");
-    input.setAttribute("type", "radio");
-    input.setAttribute("name", name);
-    input.setAttribute("value", value);
-    if (required) {
-      input.setAttribute("required", "true");
-    }
-    HtmlElement.set_id_classes(input, id_classes);
-    this.ele.appendChild(input);
-    return new HtmlElement(input);
-  }
-
-  add_input_range(
-    name: string,
-    range: Range,
-    callback: (event: Event, value: number) => void,
-    id_classes: IdClasses = {},
-  ) {
-    var value = range.min;
-    var step = 1;
-    if (range.value !== undefined) {
-      value = range.value;
-    }
-    if (range.step !== undefined) {
-      step = range.step;
-    }
-    const input = document.createElement("input");
-    input.setAttribute("type", "range");
-    input.setAttribute("name", name);
-    input.setAttribute("value", value.toString());
-    input.setAttribute("min", range.min.toString());
-    input.setAttribute("max", range.max.toString());
-    input.setAttribute("step", step.toString());
-    // const x: HTMLInputElement = new HTMLInputElement();
-    // x.on
-    input.oninput = (e) => {
-      var value;
-      if (step == 1) {
-        value = Number.parseFloat(input.value);
-      } else {
-        value = Number.parseFloat(input.value);
-      }
-      callback(e, value);
-    };
-    HtmlElement.set_id_classes(input, id_classes);
-    this.ele.appendChild(input);
-    return new HtmlElement(input);
-  }
-
-  add_input_text(name: string, value: string, id_classes: IdClasses = {}) {
-    const input = document.createElement("input");
-    input.setAttribute("type", "text");
-    input.setAttribute("name", name);
-    input.setAttribute("value", value);
-    HtmlElement.set_id_classes(input, id_classes);
-    this.ele.appendChild(input);
-    return new HtmlElement(input);
-  }
-
-  add_label(for_input?: string, id_classes: IdClasses = {}) {
-    const label = document.createElement("label");
-    if (for_input) {
-      label.setAttribute("for", for_input);
-    }
-    HtmlElement.set_id_classes(label, id_classes);
-    this.ele.appendChild(label);
-    return new HtmlElement(label);
-  }
-
-  input_checked(): boolean {
-    if (this.ele instanceof HTMLInputElement) {
-      return this.ele.checked;
-    } else {
-      return false;
-    }
-  }
-
-  set_content(content: Node | HtmlElement | string): HtmlElement {
-    //console.log(this.ele);
+  add_content(content: Node | HtmlElement | string): HtmlElement {
     if (content instanceof Node) {
       this.ele.appendChild(content);
     } else if (content instanceof HtmlElement) {
@@ -357,7 +270,247 @@ export class HtmlElement {
     return this;
   }
 
-  set_style(style: string, value?: string) {
+  add_input_button(
+    value: string,
+    callback: () => void,
+    id_classes: IdClasses = {},
+  ): HtmlElement {
+    const html_input = this.add_ele("input", id_classes, [
+      ["type", "button"],
+      ["value", value],
+    ]);
+    const input = html_input.ele as HTMLInputElement;
+    input.addEventListener("click", callback);
+    return html_input;
+  }
+
+  add_input_checkbox(
+    name: string,
+    callback: null | ((event: Event, checked: boolean) => void) = null,
+    id_classes: IdClasses = {},
+  ): HtmlElement {
+    const html_input = this.add_ele("input", id_classes, [
+      ["type", "checkbox"],
+      ["name", name],
+    ]);
+    const input = html_input.ele as HTMLInputElement;
+    if (callback !== null) {
+      input.addEventListener("input", (e: Event) => {
+        callback(e, input.checked);
+      });
+    }
+    return html_input;
+  }
+
+  add_input_radio(
+    name: string,
+    value: string,
+    required: boolean,
+    callback: null | ((event: Event, value: string) => void) = null,
+    id_classes: IdClasses = {},
+  ): HtmlElement {
+    const html_input = this.add_ele("input", id_classes, [
+      ["type", "radio"],
+      ["name", name],
+      ["value", value],
+    ]);
+    const input = html_input.ele as HTMLInputElement;
+    if (required) {
+      input.setAttribute("required", "true");
+    }
+    if (callback !== null) {
+      input.addEventListener("change", (e: Event) => {
+        callback(e, input.value);
+      });
+    }
+    return html_input;
+  }
+
+  add_input_range(
+    name: string,
+    range: Range,
+    callback: null | ((event: Event, value: number) => void) = null,
+    id_classes: IdClasses = {},
+  ): HtmlElement {
+    const html_input = this.add_ele("input", id_classes, [
+      ["type", "range"],
+      ["name", name],
+    ]);
+    const input = html_input.ele as HTMLInputElement;
+    html_input.set_input_range(range);
+
+    if (callback !== null) {
+      input.addEventListener("input", (e: Event) => {
+        var value;
+        if (html_input.range.step == 1) {
+          value = Number.parseInt(input.value);
+        } else {
+          value = Number.parseFloat(input.value);
+        }
+        callback(e, value);
+      });
+    }
+    return html_input;
+  }
+
+  add_input_text(
+    name: string,
+    value: string,
+    callback: null | ((event: InputEvent, value: string) => void) = null,
+    id_classes: IdClasses = {},
+  ): HtmlElement {
+    const html_input = this.add_ele("input", id_classes, [
+      ["type", "text"],
+      ["name", name],
+      ["value", value],
+    ]);
+    const input = html_input.ele as HTMLInputElement;
+    if (callback !== null) {
+      input.addEventListener("input", (e: InputEvent) => {
+        const value = input.value;
+        callback(e, value);
+      });
+    }
+    return html_input;
+  }
+
+  /**
+   *
+   * In the callback, to retrieve multiple options, event.target.selectedOptions
+   *
+   * @param name
+   * @param values_labels
+   * @param default_value
+   * @param required
+   * @param multiple
+   * @param callback
+   * @param id_classes
+   * @returns
+   */
+  add_input_dropdown(
+    name: string,
+    values_labels: [string, string][],
+    default_value: string | null = null,
+    required: boolean,
+    multiple: boolean,
+    callback: null | ((event: Event, value: string) => void) = null,
+    id_classes: IdClasses = {},
+  ): HtmlElement {
+    const html_select = this.add_ele("select", id_classes, [["name", name]]);
+    const select = html_select.ele as HTMLSelectElement;
+    if (required) {
+      select.setAttribute("required", "true");
+    }
+    if (multiple) {
+      select.setAttribute("multiple", "true");
+    }
+    for (const [value, label] of values_labels) {
+      const option = document.createElement("option") as HTMLOptionElement;
+      option.text = label;
+      option.value = value;
+      select.appendChild(option);
+    }
+    if (callback !== null) {
+      select.addEventListener("change", (e) => {
+        callback(e, select.value);
+      });
+    }
+    if (default_value !== null) {
+      select.value = default_value;
+    }
+    return html_select;
+  }
+
+  add_label(for_input?: string, id_classes: IdClasses = {}) {
+    const label = document.createElement("label");
+    if (for_input) {
+      label.setAttribute("for", for_input);
+    }
+    this.ele.appendChild(label);
+    return new HtmlElement(label, id_classes);
+  }
+
+  input_checked(): boolean {
+    if (this.ele instanceof HTMLInputElement) {
+      return this.ele.checked;
+    } else {
+      return false;
+    }
+  }
+
+  input_number_bounded(value: number): number {
+    if (!(value >= this.range.min)) {
+      (this.ele as HTMLInputElement).value = this.range.min.toString();
+      return this.range.min;
+    }
+    if (value > this.range.max) {
+      (this.ele as HTMLInputElement).value = this.range.max.toString();
+      return this.range.max;
+    }
+    return value;
+  }
+
+  input_float(): number {
+    if (!(this.ele instanceof HTMLInputElement)) {
+      return this.range.value;
+    }
+    return this.input_number_bounded(Number.parseFloat(this.ele.value));
+  }
+
+  input_int(): number {
+    if (!(this.ele instanceof HTMLInputElement)) {
+      return this.range.value;
+    }
+    return this.input_number_bounded(Number.parseInt(this.ele.value));
+  }
+
+  input_radio_checked(): null | string {
+    const selected_e = this.ele.querySelector(":checked");
+    if (selected_e instanceof HTMLInputElement) {
+      return selected_e.value;
+    } else {
+      return null;
+    }
+  }
+
+  set_input_range(range: Range): void {
+    const e = this.ele;
+    if (!(e instanceof HTMLInputElement)) {
+      return;
+    }
+    this.range.value = range.min;
+    if (range.value !== undefined) {
+      e.setAttribute("value", range.value.toString());
+      this.range.value = range.value;
+    }
+    let step = 1;
+    if (range.step !== undefined) {
+      step = range.step;
+    }
+    this.range.min = range.min;
+    this.range.max = range.max;
+    this.range.step = step;
+
+    e.setAttribute("min", range.min.toString());
+    e.setAttribute("max", range.max.toString());
+    e.setAttribute("step", step.toString());
+  }
+
+  set_input_value(value: any): HtmlElement {
+    if (this.ele instanceof HTMLInputElement) {
+      this.ele.value = value.toString();
+    }
+    return this;
+  }
+
+  set_input_checked(checked: boolean): HtmlElement {
+    if (this.ele instanceof HTMLInputElement) {
+      this.ele.checked = checked;
+    }
+    return this;
+  }
+
+  set_style(style: string, value?: string): HtmlElement {
     /* This is not supported by FireFox
     if (value) {
       this.ele.attributeStyleMap.set(style, value);
@@ -370,6 +523,7 @@ export class HtmlElement {
     } else {
       this.ele.style = "";
     }
+    return this;
   }
 }
 
@@ -404,7 +558,7 @@ export class Table {
       let i = 0;
       for (const h of this.headings) {
         const th = tr.add_ele("th");
-        th.set_content(h);
+        th.add_content(h);
         i += 1;
       }
     }
@@ -413,7 +567,7 @@ export class Table {
       const tr = table.add_ele("tr");
       for (const d of c) {
         const td = tr.add_ele("td");
-        td.set_content(d);
+        td.add_content(d);
       }
     }
     return table;
@@ -426,11 +580,11 @@ export class Table {
       const tr = table.add_ele("tr");
       const th = tr.add_ele("th", { classes: this.heading_classes });
       if (i < this.headings.length) {
-        th.set_content(this.headings[i]!);
+        th.add_content(this.headings[i]!);
       }
       const c = this.body[i]!;
       for (const d of c) {
-        tr.add_ele("td").set_content(d);
+        tr.add_ele("td").add_content(d);
       }
     }
     return table;
