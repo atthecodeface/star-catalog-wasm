@@ -31,12 +31,14 @@ export class MapCanvas {
     fill_star_cache(_x) {
         const stars = [];
         console.log("Fill map canvas cache");
+        const XP_AXIS = new WasmVec3f64(1, 0, 0);
         this.catalog.clear_filter();
         this.catalog.filter_max_magnitude(this.brightness);
-        const XP_AXIS = new WasmVec3f64(1, 0, 0);
         for (const index of this.catalog.find_stars_around(XP_AXIS, 1.6, 0, 1000)) {
             stars.push(this.catalog.star(index));
         }
+        this.catalog.clear_filter();
+        this.catalog.filter_max_magnitude(this.brightness);
         for (const index of this.catalog.find_stars_around(XP_AXIS.neg(), 1.6, 0, 1000)) {
             stars.push(this.catalog.star(index));
         }
