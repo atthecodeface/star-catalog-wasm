@@ -8,7 +8,9 @@
 use js_sys::Array;
 use wasm_bindgen::prelude::*;
 
-use star_catalog::{Catalog, CatalogIndex, Star, StarFilter, Subcube};
+use star_catalog::{
+    Catalog, CatalogIndex, Star, StarFilter, StarTriangleMatch, StarTriangleSearch, Subcube,
+};
 
 use crate::Rrc;
 use crate::{Vec3f64, WasmVec3f32, WasmVec3f64};
@@ -124,8 +126,7 @@ impl WasmCatalog {
         first: usize,
         max_results: usize,
     ) -> Array {
-        let f_orig = self
-            .cat
+        self.cat
             .borrow_mut()
             .add_filter(StarFilter::select(first, max_results));
 
@@ -134,7 +135,7 @@ impl WasmCatalog {
         for index in self.cat.borrow().find_stars_around(&v, max_angle) {
             result.push(&index.as_usize().into());
         }
-        self.cat.borrow_mut().set_filter(f_orig);
+        self.cat.borrow_mut().clear_filter();
         result
     }
 
@@ -155,19 +156,55 @@ impl WasmCatalog {
 
         let mut result = vec![]; // js_sys::Array::new();
         let angles_to_find = [a0, a1, a2];
-        let s = Subcube::iter_all();
-        for (i0, i1, i2) in
+        let subcube_iter = Subcube::iter_all();
+        crate::console_log!("{:?} {max_angle_delta}", angles_to_find);
+        self.cat.borrow_mut().clear_filter();
+        self.cat
+            .borrow_mut()
+            .add_filter(StarFilter::brighter_than(5.0));
+
+        let search = StarTriangleSearch::of_angles(angles_to_find, max_angle_delta).unwrap();
+        let (finished, mut candidates) =
             self.cat
                 .borrow()
-                .find_star_triangles(s, &angles_to_find, max_angle_delta)
-        {
-            result.push(i0.as_usize() as u32);
-            result.push(i1.as_usize() as u32);
-            result.push(i2.as_usize() as u32);
+                .find_star_triangles(subcube_iter, &search, 10 * 1000 * 1000);
+        crate::console_log!("{finished} {}", candidates.len());
+        candidates.sort_by(StarTriangleMatch::compare_angle_sum);
+        for tm in candidates {
+            let t = tm.triangle();
+            result.push(t.0.as_usize() as u32);
+            result.push(t.1.as_usize() as u32);
+            result.push(t.2.as_usize() as u32);
         }
-
-        //self.cat.borrow_mut().set_filter(f_orig);
         result
+    }
+
+    pub fn find_best_star_mappings(
+        &self,
+        img_space_vectors: Vec<WasmVec3f64>,
+        max_angle_delta: f64,
+    ) -> bool {
+        let subcube_iter = Subcube::iter_all();
+        self.cat.borrow_mut().clear_filter();
+        self.cat
+            .borrow_mut()
+            .add_filter(StarFilter::brighter_than(5.0));
+
+        let img_space_vectors: Vec<_> = img_space_vectors.into_iter().map(|a| *a).collect();
+        crate::console_log!("vectors {img_space_vectors:?}");
+        let (finished, candidates) = self.cat.borrow().find_best_star_mappings(
+            subcube_iter,
+            &img_space_vectors,
+            max_angle_delta,
+            10 * 1000 * 1000,
+        );
+        for (c, a) in &candidates {
+            if *a < 0.01 {
+                crate::console_log!("candidate {c:?} {a}");
+            }
+        }
+        crate::console_log!("{finished} {}", candidates.len());
+        false
     }
 
     //zz All done
