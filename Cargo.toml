@@ -25,7 +25,8 @@ version = "0.6.2"
 path = "../geo-nd-wasm"
 
 [dependencies.star-catalog]
-version = "0.1"
+version = "0.3"
+path = "../star-catalog-rs"
 features = ["postcard", "hipp_bright"]
 
 [dependencies.web-sys]
