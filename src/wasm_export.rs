@@ -158,11 +158,12 @@ impl WasmCatalog {
         let angles_to_find = [a0, a1, a2];
         let subcube_iter = Subcube::iter_all();
         crate::console_log!("{:?} {max_angle_delta}", angles_to_find);
-        self.cat.borrow_mut().clear_filter();
-        self.cat
-            .borrow_mut()
-            .add_filter(StarFilter::brighter_than(5.0));
-
+        /*
+                self.cat.borrow_mut().clear_filter();
+                self.cat
+                    .borrow_mut()
+                    .add_filter(StarFilter::brighter_than(5.0));
+        */
         let search = StarTriangleSearch::of_angles(angles_to_find, max_angle_delta).unwrap();
         let (finished, mut candidates) =
             self.cat
