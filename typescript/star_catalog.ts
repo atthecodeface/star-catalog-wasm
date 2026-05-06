@@ -153,7 +153,7 @@ export class StarCatalog {
 
   resize_canvas(e: ResizeObserverEntry[]): void {
     for (const ele of e) {
-      console.log(ele.contentRect, ele.target.id);
+      // console.log(ele.contentRect, ele.target.id);
       if (ele.contentRect.width > 0 && ele.contentRect.height > 0) {
         this.pending_resize = [ele.contentRect.width, ele.contentRect.height];
         this.set_view_needs_update();

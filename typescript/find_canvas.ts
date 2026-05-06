@@ -247,6 +247,14 @@ class FindOrientation {
 
     this.candidates = [];
   }
+  find_best_star_mappings() {
+    console.log("find_best_star_mappings()");
+    let x = this.catalog.find_best_star_mappings(
+      this.vectors,
+      (this.max_angle_delta * 3.14159) / 180,
+    );
+    console.log(x);
+  }
 
   /**
    * Find in the catalog candidate mappings (array of 3n catalog star indices) for a triangle of
@@ -271,13 +279,14 @@ class FindOrientation {
     const a20 = Math.acos(vectors[vector_i2]!.dot(vectors[vector_i0]!));
     const a01 = Math.acos(vectors[vector_i0]!.dot(vectors[vector_i1]!));
 
-    //    console.log(
-    //      "find triangles with angles",
-    //      this.max_angle_delta,
-    //      a01 * rad2deg,
-    //      a12 * rad2deg,
-    //      a20 * rad2deg,
-    //    );
+    const rad2deg = 180.0 / 3.14159265;
+    console.log(
+      "find triangles with angles",
+      this.max_angle_delta,
+      a01 * rad2deg,
+      a12 * rad2deg,
+      a20 * rad2deg,
+    );
     return this.catalog.find_star_triangles(
       this.max_angle_delta * deg2rad,
       a12,
@@ -349,7 +358,7 @@ class FindOrientation {
    */
   add_initial_triangles() {
     const triangles_found = this.find_triangles(0, 1, 2);
-
+    console.log(triangles_found);
     const allowed_candidates = [];
     let n = triangles_found.length;
     for (let i = 0; i < n; i += 3) {
@@ -367,6 +376,7 @@ class FindOrientation {
       }
     }
     this.candidates = allowed_candidates;
+    console.log(this.candidates);
   }
 
   /**
@@ -387,6 +397,7 @@ class FindOrientation {
       vector_i1,
       vector_i2,
     );
+    console.log(triangles_found);
 
     const allowed_candidates = [];
     let n = triangles_found.length;
@@ -555,7 +566,7 @@ export class FindCanvas {
     this.max_angle_delta = 1.5;
     this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82.0);
 
-    this.vp.fovh = 74.7 * this.vp.deg2rad;
+    //    this.vp.fovh = 74.7 * this.vp.deg2rad;
     this.selected_stars = [
       [1677.4173872350161, 1979.4762361019548],
       [1774.5592213798122, 1778.9920252073755],
@@ -629,7 +640,9 @@ export class FindCanvas {
     );
   }
   test() {
-    this.test_img_5362();
+    this.test_img_4924();
+
+    this.vp.update_html_elements();
     this.zoomed_window.set_img(this.img_w, this.img_h);
 
     this.populate_html();
@@ -653,13 +666,8 @@ export class FindCanvas {
       this.vp.brightness,
       this.max_angle_delta,
     );
-    find_orientation.add_initial_triangles();
-    if (star_vectors.length > 3) {
-      const n = star_vectors.length;
-      find_orientation.add_further_triangle(n - 3, n - 2, n - 1);
-    }
-    const q_err = find_orientation.find_best_candidate()!;
-    console.log(q_err[0].array, q_err[1], q_err[2]);
+
+    find_orientation.find_best_star_mappings();
 
     (window as any).star_catalog.set_view_needs_update();
   }
@@ -680,33 +688,14 @@ export class FindCanvas {
       this.vp.brightness,
       this.max_angle_delta,
     );
-    find_orientation.add_initial_triangles();
 
-    switch (this.selected_stars.length) {
-      case 3: {
-        break;
-      }
-      case 4: {
-        find_orientation.add_further_triangle(0, 1, 3);
-        break;
-      }
-      case 5: {
-        find_orientation.add_further_triangle(0, 3, 4);
-        break;
-      }
-      case 6: {
-        find_orientation.add_further_triangle(3, 4, 5);
-        break;
-      }
-      default: {
-        for (let i = this.selected_stars.length - 2; i >= 2; i -= 2) {
-          find_orientation.add_further_triangle(i - 1, i, i + 1);
-        }
-        break;
-      }
-    }
+    find_orientation.find_best_star_mappings();
 
     const q_err = find_orientation.find_best_candidate();
+    if (q_err === null) {
+      console.log("No matches found");
+      return;
+    }
     console.log("Best candidate", q_err![0]!.array);
     const find_results = document.querySelector(
       "#find_results",
