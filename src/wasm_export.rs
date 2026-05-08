@@ -32,6 +32,12 @@ impl WasmPolynomial {
         self.poly.clone()
     }
 
+    pub fn set(&mut self, n: usize, v: f64) {
+        if n < self.poly.len() {
+            self.poly[n] = v;
+        }
+    }
+
     pub fn calc(&self, x: f64) -> f64 {
         let mut r = 0.;
         let mut xn = 1.0;
@@ -45,6 +51,7 @@ impl WasmPolynomial {
         use geo_nd_wasm::geo_nd::matrix;
         let n = xs.len();
         if ys.len() != n {
+            crate::console_log!("Mismatch in array lengths");
             return false;
         }
         let mut xi_m = vec![0.; n * p]; // N rows of P columns
@@ -65,7 +72,8 @@ impl WasmPolynomial {
         let mut lu = vec![0.0; p * p];
         let mut pivot = vec![0; p];
         let determinant = matrix::lup_decompose(p, &x_xt, &mut lu, &mut pivot);
-        if determinant.abs() < 1E-6 {
+        if determinant.abs() == 0.0 {
+            crate::console_log!("Determinant was {determinant}");
             return false;
         }
         if !(matrix::lup_invert(
@@ -73,9 +81,10 @@ impl WasmPolynomial {
             &lu,
             &pivot,
             &mut x_xt_inverse,
-            &mut vec![0.0; n],
-            &mut vec![0.0; n],
+            &mut vec![0.0; p],
+            &mut vec![0.0; p],
         )) {
+            crate::console_log!("Failed to invert");
             return false;
         }
 
