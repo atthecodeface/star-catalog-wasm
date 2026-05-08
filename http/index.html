@@ -205,6 +205,24 @@
                                             /></label>
                                         </td>
                                         <td>
+                                            <label
+                                                for="find_max_angle"
+                                                class="dn"
+                                                id="find_ma"
+                                                >Max angle</label
+                                            ><br />
+                                            <input
+                                                type="range"
+                                                class="range dn"
+                                                id="find_max_angle"
+                                                style="width: 150px"
+                                                name="find_max_angle"
+                                                step="0.01"
+                                                min="0.01"
+                                                max="0.2"
+                                            />
+                                        </td>
+                                        <td>
                                             <button
                                                 id="find_best_matches"
                                                 name="find_best_matches"
@@ -223,48 +241,12 @@
                                             </button>
                                         </td>
                                     </tr>
-                                    <tr>
-                                        <td>
-                                            <label
-                                                for="find_max_angle"
-                                                class="dn"
-                                                id="find_ma"
-                                                >Max angle</label
-                                            ><br />
-                                            <input
-                                                type="range"
-                                                class="range dn"
-                                                id="find_max_angle"
-                                                style="width: 150px"
-                                                name="find_max_angle"
-                                                step="0.02"
-                                                min="0.01"
-                                                max="0.2"
-                                            />
-                                        </td>
-                                    </tr>
+                                    <tr></tr>
                                 </table>
                             </td>
                         </tr>
                         <tr>
-                            <td>
-                                <table>
-                                    <tr>
-                                        <td>
-                                            <button
-                                                id="test"
-                                                name="test"
-                                                type="button"
-                                                onclick="
-                                                    window.star_catalog.find_canvas.test()
-                                                "
-                                            >
-                                                Test
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
+                            <td id="LensMappings"></td>
                         </tr>
 
                         <tr>

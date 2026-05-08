@@ -3,6 +3,7 @@ import { Draw } from "./draw.js";
 import { Mouse } from "./mouse.js";
 import { ZoomedWindow } from "./zoomed_window.js";
 import { Logger } from "./log.js";
+import { HtmlElement } from "./html.js";
 class LensMappingRectilinear {
     map_sensor_r_to_world_yaw(mm_equiv, sensor_r) {
         const f = mm_equiv / 18.0;
@@ -337,14 +338,10 @@ export class FindCanvas {
         this.canvas.width = this.current_wh[0];
         this.canvas.height = this.current_wh[1];
         this.zoomed_window = new ZoomedWindow(this.current_wh);
-        this.lens_mapping = new LensMappingRectilinear();
-        this.lens_mapping = new LensMappingOrthographic();
-        this.lens_mapping = new LensMappingEquidistant();
-        this.lens_mapping = new LensMappingStereoGraphic();
         const lm = new LensMappingPolynomial();
         lm.approximate(8, (x) => Math.atan(x));
         this.lens_mapping = lm;
-        this.lens_mapping = new LensMappingEquisolid();
+        this.lens_mapping = new LensMappingRectilinear();
         const get_image = document.querySelector("#find_get_image");
         get_image.addEventListener("change", this.get_image.bind(this));
         const best_matches = document.querySelector("#find_best_matches");
@@ -354,6 +351,27 @@ export class FindCanvas {
         const find_max_angle = document.querySelector("#find_max_angle");
         find_max_angle.addEventListener("input", this.set_parameters.bind(this));
         find_max_angle.value = this.max_angle_delta.toString();
+        const lens_mappings = document.getElementById("LensMappings");
+        if (lens_mappings !== null) {
+            const h = new HtmlElement(lens_mappings);
+            const table = h.add_ele("table");
+            const tr = table.add_ele("tr");
+            {
+                const e = tr.add_ele("td");
+                e.add_input_radio("radio_lens_mappings", "Rectiliinear", true, this.set_lens_mapping.bind(this)).set_input_checked(true);
+                e.add_label("Rectilinear").add_content("Rectilinear");
+            }
+            for (const x of [
+                "Stereographic",
+                "Equidistant",
+                "Equisolid",
+                "Orthographic",
+            ]) {
+                const e = tr.add_ele("td");
+                e.add_input_radio("radio_lens_mappings", x, true, this.set_lens_mapping.bind(this));
+                e.add_label(x).add_content(x);
+            }
+        }
         this.set_parameters();
         this.selected_stars = [];
         let mrk_contents = [
@@ -408,6 +426,31 @@ export class FindCanvas {
         this.selected_stars = [];
         this.redraw_canvas();
     }
+    set_lens_mapping(_event, value) {
+        switch (value) {
+            case "Orthographic": {
+                this.lens_mapping = new LensMappingOrthographic();
+                break;
+            }
+            case "Equidistant": {
+                this.lens_mapping = new LensMappingEquidistant();
+                break;
+            }
+            case "Stereographic": {
+                this.lens_mapping = new LensMappingStereoGraphic();
+                break;
+            }
+            case "Equisolid": {
+                this.lens_mapping = new LensMappingEquisolid();
+                break;
+            }
+            default: {
+                this.lens_mapping = new LensMappingRectilinear();
+                break;
+            }
+        }
+        this.star_catalog.set_view_needs_update();
+    }
     populate_html() {
         const a = document.getElementById("find_max_angle");
         if (a instanceof HTMLInputElement) {
@@ -421,100 +464,6 @@ export class FindCanvas {
             document.getElementById("find_ma").innerText =
                 `Max angle ${this.max_angle_delta}`;
         }
-    }
-    test_img_5005() {
-        this.vp.brightness = 3.6;
-        this.max_angle_delta = 1.5;
-        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(24.31);
-        //    this.vp.fovh = 74.7 * this.vp.deg2rad;
-        this.selected_stars = [
-            [1677.4173872350161, 1979.4762361019548],
-            [1774.5592213798122, 1778.9920252073755],
-            [2068.0515713491964, 1791.3931104173496],
-            [2026.714620649283, 1489.633370307983],
-        ];
-        this.img_w = 5184;
-        this.img_h = 3456;
-        this.img_cx = this.img_w / 2;
-        this.img_cy = this.img_h / 2;
-        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(-0.5213634481949257, 0.3314587738455383, -0.2503160769281036, -0.7454241059681618);
-    }
-    test_img_4924() {
-        this.vp.brightness = 5.0;
-        this.max_angle_delta = 0.5;
-        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82);
-        this.selected_stars = [
-            [1080, 1278.72], // 67301
-            [3214.08, 1736.64], // 62956
-            [4311.36, 3248.64], // 58001
-            [2473.346228239845, 1203.2495164410057], // 65378
-            [4184.634429400387, 2306.228239845261], // 59774
-            [3135.409722778692, 1534.0050032141362],
-            [3258.4039286232983, 3029.461980940876],
-            [2129.345460257321, 828.5614073759784],
-            /*
-             */
-        ];
-        /*
-        ];
-        */
-        this.img_w = 5184;
-        this.img_h = 3456;
-        this.img_cx = this.img_w / 2;
-        this.img_cy = this.img_h / 2;
-        // The 'find best' is a quaternion that maps image to ECEF
-        //
-        // The crosses are placed at ecef_to_view_q * star.vector
-        // view_to_ecef_q
-        // ijkr
-        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.463641308272434, // i
-        -0.2982603805403334, // j
-        0.831984844682261, // k
-        0.06227921709839514);
-        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.07938171626516351, 0.6471673802906424, 0.5671660193751167, 0.503185484167348);
-        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.8423682738731703, -0.3180209253383709, -0.3343984084258816, 0.27830933628087184);
-        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.46210719995613386, -0.30248622147573956, 0.8311959196828219, 0.06381508182756979);
-    }
-    test_img_5362() {
-        this.vp.brightness = 3.2;
-        this.max_angle_delta = 0.5;
-        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(27.15); // 27,15 measured on photo on Apr 28 2026 on iphone 17
-        this.selected_stars = [
-            [975.3465426853106, 1499.0187564811429],
-            [1234.689852832872, 1468.893018433699],
-            [1365.6713226043678, 2170.6231944025917],
-            [2819.186515471793, 1842.9496588425773],
-        ];
-        this.img_w = 4032;
-        this.img_h = 3024;
-        this.img_cx = this.img_w / 2;
-        this.img_cy = this.img_h / 2;
-        // The 'find best' is a quaternion that maps image to ECEF
-        //
-        // The crosses are placed at ecef_to_view_q * star.vector
-        // view_to_ecef_q
-        // ijkr
-        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.0431495295840751, -0.5034733698270468, 0.5860184618327926, 0.6334311693963323);
-    }
-    test() {
-        this.lens_mapping = new LensMappingPolynomial();
-        this.test_img_4924();
-        this.vp.update_html_elements();
-        this.zoomed_window.set_img(this.img_w, this.img_h);
-        this.populate_html();
-        this.vp.derive_data();
-        console.log(this.vp.fovh, this.vp.tan_hfovh);
-        console.log("Perfect-ish view q array", window.star_catalog.vp.view_to_ecef_q.array);
-        this.set_parameters();
-        this.update();
-        const star_vectors = [];
-        for (const ixy of this.selected_stars) {
-            star_vectors.push(this.vector_of_img_xy(ixy));
-        }
-        const find_orientation = new FindOrientation(this.catalog, star_vectors, this.vp.brightness, this.max_angle_delta);
-        const mappings = find_orientation.find_best_star_mappings();
-        window.star_catalog.vp.view_to_ecef_q = mappings[0];
-        window.star_catalog.set_view_needs_update();
     }
     best_matches() {
         if (this.selected_stars.length < 3) {
@@ -601,6 +550,29 @@ export class FindCanvas {
         if (this.img !== null) {
             const ib = this.zoomed_window.get_zoomed_img_bounds();
             ctx.drawImage(this.img, ib[0], ib[1], ib[2], ib[3], 0, 0, w, h);
+        }
+        const v = new WasmVec3f64(0, 0, 0);
+        const fa = new Float64Array(3);
+        for (let degree = 1; degree < 90; degree += 1) {
+            ctx.strokeStyle = "green";
+            if (degree % 5 == 0) {
+                ctx.strokeStyle = "lightgreen";
+            }
+            ctx.beginPath();
+            const d = (degree * 3.14159265) / 180;
+            const cos_yaw = Math.cos(d);
+            const sin_yaw = Math.sin(d);
+            fa[0] = cos_yaw;
+            for (let x = 0.0; x < 6.283; x += 0.02) {
+                fa[1] = sin_yaw * Math.cos(x);
+                fa[2] = sin_yaw * Math.sin(x);
+                v.set(fa);
+                const ixy = this.img_xy_of_vector(v);
+                const sxy = this.zoomed_window.scr_xy_of_img_xy(ixy);
+                ctx.lineTo(sxy[0], sxy[1]);
+            }
+            ctx.closePath();
+            ctx.stroke();
         }
         const stars = this.star_catalog.sky_canvas.star_cache.get();
         for (const star of stars.stars) {
