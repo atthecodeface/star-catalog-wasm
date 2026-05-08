@@ -188,6 +188,10 @@
             <!-- tab-find is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
             <div id="tab-find">
                 <div class="main content flex box">
+                    <div
+                        id="FindCanvas"
+                        class="flex content resizable-content"
+                    ></div>
                     <table class="flex fixed">
                         <tr>
                             <td>
@@ -253,10 +257,6 @@
                             <td id="find_results">There are no results yet</td>
                         </tr>
                     </table>
-                    <div
-                        id="FindCanvas"
-                        class="flex content resizable-content"
-                    ></div>
                 </div>
             </div>
         </div>

@@ -2,7 +2,6 @@ import {
   WasmVec3f64,
   WasmQuatf64,
   WasmCatalog,
-  WasmStar,
   WasmPolynomial,
 } from "../pkg/star_catalog_wasm.js";
 import { Draw } from "./draw.js";
@@ -115,175 +114,6 @@ class LensMappingPolynomial {
   }
 }
 
-/**
- * Candidate for one triangle in finding an orientation
- */
-class Candidate {
-  /**
-   * Orientation of the candidate
-   */
-  q: WasmQuatf64;
-  /**
-   * star_ids is the same lengh (guaranteed) as FindOrientation.vectors
-   */
-  stars: Array<WasmStar | undefined>;
-  constructor(
-    nvectors: number,
-    q: WasmQuatf64,
-    v_i0: number,
-    v_i1: number,
-    v_i2: number,
-    s0: WasmStar,
-    s1: WasmStar,
-    s2: WasmStar,
-  ) {
-    this.q = q;
-    this.stars = new Array(nvectors);
-    this.stars[v_i0] = s0;
-    this.stars[v_i1] = s1;
-    this.stars[v_i2] = s2;
-  }
-
-  /** Create a new candidate mapping vectors[v_i0] to star catalog star s_index0
-   *
-   * @param catalog
-   * @param vectors
-   * @param v_i0
-   * @param v_i1
-   * @param v_i2
-   * @param s_index0
-   * @param s_index1
-   * @param s_index2
-   * @returns
-   */
-  static mapping_vectors_to_stars(
-    vectors: WasmVec3f64[],
-    v_i0: number,
-    v_i1: number,
-    v_i2: number,
-    s0: WasmStar,
-    s1: WasmStar,
-    s2: WasmStar,
-  ): Candidate | null {
-    const q01 = WasmQuatf64.mapping_vector_pair_to_vector_pair(
-      vectors[v_i0]!,
-      vectors[v_i1]!,
-      s0.vector,
-      s1.vector,
-    );
-    const q12 = WasmQuatf64.mapping_vector_pair_to_vector_pair(
-      vectors[v_i1]!,
-      vectors[v_i2]!,
-      s1.vector,
-      s2.vector,
-    );
-    const q20 = WasmQuatf64.mapping_vector_pair_to_vector_pair(
-      vectors[v_i2]!,
-      vectors[v_i0]!,
-      s2.vector,
-      s0.vector,
-    );
-    const d1 = q01.distance_sq(q12);
-    const d2 = q12.distance_sq(q20);
-    const d3 = q20.distance_sq(q01);
-
-    let d_sum = d1 + d2 + d3;
-    if (d_sum > 0.01) {
-      return null;
-    }
-
-    const q_avg = WasmQuatf64.average(q01, q12, q20);
-    console.log(
-      "Creating candidate d_sum",
-      d_sum,
-      " q_avg",
-      q_avg.i,
-      q_avg.j,
-      q_avg.k,
-      q_avg.r,
-    );
-    return new Candidate(vectors.length, q_avg, v_i0, v_i1, v_i2, s0, s1, s2);
-  }
-
-  maybe_merge(other_c: Candidate, max_dsq: number) {
-    let d = this.q.distance_sq(other_c.q);
-    if (d > max_dsq) {
-      return;
-    }
-    for (let i = 0; i < this.stars.length; i++) {
-      if (this.stars[i] !== undefined && other_c.stars[i] !== undefined) {
-        if (this.stars[i]!.id != other_c.stars[i]!.id) {
-          return;
-        }
-      }
-    }
-    for (let i = 0; i < this.stars.length; i++) {
-      if (this.stars[i] === undefined && other_c.stars[i] !== undefined) {
-        this.stars[i] = other_c.stars[i];
-      }
-    }
-  }
-
-  quality(vectors: WasmVec3f64[]): null | [number, WasmQuatf64] {
-    let qs = [];
-    for (let v_i0 = 0; v_i0 < this.stars.length; v_i0++) {
-      const s0 = this.stars[v_i0];
-      if (s0 === undefined) {
-        return null;
-        // continue;
-      }
-      for (let v_i1 = 0; v_i1 < this.stars.length; v_i1++) {
-        if (v_i1 === v_i0) {
-          continue;
-        }
-        const s1 = this.stars[v_i1];
-        if (s1 === undefined) {
-          continue;
-        }
-        qs.push(
-          WasmQuatf64.mapping_vector_pair_to_vector_pair(
-            vectors[v_i0]!,
-            vectors[v_i1]!,
-            s0.vector,
-            s1.vector,
-          ),
-        );
-      }
-    }
-
-    while (qs.length > 1) {
-      const merged_qs = [];
-      for (let i = 0; i < qs.length; i += 4) {
-        if (i + 1 >= qs.length) {
-          merged_qs.push(qs[i]);
-        } else if (i + 2 >= qs.length) {
-          merged_qs.push(WasmQuatf64.average(qs[i]!, qs[i + 1]!));
-        } else if (i + 3 >= qs.length) {
-          merged_qs.push(WasmQuatf64.average(qs[i]!, qs[i + 1]!, qs[i + 2]!));
-        } else {
-          merged_qs.push(
-            WasmQuatf64.average(qs[i]!, qs[i + 1]!, qs[i + 2]!, qs[i + 3]!),
-          );
-        }
-      }
-      qs = merged_qs;
-    }
-    const q_avg = qs[0]!;
-
-    let total_dsq = 0;
-    for (let v_i = 0; v_i < this.stars.length; v_i++) {
-      const s = this.stars[v_i];
-      if (s === undefined) {
-        continue;
-      }
-      const cos = q_avg.apply3(vectors[v_i]!).dot(s.vector);
-      total_dsq += Math.acos(cos);
-    }
-
-    return [total_dsq, q_avg];
-  }
-}
-
 class FindOrientation {
   /** The catalog to find stars in */
   catalog: WasmCatalog;
@@ -306,11 +136,6 @@ class FindOrientation {
    */
   max_angle_delta: number;
 
-  /**
-   * Candidates, one per triangle
-   */
-  candidates: Candidate[];
-
   constructor(
     catalog: WasmCatalog,
     vectors: WasmVec3f64[],
@@ -325,8 +150,6 @@ class FindOrientation {
     }
     this.max_magnitude = max_magnitude;
     this.max_angle_delta = max_angle_delta;
-
-    this.candidates = [];
   }
 
   find_best_star_mappings(): WasmQuatf64[] {
@@ -337,173 +160,6 @@ class FindOrientation {
       this.vectors,
       (this.max_angle_delta * 3.14159) / 180,
     );
-  }
-
-  /**
-   * Find in the catalog candidate mappings (array of 3n catalog star indices) for a triangle of
-   * identified-star-vectors given by their indices
-   *
-   * @param {number} vector_i0 Index into this.vectors for first identified-star-vector
-   * @param {number} vector_i1 Index into this.vectors for second identified-star-vector
-   * @param {number} vector_i2 Index into this.vectors for third identified-star-vector
-   */
-  private find_triangles(
-    vector_i0: number,
-    vector_i1: number,
-    vector_i2: number,
-  ): Uint32Array {
-    const vectors = this.vectors;
-    this.catalog.clear_filter();
-    this.catalog.filter_max_magnitude(this.max_magnitude);
-
-    const deg2rad = Math.PI / 180;
-
-    const a12 = Math.acos(vectors[vector_i1]!.dot(vectors[vector_i2]!));
-    const a20 = Math.acos(vectors[vector_i2]!.dot(vectors[vector_i0]!));
-    const a01 = Math.acos(vectors[vector_i0]!.dot(vectors[vector_i1]!));
-
-    const rad2deg = 180.0 / 3.14159265;
-    console.log(
-      "find triangles with angles",
-      this.max_angle_delta,
-      a01 * rad2deg,
-      a12 * rad2deg,
-      a20 * rad2deg,
-    );
-    return this.catalog.find_star_triangles(
-      this.max_angle_delta * deg2rad,
-      a12,
-      a20,
-      a01,
-      // max_triangles is unused at present
-      10000,
-    );
-  }
-
-  find_results(q: WasmQuatf64, err: number, candidate_index: number) {
-    const rad2deg = 180 / Math.PI;
-    const candidate = this.candidates[candidate_index]!;
-    let result = "";
-    result += `Quality: ${err}  ${candidate_index}<br>`;
-    result += "Stars:<br> ";
-
-    for (let i = 0; i < this.vectors.length; i++) {
-      const star = candidate.stars[i];
-      if (star === undefined) {
-        continue;
-      }
-      const angle =
-        (Math.acos(q.apply3(this.vectors[i]!).dot(star.vector)) * 180) /
-        Math.PI;
-      result += `${star.id}: mag ${star.magnitude.toFixed(2)} @ ( ${(star.right_ascension * rad2deg).toFixed(2)}, ${(star.declination * rad2deg).toFixed(2)}) ${angle.toFixed(2)}<br>`;
-      // const d = 1.0 - q.apply3(this.vectors[i]).dot(star.vector);
-      // console.log(d, q.apply3(this.vectors[i]).array, star.vector.array);
-    }
-    result += "<p>";
-    return result;
-  }
-
-  find_best_candidate(): null | [WasmQuatf64, number, number] {
-    let best_err = 100000;
-    let best_q: WasmQuatf64 | null = null;
-    let best_c: number | null = null;
-    for (let i = 0; i < this.candidates.length; i++) {
-      const c = this.candidates[i]!;
-      const err_q = c.quality(this.vectors);
-      if (err_q === null) {
-        continue;
-      }
-      console.log(
-        "fbc:",
-        c.stars[0],
-        c.stars[1],
-        c.stars[2],
-        c.stars[3],
-        err_q[0],
-        err_q[1].array,
-      );
-
-      if ((err_q![0]! as number) < best_err) {
-        best_err = err_q![0]! as number;
-        best_q = err_q![1]! as WasmQuatf64;
-        best_c = i;
-      }
-    }
-    if (best_q === null) {
-      return null;
-    }
-    return [best_q, best_err, best_c!];
-  }
-
-  /**
-   * Find and add candidate mappings for the first three identified-star-vectors given by their indices
-   *
-   */
-  add_initial_triangles() {
-    const triangles_found = this.find_triangles(0, 1, 2);
-    console.log(triangles_found);
-    const allowed_candidates = [];
-    let n = triangles_found.length;
-    for (let i = 0; i < n; i += 3) {
-      const c = Candidate.mapping_vectors_to_stars(
-        this.vectors,
-        0,
-        1,
-        2,
-        this.catalog.star(triangles_found[i + 0]!)!,
-        this.catalog.star(triangles_found[i + 1]!)!,
-        this.catalog.star(triangles_found[i + 2]!)!,
-      );
-      if (c !== null) {
-        allowed_candidates.push(c);
-      }
-    }
-    this.candidates = allowed_candidates;
-    console.log(this.candidates);
-  }
-
-  /**
-   * Find and add candidate mappings for a triangle of three
-   * identified-star-vectors given by their indices
-   *
-   * @param {number} vector_i0 Index into this.vectors for first identified-star-vector
-   * @param {number} vector_i1 Index into this.vectors for second identified-star-vector
-   * @param {number} vector_i2 Index into this.vectors for third identified-star-vector
-   */
-  add_further_triangle(
-    vector_i0: number,
-    vector_i1: number,
-    vector_i2: number,
-  ) {
-    const triangles_found = this.find_triangles(
-      vector_i0,
-      vector_i1,
-      vector_i2,
-    );
-    console.log(triangles_found);
-
-    const allowed_candidates = [];
-    let n = triangles_found.length;
-    for (let i = 0; i < n; i += 3) {
-      const c = Candidate.mapping_vectors_to_stars(
-        this.vectors,
-        vector_i0,
-        vector_i1,
-        vector_i2,
-        this.catalog.star(triangles_found[i + 0]!)!,
-        this.catalog.star(triangles_found[i + 1]!)!,
-        this.catalog.star(triangles_found[i + 2]!)!,
-      );
-      if (c !== null) {
-        allowed_candidates.push(c);
-      }
-    }
-
-    for (const c of this.candidates) {
-      for (const ac of allowed_candidates) {
-        c.maybe_merge(ac, 0.01);
-      }
-    }
   }
 }
 
@@ -824,9 +480,12 @@ export class FindCanvas {
     const v = new WasmVec3f64(0, 0, 0);
     const fa = new Float64Array(3);
     for (let degree = 1; degree < 90; degree += 1) {
-      ctx.strokeStyle = "green";
+      ctx.strokeStyle = "#353";
       if (degree % 5 == 0) {
-        ctx.strokeStyle = "lightgreen";
+        ctx.strokeStyle = "#474";
+      }
+      if (degree % 15 == 0) {
+        ctx.strokeStyle = "#696";
       }
       ctx.beginPath();
       const d = (degree * 3.14159265) / 180;
