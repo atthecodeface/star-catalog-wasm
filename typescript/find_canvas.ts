@@ -19,10 +19,56 @@ interface LensMapping {
 
 class LensMappingRectilinear {
   map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number {
-    return Math.atan((sensor_r * 18.0) / mm_equiv);
+    const f = mm_equiv / 18.0;
+    return Math.atan(sensor_r / f);
   }
   map_world_yaw_to_sensor_r(mm_equiv: number, world_yaw: number): number {
-    return (Math.tan(world_yaw) * mm_equiv) / 18.0;
+    const f = mm_equiv / 18.0;
+    return Math.tan(world_yaw) * f;
+  }
+}
+
+class LensMappingStereoGraphic {
+  map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number {
+    const f = mm_equiv / 18.0;
+    return Math.atan(sensor_r / f / 2) * 2;
+  }
+  map_world_yaw_to_sensor_r(mm_equiv: number, world_yaw: number): number {
+    const f = mm_equiv / 18.0;
+    return Math.tan(world_yaw / 2) * f * 2;
+  }
+}
+
+class LensMappingEquisolid {
+  map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number {
+    const f = mm_equiv / 18.0;
+    return Math.asin(sensor_r / f / 2) * 2;
+  }
+  map_world_yaw_to_sensor_r(mm_equiv: number, world_yaw: number): number {
+    const f = mm_equiv / 18.0;
+    return Math.sin(world_yaw / 2) * f * 2;
+  }
+}
+
+class LensMappingEquidistant {
+  map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number {
+    const f = mm_equiv / 18.0;
+    return sensor_r / f;
+  }
+  map_world_yaw_to_sensor_r(mm_equiv: number, world_yaw: number): number {
+    const f = mm_equiv / 18.0;
+    return f * world_yaw;
+  }
+}
+
+class LensMappingOrthographic {
+  map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number {
+    const f = mm_equiv / 18.0;
+    return Math.asin(sensor_r / f);
+  }
+  map_world_yaw_to_sensor_r(mm_equiv: number, world_yaw: number): number {
+    const f = mm_equiv / 18.0;
+    return Math.sin(world_yaw) * f;
   }
 }
 
@@ -30,20 +76,35 @@ class LensMappingPolynomial {
   sensor_to_world: WasmPolynomial;
   world_to_sensor: WasmPolynomial;
   constructor() {
-    this.sensor_to_world = new WasmPolynomial(new Float64Array([1]));
-    this.world_to_sensor = new WasmPolynomial(new Float64Array([1]));
+    this.sensor_to_world = new WasmPolynomial(new Float64Array([0, 1]));
+    this.world_to_sensor = new WasmPolynomial(new Float64Array([0, 1]));
   }
-  approximate(degree: number, mappings: [number, number][]): boolean {
-    let xs = new Float64Array(mappings.length);
-    let ys = new Float64Array(mappings.length);
-    for (let i = 0; i < mappings.length; i++) {
-      xs[i] = mappings[i]![0];
-      ys[i] = mappings[i]![1];
+  approximate(
+    degree: number,
+    sensor_to_world_fn: (sensor: number) => number,
+  ): boolean {
+    const length = degree * 8;
+    let xs = new Float64Array(length);
+    let ys = new Float64Array(length);
+    for (let i = 0; i < length; i++) {
+      xs[i] = i / length;
+      ys[i] = sensor_to_world_fn(i / length);
     }
-    return (
+    const okay =
       this.sensor_to_world.min_squares(degree, xs, ys) &&
-      this.world_to_sensor.min_squares(degree, ys, xs)
-    );
+      this.world_to_sensor.min_squares(degree, ys, xs);
+
+    this.sensor_to_world.set(0, 0);
+    this.world_to_sensor.set(0, 0);
+
+    let dsq_error = 0.0;
+    for (let i = 0; i < length; i++) {
+      const v = i / length;
+      const d = this.world_to_sensor.calc(this.sensor_to_world.calc(v)) - v;
+      dsq_error += d * d;
+    }
+    console.log("dsq_error from stw to wts ", dsq_error);
+    return okay;
   }
   map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number {
     return this.sensor_to_world.calc((sensor_r * 18.0) / mm_equiv);
@@ -493,6 +554,13 @@ export class FindCanvas {
     this.zoomed_window = new ZoomedWindow(this.current_wh);
 
     this.lens_mapping = new LensMappingRectilinear();
+    this.lens_mapping = new LensMappingOrthographic();
+    this.lens_mapping = new LensMappingEquidistant();
+    this.lens_mapping = new LensMappingStereoGraphic();
+    const lm = new LensMappingPolynomial();
+    lm.approximate(8, (x) => Math.atan(x));
+    this.lens_mapping = lm;
+    this.lens_mapping = new LensMappingEquisolid();
 
     const get_image = document.querySelector("#find_get_image")!;
     get_image.addEventListener("change", this.get_image.bind(this));
@@ -781,9 +849,13 @@ export class FindCanvas {
     const rdy = ((ixy[1] - this.img_h / 2) / this.img_w) * 2;
     const sensor_rf = Math.sqrt(rdx * rdx + rdy * rdy);
     const roll = Math.atan2(rdy, rdx);
-    //    const sensor_yaw = Math.atan(this.vp.tan_hfovh * sensor_rf);
 
-    const world_yaw = Math.atan((sensor_rf * 18.0) / this.vp.mm_equiv);
+    //    const sensor_yaw = Math.atan(this.vp.tan_hfovh * sensor_rf);
+    const world_yaw = this.lens_mapping.map_sensor_r_to_world_yaw(
+      this.vp.mm_equiv,
+      sensor_rf,
+    );
+    //    const world_yaw = Math.atan((sensor_rf * 18.0) / this.vp.mm_equiv);
 
     // const world_yaw = sensor_yaw;
     //
@@ -805,7 +877,11 @@ export class FindCanvas {
     const r = Math.sqrt(y * y + z * z);
     const world_yaw = Math.atan2(r, x);
     const roll = Math.atan2(z, y);
-    const img_r = (Math.tan(world_yaw) / 18.0) * this.vp.mm_equiv; // / this.vp.tan_hfovh;
+    const img_r = this.lens_mapping.map_world_yaw_to_sensor_r(
+      this.vp.mm_equiv,
+      world_yaw,
+    );
+    //const img_r = (Math.tan(world_yaw) / 18.0) * this.vp.mm_equiv; // / this.vp.tan_hfovh;
     const ix = (Math.cos(roll) * img_r * this.img_w) / 2 + this.img_w / 2;
     const iy = (Math.sin(roll) * img_r * this.img_w) / 2 + this.img_h / 2;
     return [ix, iy];
