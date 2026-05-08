@@ -96,7 +96,7 @@ mod wasm_import;
 pub use wasm_import::log as wasm_log;
 
 mod wasm_export;
-pub use wasm_export::{WasmCatalog, WasmStar};
+pub use wasm_export::{WasmCatalog, WasmPolynomial, WasmStar};
 
 mod icosphere;
 pub use icosphere::{Icosphere, Vertex};

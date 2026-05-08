@@ -5,6 +5,7 @@
 // mizar 65378 : opposite is 10.46 degrees
 // alioth 62956 : opposite is 6.67 degrees
 
+use geo_nd_wasm::WasmQuatf64;
 use js_sys::Array;
 use wasm_bindgen::prelude::*;
 
@@ -14,6 +15,78 @@ use star_catalog::{
 
 use crate::Rrc;
 use crate::{Vec3f64, WasmVec3f32, WasmVec3f64};
+
+#[wasm_bindgen]
+pub struct WasmPolynomial {
+    poly: Vec<f64>,
+}
+#[wasm_bindgen]
+impl WasmPolynomial {
+    #[wasm_bindgen(constructor)]
+    pub fn new(poly: Vec<f64>) -> Self {
+        Self { poly }
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn poly(&self) -> Vec<f64> {
+        self.poly.clone()
+    }
+
+    pub fn calc(&self, x: f64) -> f64 {
+        let mut r = 0.;
+        let mut xn = 1.0;
+        for p in self.poly.iter() {
+            r += p * xn;
+            xn *= x;
+        }
+        r
+    }
+    pub fn min_squares(&mut self, p: usize, xs: &[f64], ys: &[f64]) -> bool {
+        use geo_nd_wasm::geo_nd::matrix;
+        let n = xs.len();
+        if ys.len() != n {
+            return false;
+        }
+        let mut xi_m = vec![0.; n * p]; // N rows of P columns
+        let mut xi_m_t = vec![0.; n * p]; // P rows of N columns
+
+        for (i, x) in xs.iter().enumerate() {
+            let mut xn = 1.;
+            for j in 0..p {
+                xi_m[i * p + j] = xn;
+                xi_m_t[j * n + i] = xn;
+                xn *= x;
+            }
+        }
+        let mut x_xt = vec![0.; p * p]; // P by P matrix
+        matrix::multiply_dyn(p, n, p, &xi_m_t, &xi_m, &mut x_xt);
+
+        let mut x_xt_inverse = vec![0.0; p * p];
+        let mut lu = vec![0.0; p * p];
+        let mut pivot = vec![0; p];
+        let determinant = matrix::lup_decompose(p, &x_xt, &mut lu, &mut pivot);
+        if determinant.abs() < 1E-6 {
+            return false;
+        }
+        if !(matrix::lup_invert(
+            p,
+            &lu,
+            &pivot,
+            &mut x_xt_inverse,
+            &mut vec![0.0; n],
+            &mut vec![0.0; n],
+        )) {
+            return false;
+        }
+
+        let mut xt_y = vec![0.; p]; // P row vector
+        matrix::multiply_dyn(p, n, 1, &xi_m_t, &ys, &mut xt_y);
+        let mut res = vec![0.; p]; // P row vector
+        matrix::multiply_dyn(p, p, 1, &x_xt_inverse, &xt_y, &mut res);
+        self.poly = res;
+        true
+    }
+}
 
 //a WasmCatalog
 //tp WasmCatalog
@@ -184,7 +257,8 @@ impl WasmCatalog {
         &self,
         img_space_vectors: Vec<WasmVec3f64>,
         max_angle_delta: f64,
-    ) -> bool {
+    ) -> Vec<WasmQuatf64> {
+        // }, f64, f64)> {
         let subcube_iter = Subcube::iter_all();
         self.cat.borrow_mut().clear_filter();
         self.cat
@@ -193,19 +267,32 @@ impl WasmCatalog {
 
         let img_space_vectors: Vec<_> = img_space_vectors.into_iter().map(|a| *a).collect();
         crate::console_log!("vectors {img_space_vectors:?}");
-        let (finished, candidates) = self.cat.borrow().find_best_star_mappings(
+        let (_finished, mut candidates) = self.cat.borrow().find_best_star_mappings(
             subcube_iter,
             &img_space_vectors,
             max_angle_delta,
             10 * 1000 * 1000,
         );
-        for (c, a) in &candidates {
-            if *a < 0.01 {
-                crate::console_log!("candidate {c:?} {a}");
-            }
+
+        crate::console_log!("Found {} candidates", candidates.len());
+
+        candidates.sort_by(|a, b| a.quality.partial_cmp(&b.quality).unwrap());
+        let mut r = vec![];
+        for c in candidates {
+            let rijk = {
+                use star_catalog::geo_nd::Quaternion;
+                c.quaternion().as_rijk()
+            };
+            use geo_nd_wasm::geo_nd::Quaternion;
+            r.push(
+                // (
+                crate::Quatf64::of_rijk(rijk.0, rijk.1, rijk.2, rijk.3).into(),
+                // c.0.angle_sum(),
+                //  c.1,
+                // )
+            );
         }
-        crate::console_log!("{finished} {}", candidates.len());
-        false
+        r
     }
 
     //zz All done

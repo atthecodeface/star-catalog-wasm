@@ -1,5 +1,5 @@
 use crate::{Vec2f32, Vec3f32};
-use geo_nd::Vector;
+use geo_nd_wasm::geo_nd::Vector;
 
 //a Vertex
 //tp Vertex

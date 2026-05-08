@@ -189,6 +189,7 @@ export class ViewProperties {
         this.de = 0;
         this.observer_compass = 0;
         this.observer_elevation = 0;
+        this.mm_equiv = 0;
         this.fovh = 0;
         // this.tan_hfovh is what half the width is horizontally in tan space
         this.tan_hfovh = 0;
@@ -447,6 +448,7 @@ export class ViewProperties {
             this.fovh = 0.01;
         }
         this.tan_hfovh = Math.tan(this.fovh / 2);
+        this.mm_equiv = 18 / this.tan_hfovh;
         const show_azimuthal = html.get_input_checked("show_azimuthal");
         this.star_catalog.styling.sky.show_azimuthal = show_azimuthal;
         this.star_catalog.styling.map.show_azimuthal = show_azimuthal;

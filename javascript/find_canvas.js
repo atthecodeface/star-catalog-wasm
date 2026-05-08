@@ -1,31 +1,38 @@
-import { WasmVec3f64, WasmQuatf64, } from "../pkg/star_catalog_wasm.js";
+import { WasmVec3f64, WasmQuatf64, WasmPolynomial, } from "../pkg/star_catalog_wasm.js";
 import { Draw } from "./draw.js";
 import { Mouse } from "./mouse.js";
 import { ZoomedWindow } from "./zoomed_window.js";
 import { Logger } from "./log.js";
-/*
-
-Alkaid 67301
-   67301 : 206.88560879999997, 49.31330288 : 100.69652 :1.85
-Mizar 65378
-   65378 : 200.98091604, 54.92541525 : 78.15864 :2.23
-Alioth 62956
-   62956 : 193.5068041, 55.95984300999999 : 80.932014 :1.76
-Megrez 59774
-   59774 : 183.85603794999997, 57.03259792000001 : 81.43721 :3.32
-Phecda 58001
-   58001 : 178.45725536, 53.69473296 : 83.65119 :2.41
-
-   67301 to 62956 is 10.462028363468304 degrees
-   67301 to 58001 is 18.097067345576527 degrees
-   62956 to 58001 is 8.94023727303248 degrees
-
-
-
-54061 Dubhe
-   54061 : 165.93265365000002, 61.75111888 : 123.63761 :1.81
-
-*/
+class LensMappingRectilinear {
+    map_sensor_r_to_world_yaw(mm_equiv, sensor_r) {
+        return Math.atan((sensor_r * 18.0) / mm_equiv);
+    }
+    map_world_yaw_to_sensor_r(mm_equiv, world_yaw) {
+        return (Math.tan(world_yaw) * mm_equiv) / 18.0;
+    }
+}
+class LensMappingPolynomial {
+    constructor() {
+        this.sensor_to_world = new WasmPolynomial(new Float64Array([1]));
+        this.world_to_sensor = new WasmPolynomial(new Float64Array([1]));
+    }
+    approximate(degree, mappings) {
+        let xs = new Float64Array(mappings.length);
+        let ys = new Float64Array(mappings.length);
+        for (let i = 0; i < mappings.length; i++) {
+            xs[i] = mappings[i][0];
+            ys[i] = mappings[i][1];
+        }
+        return (this.sensor_to_world.min_squares(degree, xs, ys) &&
+            this.world_to_sensor.min_squares(degree, ys, xs));
+    }
+    map_sensor_r_to_world_yaw(mm_equiv, sensor_r) {
+        return this.sensor_to_world.calc((sensor_r * 18.0) / mm_equiv);
+    }
+    map_world_yaw_to_sensor_r(mm_equiv, world_yaw) {
+        return (this.world_to_sensor.calc(world_yaw) * mm_equiv) / 18.0;
+    }
+}
 /**
  * Candidate for one triangle in finding an orientation
  */
@@ -145,8 +152,9 @@ class FindOrientation {
     }
     find_best_star_mappings() {
         console.log("find_best_star_mappings()");
-        let x = this.catalog.find_best_star_mappings(this.vectors, (this.max_angle_delta * 3.14159) / 180);
-        console.log(x);
+        this.catalog.clear_filter();
+        this.catalog.filter_max_magnitude(this.max_magnitude);
+        return this.catalog.find_best_star_mappings(this.vectors, (this.max_angle_delta * 3.14159) / 180);
     }
     /**
      * Find in the catalog candidate mappings (array of 3n catalog star indices) for a triangle of
@@ -276,6 +284,7 @@ export class FindCanvas {
         this.canvas.width = this.current_wh[0];
         this.canvas.height = this.current_wh[1];
         this.zoomed_window = new ZoomedWindow(this.current_wh);
+        this.lens_mapping = new LensMappingRectilinear();
         const get_image = document.querySelector("#find_get_image");
         get_image.addEventListener("change", this.get_image.bind(this));
         const best_matches = document.querySelector("#find_best_matches");
@@ -356,7 +365,7 @@ export class FindCanvas {
     test_img_5005() {
         this.vp.brightness = 3.6;
         this.max_angle_delta = 1.5;
-        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82.0);
+        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(24.31);
         //    this.vp.fovh = 74.7 * this.vp.deg2rad;
         this.selected_stars = [
             [1677.4173872350161, 1979.4762361019548],
@@ -371,14 +380,24 @@ export class FindCanvas {
         window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(-0.5213634481949257, 0.3314587738455383, -0.2503160769281036, -0.7454241059681618);
     }
     test_img_4924() {
-        this.vp.brightness = 3.0;
+        this.vp.brightness = 5.0;
         this.max_angle_delta = 0.5;
-        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(80);
+        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82);
         this.selected_stars = [
-            [1080, 1278.72],
-            [3214.08, 1736.64],
-            [4311.36, 3248.64],
+            [1080, 1278.72], // 67301
+            [3214.08, 1736.64], // 62956
+            [4311.36, 3248.64], // 58001
+            [2473.346228239845, 1203.2495164410057], // 65378
+            [4184.634429400387, 2306.228239845261], // 59774
+            [3135.409722778692, 1534.0050032141362],
+            [3258.4039286232983, 3029.461980940876],
+            [2129.345460257321, 828.5614073759784],
+            /*
+             */
         ];
+        /*
+        ];
+        */
         this.img_w = 5184;
         this.img_h = 3456;
         this.img_cx = this.img_w / 2;
@@ -388,7 +407,13 @@ export class FindCanvas {
         // The crosses are placed at ecef_to_view_q * star.vector
         // view_to_ecef_q
         // ijkr
-        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.463641308272434, -0.2982603805403334, 0.831984844682261, 0.06227921709839514);
+        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.463641308272434, // i
+        -0.2982603805403334, // j
+        0.831984844682261, // k
+        0.06227921709839514);
+        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.07938171626516351, 0.6471673802906424, 0.5671660193751167, 0.503185484167348);
+        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.8423682738731703, -0.3180209253383709, -0.3343984084258816, 0.27830933628087184);
+        window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.46210719995613386, -0.30248622147573956, 0.8311959196828219, 0.06381508182756979);
     }
     test_img_5362() {
         this.vp.brightness = 3.2;
@@ -412,10 +437,13 @@ export class FindCanvas {
         window.star_catalog.vp.view_to_ecef_q = new WasmQuatf64(0.0431495295840751, -0.5034733698270468, 0.5860184618327926, 0.6334311693963323);
     }
     test() {
+        this.lens_mapping = new LensMappingPolynomial();
         this.test_img_4924();
         this.vp.update_html_elements();
         this.zoomed_window.set_img(this.img_w, this.img_h);
         this.populate_html();
+        this.vp.derive_data();
+        console.log(this.vp.fovh, this.vp.tan_hfovh);
         console.log("Perfect-ish view q array", window.star_catalog.vp.view_to_ecef_q.array);
         this.set_parameters();
         this.update();
@@ -424,7 +452,8 @@ export class FindCanvas {
             star_vectors.push(this.vector_of_img_xy(ixy));
         }
         const find_orientation = new FindOrientation(this.catalog, star_vectors, this.vp.brightness, this.max_angle_delta);
-        find_orientation.find_best_star_mappings();
+        const mappings = find_orientation.find_best_star_mappings();
+        window.star_catalog.vp.view_to_ecef_q = mappings[0];
         window.star_catalog.set_view_needs_update();
     }
     best_matches() {
@@ -437,40 +466,44 @@ export class FindCanvas {
         }
         console.log(this.selected_stars);
         const find_orientation = new FindOrientation(this.catalog, star_vectors, this.vp.brightness, this.max_angle_delta);
+        const mappings = find_orientation.find_best_star_mappings();
+        /*
         find_orientation.find_best_star_mappings();
+    
         const q_err = find_orientation.find_best_candidate();
         if (q_err === null) {
-            console.log("No matches found");
-            return;
+          console.log("No matches found");
+          return;
         }
-        console.log("Best candidate", q_err[0].array);
-        const find_results = document.querySelector("#find_results");
+        console.log("Best candidate", q_err![0]!.array);
+        const find_results = document.querySelector(
+          "#find_results",
+        )! as HTMLTableCellElement;
         if (q_err === null) {
-            find_results.innerHTML =
-                "Failed to find any matches - try adjusting the parameters";
-        }
-        else {
-            find_results.innerHTML = find_orientation.find_results(q_err[0], q_err[1], q_err[2]);
-            this.star_catalog.sky_view_set_orientation(
-            //        q_err![0].rotate_y(-Math.PI / 2).rotate_x(Math.PI / 2),
-            q_err[0]);
-        }
+          find_results.innerHTML =
+            "Failed to find any matches - try adjusting the parameters";
+        } else {
+          find_results.innerHTML = find_orientation.find_results(
+            q_err![0],
+            q_err![1],
+            q_err![2],
+          );
+          */
+        this.star_catalog.sky_view_set_orientation(
+        //        q_err![0].rotate_y(-Math.PI / 2).rotate_x(Math.PI / 2),
+        mappings[0]);
     }
     vector_of_img_xy(ixy) {
         const rdx = ((ixy[0] - this.img_w / 2) / this.img_w) * 2;
         const rdy = ((ixy[1] - this.img_h / 2) / this.img_w) * 2;
-        const r = Math.sqrt(rdx * rdx + rdy * rdy);
+        const sensor_rf = Math.sqrt(rdx * rdx + rdy * rdy);
         const roll = Math.atan2(rdy, rdx);
-        const sensor_yaw = Math.atan(this.vp.tan_hfovh * r);
-        const world_yaw = (1 - 0.031) * sensor_yaw +
-            0.3444 * sensor_yaw * sensor_yaw * sensor_yaw +
-            0.2144 * sensor_yaw * sensor_yaw * sensor_yaw * sensor_yaw * sensor_yaw;
-        let _x = world_yaw;
-        _x = _x;
+        //    const sensor_yaw = Math.atan(this.vp.tan_hfovh * sensor_rf);
+        const world_yaw = Math.atan((sensor_rf * 18.0) / this.vp.mm_equiv);
         // const world_yaw = sensor_yaw;
         //
         // viewer is right +x, up +y, out of screen +z
-        const world_dir = new WasmVec3f64(1.0, -Math.cos(roll) * Math.tan(sensor_yaw), -Math.sin(roll) * Math.tan(sensor_yaw));
+        const world_dir = new WasmVec3f64(Math.cos(world_yaw), -Math.cos(roll) * Math.sin(world_yaw), -Math.sin(roll) * Math.sin(world_yaw));
         world_dir.set_normalized();
         return world_dir;
     }
@@ -482,8 +515,7 @@ export class FindCanvas {
         const r = Math.sqrt(y * y + z * z);
         const world_yaw = Math.atan2(r, x);
         const roll = Math.atan2(z, y);
-        const sensor_yaw = world_yaw;
-        const img_r = Math.tan(sensor_yaw) / this.vp.tan_hfovh;
+        const img_r = (Math.tan(world_yaw) / 18.0) * this.vp.mm_equiv; // / this.vp.tan_hfovh;
         const ix = (Math.cos(roll) * img_r * this.img_w) / 2 + this.img_w / 2;
         const iy = (Math.sin(roll) * img_r * this.img_w) / 2 + this.img_h / 2;
         return [ix, iy];

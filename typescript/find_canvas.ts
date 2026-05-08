@@ -3,6 +3,7 @@ import {
   WasmQuatf64,
   WasmCatalog,
   WasmStar,
+  WasmPolynomial,
 } from "../pkg/star_catalog_wasm.js";
 import { Draw } from "./draw.js";
 import { Mouse, MousePressActions } from "./mouse.js";
@@ -11,29 +12,47 @@ import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { StarCatalog } from "./star_catalog.js";
 
-/*
+interface LensMapping {
+  map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number;
+  map_world_yaw_to_sensor_r(mm_equiv: number, world_yaw: number): number;
+}
 
-Alkaid 67301
-   67301 : 206.88560879999997, 49.31330288 : 100.69652 :1.85
-Mizar 65378
-   65378 : 200.98091604, 54.92541525 : 78.15864 :2.23
-Alioth 62956
-   62956 : 193.5068041, 55.95984300999999 : 80.932014 :1.76
-Megrez 59774
-   59774 : 183.85603794999997, 57.03259792000001 : 81.43721 :3.32
-Phecda 58001
-   58001 : 178.45725536, 53.69473296 : 83.65119 :2.41
+class LensMappingRectilinear {
+  map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number {
+    return Math.atan((sensor_r * 18.0) / mm_equiv);
+  }
+  map_world_yaw_to_sensor_r(mm_equiv: number, world_yaw: number): number {
+    return (Math.tan(world_yaw) * mm_equiv) / 18.0;
+  }
+}
 
-   67301 to 62956 is 10.462028363468304 degrees
-   67301 to 58001 is 18.097067345576527 degrees
-   62956 to 58001 is 8.94023727303248 degrees
+class LensMappingPolynomial {
+  sensor_to_world: WasmPolynomial;
+  world_to_sensor: WasmPolynomial;
+  constructor() {
+    this.sensor_to_world = new WasmPolynomial(new Float64Array([1]));
+    this.world_to_sensor = new WasmPolynomial(new Float64Array([1]));
+  }
+  approximate(degree: number, mappings: [number, number][]): boolean {
+    let xs = new Float64Array(mappings.length);
+    let ys = new Float64Array(mappings.length);
+    for (let i = 0; i < mappings.length; i++) {
+      xs[i] = mappings[i]![0];
+      ys[i] = mappings[i]![1];
+    }
+    return (
+      this.sensor_to_world.min_squares(degree, xs, ys) &&
+      this.world_to_sensor.min_squares(degree, ys, xs)
+    );
+  }
+  map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number {
+    return this.sensor_to_world.calc((sensor_r * 18.0) / mm_equiv);
+  }
+  map_world_yaw_to_sensor_r(mm_equiv: number, world_yaw: number): number {
+    return (this.world_to_sensor.calc(world_yaw) * mm_equiv) / 18.0;
+  }
+}
 
-
-
-54061 Dubhe
-   54061 : 165.93265365000002, 61.75111888 : 123.63761 :1.81
-
-*/
 /**
  * Candidate for one triangle in finding an orientation
  */
@@ -247,13 +266,15 @@ class FindOrientation {
 
     this.candidates = [];
   }
-  find_best_star_mappings() {
+
+  find_best_star_mappings(): WasmQuatf64[] {
     console.log("find_best_star_mappings()");
-    let x = this.catalog.find_best_star_mappings(
+    this.catalog.clear_filter();
+    this.catalog.filter_max_magnitude(this.max_magnitude);
+    return this.catalog.find_best_star_mappings(
       this.vectors,
       (this.max_angle_delta * 3.14159) / 180,
     );
-    console.log(x);
   }
 
   /**
@@ -450,6 +471,7 @@ export class FindCanvas {
   star_vector: WasmVec3f64;
   selected_stars: [number, number][];
 
+  lens_mapping: LensMapping;
   constructor(
     star_catalog: StarCatalog,
     catalog: WasmCatalog,
@@ -469,6 +491,8 @@ export class FindCanvas {
     this.canvas.width = this.current_wh[0];
     this.canvas.height = this.current_wh[1];
     this.zoomed_window = new ZoomedWindow(this.current_wh);
+
+    this.lens_mapping = new LensMappingRectilinear();
 
     const get_image = document.querySelector("#find_get_image")!;
     get_image.addEventListener("change", this.get_image.bind(this));
@@ -564,7 +588,7 @@ export class FindCanvas {
   test_img_5005() {
     this.vp.brightness = 3.6;
     this.max_angle_delta = 1.5;
-    this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82.0);
+    this.vp.fovh = this.vp.map_mm_equiv_to_fovh(24.31);
 
     //    this.vp.fovh = 74.7 * this.vp.deg2rad;
     this.selected_stars = [
@@ -586,14 +610,24 @@ export class FindCanvas {
   }
 
   test_img_4924() {
-    this.vp.brightness = 3.0;
+    this.vp.brightness = 5.0;
     this.max_angle_delta = 0.5;
-    this.vp.fovh = this.vp.map_mm_equiv_to_fovh(80);
+    this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82);
     this.selected_stars = [
-      [1080, 1278.72],
-      [3214.08, 1736.64],
-      [4311.36, 3248.64],
+      [1080, 1278.72], // 67301
+      [3214.08, 1736.64], // 62956
+      [4311.36, 3248.64], // 58001
+      [2473.346228239845, 1203.2495164410057], // 65378
+      [4184.634429400387, 2306.228239845261], // 59774
+      [3135.409722778692, 1534.0050032141362],
+      [3258.4039286232983, 3029.461980940876],
+      [2129.345460257321, 828.5614073759784],
+      /*
+       */
     ];
+    /*
+    ];
+    */
     this.img_w = 5184;
     this.img_h = 3456;
     this.img_cx = this.img_w / 2;
@@ -605,10 +639,29 @@ export class FindCanvas {
     // view_to_ecef_q
     // ijkr
     (window as any).star_catalog.vp.view_to_ecef_q = new WasmQuatf64(
-      0.463641308272434,
-      -0.2982603805403334,
-      0.831984844682261,
-      0.06227921709839514,
+      0.463641308272434, // i
+      -0.2982603805403334, // j
+      0.831984844682261, // k
+      0.06227921709839514, // r
+    );
+    (window as any).star_catalog.vp.view_to_ecef_q = new WasmQuatf64(
+      0.07938171626516351,
+      0.6471673802906424,
+      0.5671660193751167,
+      0.503185484167348,
+    );
+    (window as any).star_catalog.vp.view_to_ecef_q = new WasmQuatf64(
+      0.8423682738731703,
+      -0.3180209253383709,
+      -0.3343984084258816,
+      0.27830933628087184,
+    );
+
+    (window as any).star_catalog.vp.view_to_ecef_q = new WasmQuatf64(
+      0.46210719995613386,
+      -0.30248622147573956,
+      0.8311959196828219,
+      0.06381508182756979,
     );
   }
 
@@ -640,12 +693,15 @@ export class FindCanvas {
     );
   }
   test() {
+    this.lens_mapping = new LensMappingPolynomial();
     this.test_img_4924();
 
     this.vp.update_html_elements();
     this.zoomed_window.set_img(this.img_w, this.img_h);
 
     this.populate_html();
+    this.vp.derive_data();
+    console.log(this.vp.fovh, this.vp.tan_hfovh);
 
     console.log(
       "Perfect-ish view q array",
@@ -667,7 +723,8 @@ export class FindCanvas {
       this.max_angle_delta,
     );
 
-    find_orientation.find_best_star_mappings();
+    const mappings = find_orientation.find_best_star_mappings();
+    (window as any).star_catalog.vp.view_to_ecef_q = mappings[0];
 
     (window as any).star_catalog.set_view_needs_update();
   }
@@ -689,6 +746,9 @@ export class FindCanvas {
       this.max_angle_delta,
     );
 
+    const mappings = find_orientation.find_best_star_mappings();
+
+    /*
     find_orientation.find_best_star_mappings();
 
     const q_err = find_orientation.find_best_candidate();
@@ -709,33 +769,29 @@ export class FindCanvas {
         q_err![1],
         q_err![2],
       );
-      this.star_catalog.sky_view_set_orientation(
-        //        q_err![0].rotate_y(-Math.PI / 2).rotate_x(Math.PI / 2),
-        q_err![0],
-      );
-    }
+      */
+    this.star_catalog.sky_view_set_orientation(
+      //        q_err![0].rotate_y(-Math.PI / 2).rotate_x(Math.PI / 2),
+      mappings[0]!,
+    );
   }
 
   vector_of_img_xy(ixy: [number, number]): WasmVec3f64 {
     const rdx = ((ixy[0] - this.img_w / 2) / this.img_w) * 2;
     const rdy = ((ixy[1] - this.img_h / 2) / this.img_w) * 2;
-    const r = Math.sqrt(rdx * rdx + rdy * rdy);
+    const sensor_rf = Math.sqrt(rdx * rdx + rdy * rdy);
     const roll = Math.atan2(rdy, rdx);
-    const sensor_yaw = Math.atan(this.vp.tan_hfovh * r);
+    //    const sensor_yaw = Math.atan(this.vp.tan_hfovh * sensor_rf);
 
-    const world_yaw =
-      (1 - 0.031) * sensor_yaw +
-      0.3444 * sensor_yaw * sensor_yaw * sensor_yaw +
-      0.2144 * sensor_yaw * sensor_yaw * sensor_yaw * sensor_yaw * sensor_yaw;
-    let _x = world_yaw;
-    _x = _x;
+    const world_yaw = Math.atan((sensor_rf * 18.0) / this.vp.mm_equiv);
+
     // const world_yaw = sensor_yaw;
     //
     // viewer is right +x, up +y, out of screen +z
     const world_dir = new WasmVec3f64(
-      1.0,
-      -Math.cos(roll) * Math.tan(sensor_yaw),
-      -Math.sin(roll) * Math.tan(sensor_yaw),
+      Math.cos(world_yaw),
+      -Math.cos(roll) * Math.sin(world_yaw),
+      -Math.sin(roll) * Math.sin(world_yaw),
     );
     world_dir.set_normalized();
     return world_dir;
@@ -749,8 +805,7 @@ export class FindCanvas {
     const r = Math.sqrt(y * y + z * z);
     const world_yaw = Math.atan2(r, x);
     const roll = Math.atan2(z, y);
-    const sensor_yaw = world_yaw;
-    const img_r = Math.tan(sensor_yaw) / this.vp.tan_hfovh;
+    const img_r = (Math.tan(world_yaw) / 18.0) * this.vp.mm_equiv; // / this.vp.tan_hfovh;
     const ix = (Math.cos(roll) * img_r * this.img_w) / 2 + this.img_w / 2;
     const iy = (Math.sin(roll) * img_r * this.img_w) / 2 + this.img_h / 2;
     return [ix, iy];

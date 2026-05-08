@@ -6,8 +6,8 @@ WASM_PACK = WASM_PACK_WASM_OPT=true wasm-pack build --release --target web
 
 .PHONY: all
 all:
-	$(MAKE) js
 	${WASM_PACK}
+	$(MAKE) js
 
 start_http:
 	python3 -m http.server 3001
