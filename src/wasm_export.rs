@@ -269,11 +269,6 @@ impl WasmCatalog {
     ) -> Vec<WasmQuatf64> {
         // }, f64, f64)> {
         let subcube_iter = Subcube::iter_all();
-        self.cat.borrow_mut().clear_filter();
-        self.cat
-            .borrow_mut()
-            .add_filter(StarFilter::brighter_than(5.0));
-
         let img_space_vectors: Vec<_> = img_space_vectors.into_iter().map(|a| *a).collect();
         crate::console_log!("vectors {img_space_vectors:?}");
         let (_finished, mut candidates) = self.cat.borrow().find_best_star_mappings(
