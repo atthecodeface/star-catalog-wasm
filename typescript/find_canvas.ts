@@ -257,9 +257,26 @@ export class FindCanvas {
           x,
           true,
           this.set_lens_mapping.bind(this),
+          { id: x },
         );
         e.add_label(x).add_content(x);
       }
+      tr.add_ele("td")
+        .add_input_dropdown(
+          "lens_mapping_dropdown",
+          [
+            ["select", "Select a camera/lens"],
+            ["iphone17", "iPhone 17"],
+            ["rebel_50mm", "Rebel + 50mm"],
+            ["rebel_15mm", "Rebel + 15mm"],
+          ],
+          null,
+          false,
+          false,
+          this.set_dropdown.bind(this),
+          { id: "LensMappingDropdown" },
+        )
+        .set_input_value("");
     }
     this.set_parameters();
 
@@ -322,6 +339,34 @@ export class FindCanvas {
     this.redraw_canvas();
   }
 
+  set_dropdown(event: Event, value: string) {
+    console.log(value);
+    switch (value) {
+      case "iphone17": {
+        let x = new HtmlElement(document.getElementById("Rectiliinear")!);
+        x.set_input_checked(true);
+        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(27.05);
+        this.star_catalog.set_view_needs_update();
+        break;
+      }
+      case "rebel_50mm": {
+        let x = new HtmlElement(document.getElementById("Rectilinear")!);
+        x.set_input_checked(true);
+        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82.4);
+        this.star_catalog.set_view_needs_update();
+        break;
+      }
+      case "rebel_15mm": {
+        let x = new HtmlElement(document.getElementById("Stereographic")!);
+        x.set_input_checked(true);
+        this.vp.fovh = this.vp.map_mm_equiv_to_fovh(24.1);
+        this.star_catalog.set_view_needs_update();
+        break;
+      }
+    }
+    (event as any).target.value = "select";
+  }
+
   set_lens_mapping(_event: Event, value: string) {
     switch (value) {
       case "Orthographic": {
@@ -372,7 +417,6 @@ export class FindCanvas {
     for (const ixy of this.selected_stars) {
       star_vectors.push(this.vector_of_img_xy(ixy));
     }
-    console.log(this.selected_stars);
 
     const find_orientation = new FindOrientation(
       this.catalog,
@@ -383,28 +427,6 @@ export class FindCanvas {
 
     const mappings = find_orientation.find_best_star_mappings();
 
-    /*
-    find_orientation.find_best_star_mappings();
-
-    const q_err = find_orientation.find_best_candidate();
-    if (q_err === null) {
-      console.log("No matches found");
-      return;
-    }
-    console.log("Best candidate", q_err![0]!.array);
-    const find_results = document.querySelector(
-      "#find_results",
-    )! as HTMLTableCellElement;
-    if (q_err === null) {
-      find_results.innerHTML =
-        "Failed to find any matches - try adjusting the parameters";
-    } else {
-      find_results.innerHTML = find_orientation.find_results(
-        q_err![0],
-        q_err![1],
-        q_err![2],
-      );
-      */
     this.star_catalog.sky_view_set_orientation(
       //        q_err![0].rotate_y(-Math.PI / 2).rotate_x(Math.PI / 2),
       mappings[0]!,
