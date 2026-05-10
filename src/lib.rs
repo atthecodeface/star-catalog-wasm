@@ -95,8 +95,14 @@ pub use types::Rrc;
 mod wasm_import;
 pub use wasm_import::log as wasm_log;
 
-mod wasm_export;
-pub use wasm_export::{WasmCatalog, WasmPolynomial, WasmStar};
+mod wasm_catalog;
+pub use wasm_catalog::WasmCatalog;
+
+mod wasm_polynomial;
+pub use wasm_polynomial::WasmPolynomial;
+
+mod wasm_star;
+pub use wasm_star::WasmStar;
 
 mod icosphere;
 pub use icosphere::{Icosphere, Vertex};
