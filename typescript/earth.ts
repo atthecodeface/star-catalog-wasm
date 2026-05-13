@@ -8,7 +8,7 @@ import {
 
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
-import { WebglTexture, Webgl, WebglObj } from "./web_gl.js";
+import { WebglTexture, WebglUniform, Webgl, Webgl3DObj } from "./web_gl.js";
 
 import { ViewProperties } from "./view_properties.js";
 import { Styling } from "./styling.js";
@@ -39,8 +39,8 @@ export class Earth {
   texture_image: HTMLImageElement;
   texture_loaded: boolean;
   texture_created: boolean;
-  webgl_icosphere: WebglObj | null = null;
-  webgl_triangle: WebglObj | null = null;
+  webgl_icosphere: Webgl3DObj | null = null;
+  webgl_triangle: Webgl3DObj | null = null;
   webgl: Webgl | null = null;
   program: number = 0;
   texture: WebglTexture | null = null;
@@ -135,17 +135,14 @@ export class Earth {
       return;
     }
 
-    const e = new EarthShader();
-    const vertex_src = e.vertex;
-    const fragment_src = e.fragment;
-
-    const program = this.webgl!.compile_program(vertex_src, fragment_src);
+    const program = this.webgl!.compile_program(new EarthShader());
     if (program === null) {
       this.webgl = null;
       return;
     }
+    this.program = program;
 
-    this.webgl_icosphere = new WebglObj(
+    this.webgl_icosphere = new Webgl3DObj(
       this.icos.num_vertices,
       this.icos.num_faces * 3,
     );
@@ -159,7 +156,7 @@ export class Earth {
     }
     this.webgl_icosphere.webgl_create(this.webgl!.webgl!);
 
-    this.webgl_triangle = new WebglObj(3, 3);
+    this.webgl_triangle = new Webgl3DObj(3, 3);
     this.webgl_triangle.add_vertex(
       new Float32Array([1.0, 0, 0.05773]),
       new Float32Array([0, 0]),
@@ -183,8 +180,9 @@ export class Earth {
     if (this.webgl === null) {
       return;
     }
-    this.webgl!.webgl!.viewport(0, 0, this.width, this.height);
+    this.webgl.webgl!.viewport(0, 0, this.width, this.height);
     this.webgl.use_program(this.program);
+    this.webgl.clear_buffer();
 
     if (this.texture_loaded && !this.texture_created) {
       this.texture?.bind_to_image(this.texture_image);
@@ -192,7 +190,7 @@ export class Earth {
     }
 
     // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
-    this.webgl.programs[this.program]?.set_projection([
+    const projection = [
       0,
       0,
       -this.view_scale,
@@ -212,28 +210,28 @@ export class Earth {
       0,
       0,
       1,
-    ]);
+    ];
+    this.webgl.set_uniform_mat4(WebglUniform.Projection, projection);
 
     const matrix = WasmMat4f32.identity();
     this.q.set_rotation4(matrix);
-    this.webgl.programs[this.program]?.set_view(matrix.transpose().array);
+    this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
 
     if (this.texture_created) {
-      this.webgl.programs[this.program]?.set_texture(this.texture!);
+      this.webgl.set_texture(this.texture!);
     }
 
-    this.webgl.programs[this.program]?.set_color(this.styling.earth.color);
+    this.webgl.set_color(this.styling.earth.color);
 
     const model = WasmMat4f32.identity();
-    this.webgl.programs[this.program]?.set_model(model.array);
+    this.webgl.set_uniform_mat4(WebglUniform.Model, model.array, false);
+    this.webgl.draw(this.webgl_icosphere!);
 
-    this.webgl_icosphere!.draw(this.webgl!.webgl!);
-
-    this.webgl.programs[this.program]?.set_color([1, 0, 0, 0]);
+    this.webgl.set_color([1, 0, 0, 0]);
 
     this.triangle_q_ll.set_rotation4(matrix);
-    this.webgl.programs[this.program]?.set_model(matrix.transpose().array);
-    this.webgl_triangle!.draw(this.webgl!.webgl!);
+    this.webgl.set_uniform_mat4(WebglUniform.Model, matrix.array, true);
+    this.webgl.draw(this.webgl_triangle!);
   }
 
   derive_data() {

@@ -12,12 +12,15 @@ import * as html from "./html.js";
 import { Tabs } from "./tabbed.js";
 import { Log, Logger, Severity } from "./log.js";
 import { Orientation } from "./orientation.js";
+import { Animate } from "./animate.js";
 
 import { Controls } from "./controls.js";
 
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
 import { FindCanvas } from "./find_canvas.js";
+import { TestCanvas } from "./test_canvas.js";
+
 import { Earth } from "./earth.js";
 import { Styling } from "./styling.js";
 import { ViewProperties } from "./view_properties.js";
@@ -28,6 +31,7 @@ enum SelectedTab {
   SkyMap,
   Location,
   Find,
+  Test,
   Log,
   Info,
 }
@@ -45,7 +49,10 @@ export class StarCatalog {
   map_canvas: MapCanvas;
   earth_canvas: Earth;
   find_canvas: FindCanvas;
+  test_canvas: TestCanvas;
   controls: Controls;
+
+  animate: Animate;
 
   view_needs_update: boolean = false;
   selected_css: string = "day";
@@ -57,6 +64,7 @@ export class StarCatalog {
     [SelectedTab.SkyMap, "#tab-skymap"],
     [SelectedTab.Location, "#tab-location"],
     [SelectedTab.Find, "#tab-find"],
+    [SelectedTab.Test, "#tab-test"],
     [SelectedTab.Log, "#tab-log"],
     [SelectedTab.Info, "#tab-info"],
   ]);
@@ -76,6 +84,7 @@ export class StarCatalog {
     });
 
     this.orientation_ctl = new Orientation(this);
+    this.animate = new Animate(this.animate_cb.bind(this));
 
     let mode = "day";
     const e = document.querySelector("#js_detect_css");
@@ -114,6 +123,8 @@ export class StarCatalog {
     );
 
     this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas");
+    this.test_canvas = new TestCanvas(this, this.catalog, "TestCanvas");
+
     this.pending_resize = null;
     this.selected_css_changed();
 
@@ -149,6 +160,25 @@ export class StarCatalog {
       compass * this.vp.deg2rad,
       elev * this.vp.deg2rad,
     );
+  }
+
+  set_playback(interval: number, seconds_per_interval: number) {
+    this.vp.play_interval = interval;
+    this.vp.play_seconds = seconds_per_interval;
+    this.schedule_animation();
+  }
+
+  schedule_animation(): void {
+    if (this.vp.play_interval != 0 && this.vp.play_seconds != 0) {
+      this.animate.schedule(this.vp.play_interval * 1000);
+    }
+  }
+
+  animate_cb(_time: number): void {
+    if (this.vp.play_interval != 0 && this.vp.play_seconds != 0) {
+      this.vp.time_add(0, 0, this.vp.play_seconds);
+      this.schedule_animation();
+    }
   }
 
   resize_canvas(e: ResizeObserverEntry[]): void {
@@ -209,6 +239,9 @@ export class StarCatalog {
     if (this.selected_tab == SelectedTab.Find) {
       this.find_canvas.update();
     }
+    if (this.selected_tab == SelectedTab.Test) {
+      this.test_canvas.update();
+    }
 
     this.view_needs_update = false;
   }
@@ -227,6 +260,7 @@ export class StarCatalog {
       case SelectedTab.SkyMap:
       case SelectedTab.SkyView:
       case SelectedTab.Location:
+      case SelectedTab.Test:
       case SelectedTab.Find: {
         if (e_ctl !== null) {
           e_ctl.hidden = false;
@@ -285,7 +319,7 @@ export class StarCatalog {
   //mp time_set
   /// Set the time-of-day to *now*
   time_set() {
-    this.vp.time_set();
+    this.vp.time_set_to_now();
     this.set_view_needs_update();
   }
 

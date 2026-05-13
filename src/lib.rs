@@ -104,6 +104,9 @@ pub use wasm_polynomial::WasmPolynomial;
 mod wasm_star;
 pub use wasm_star::WasmStar;
 
+mod wasm_orbit;
+pub use wasm_orbit::WasmOrbit;
+
 mod icosphere;
 pub use icosphere::{Icosphere, Vertex};
 

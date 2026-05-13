@@ -177,6 +177,10 @@ export class ViewProperties {
         this.deg2rad = Math.PI / 180;
         this.rad2deg = 180 / Math.PI;
         this.minute_of_hour = 0;
+        /// Interval between animation steps; 0 implies no animation
+        this.play_interval = 0;
+        /// Number of seconds to add on each animation interval
+        this.play_seconds = 0;
         this.vector_x = new WasmVec3f64(1, 0, 0);
         this.vector_y = new WasmVec3f64(0, 1, 0);
         this.vector_z = new WasmVec3f64(0, 0, 1);
@@ -231,7 +235,7 @@ export class ViewProperties {
         this.days_since_epoch = 19711;
         this.time_of_day = 18.377;
         this.date_set();
-        this.time_set();
+        this.time_set_to_now();
         if (day_param !== null) {
             this.days_since_epoch = parseInt(day_param);
         }
@@ -531,11 +535,36 @@ export class ViewProperties {
         this.star_catalog.set_view_needs_update();
     }
     /** Set the time-of-day to *now* */
-    time_set() {
+    time_set_to_now() {
         const date = new Date(Date.now());
         date.setUTCMonth(0, 1);
         date.setUTCFullYear(1970);
         this.time_of_day = date.valueOf() / (60 * 60 * 1000);
+        this.star_catalog.set_view_needs_update();
+    }
+    /** Add to the time-of-day */
+    time_add(hours, minutes, seconds) {
+        let delta = hours + (minutes + seconds / 60) / 60;
+        const days = Math.trunc(delta / 24);
+        delta -= days * 24;
+        this.time_of_day += delta;
+        this.days_since_epoch += days;
+        const elevation = this.observer_elevation * this.deg2rad;
+        const compass = this.observer_compass * this.deg2rad;
+        while (this.time_of_day < 0) {
+            this.time_of_day += 24;
+            this.days_since_epoch -= 1;
+        }
+        while (this.time_of_day > 24) {
+            this.time_of_day -= 24;
+            this.days_since_epoch += 1;
+        }
+        this.date.setTime(this.days_since_epoch * 24 * 60 * 60 * 1000);
+        if (true) {
+            this.derive_de_ra();
+            this.derive_observer_frame();
+            this.view_observer_set(compass, elevation);
+        }
         this.star_catalog.set_view_needs_update();
     }
     /** Update the view, because of a view change, time change, etc */
@@ -600,24 +629,7 @@ export class ViewProperties {
         this.star_catalog.set_view_needs_update();
     }
     view_clock_hour_rotate(by_angle) {
-        const elevation = this.observer_elevation * this.deg2rad;
-        const compass = this.observer_compass * this.deg2rad;
-        this.time_of_day += (by_angle * 6) / Math.PI;
-        if (this.time_of_day < 0) {
-            this.time_of_day += 24;
-            this.days_since_epoch -= 1;
-        }
-        if (this.time_of_day > 24) {
-            this.time_of_day -= 24;
-            this.days_since_epoch += 1;
-        }
-        this.date.setTime(this.days_since_epoch * 24 * 60 * 60 * 1000);
-        if (true) {
-            this.derive_de_ra();
-            this.derive_observer_frame();
-            this.view_observer_set(compass, elevation);
-        }
-        this.star_catalog.set_view_needs_update();
+        this.time_add((by_angle * 6) / Math.PI, 0, 0);
     }
     view_day_change(by_days) {
         this.days_since_epoch += by_days;

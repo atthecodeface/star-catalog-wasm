@@ -17,6 +17,7 @@
                 <li><a href="#tab-find">Find</a></li>
                 <li><a href="#tab-log">Log</a></li>
                 <li><a href="#tab-info">Info</a></li>
+                <li><a href="#tab-test">Test</a></li>
                 <li>
                     <input
                         class="dn"
@@ -253,6 +254,15 @@
                             <td id="LensMappings"></td>
                         </tr>
                     </table>
+                </div>
+            </div>
+            <!-- tab-test is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
+            <div id="tab-test">
+                <div class="main content flex box">
+                    <div
+                        id="TestCanvas"
+                        class="flex content resizable-content"
+                    ></div>
                 </div>
             </div>
         </div>

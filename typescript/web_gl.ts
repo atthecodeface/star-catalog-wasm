@@ -1,6 +1,133 @@
 import { Log, Logger } from "./log.js";
 
-export class WebglObj {
+export class WebglFlatShader {
+  id = "weblgl_flat";
+  extra_uniforms = [];
+  vertex = `
+  uniform mat4 projection;
+  uniform mat4 view;
+  uniform mat4 model;
+
+  attribute vec2 position;
+
+  void main() {
+    vec4 position4;
+    vec4 pos;
+    position4.x = position.x;
+    position4.y = position.y;
+    position4.z = 0.0;
+    position4.w = 1.0;
+    pos = projection * view * model * position4;
+    gl_Position = pos;
+  }
+  `;
+  fragment = `
+  precision mediump float;
+  uniform vec4 color;
+  void main() {
+  gl_FragColor.r = 1.0; // color.r;
+  gl_FragColor.g = color.g;
+  gl_FragColor.b = color.b;
+  gl_FragColor.a = color.a;
+  }
+  `;
+}
+
+export interface WebglShaderSrc {
+  id: string;
+  extra_uniforms: string[];
+  vertex: string;
+  fragment: string;
+}
+
+export enum WebglUniform {
+  Projection,
+  View,
+  Model,
+  Color,
+  Sampler,
+  Extra,
+}
+
+export interface WebglObjKind {
+  webgl_create(webgl: WebGLRenderingContext): void;
+  webgl_draw(webgl: WebGLRenderingContext): void;
+}
+
+export class WebglFlatObj implements WebglObjKind {
+  positions: Float32Array;
+  indices: Uint16Array;
+  num_vertices: number = 0;
+  num_indices: number = 0;
+  position_buf: WebGLBuffer | null = null;
+  indices_buf: WebGLBuffer | null = null;
+
+  constructor(positions: Float32Array, indices: Uint16Array) {
+    this.positions = positions;
+    this.indices = indices;
+    this.num_indices = this.indices.length;
+    this.num_vertices = this.positions.length / 2;
+  }
+
+  static axis(length: number, ticks: [number, number][]): WebglFlatObj {
+    let pts = [];
+    let lines = [];
+    pts.push(0, 0, length, 0);
+    lines.push(0, 1);
+    let pt_index = 2;
+    for (const ab of ticks) {
+      const ticks_per_unit = ab[0];
+      const dy = ab[1];
+      for (let x = 0; x <= length * ticks_per_unit; x++) {
+        const px = x / (ticks_per_unit + 0.0);
+        pts.push(px, 0, px, dy);
+        lines.push(pt_index, pt_index + 1);
+        pt_index += 2;
+      }
+    }
+    return new WebglFlatObj(new Float32Array(pts), new Uint16Array(lines));
+  }
+
+  set_point(index: number, x: number, y: number) {
+    this.positions[index * 2]! = x;
+    this.positions[index * 2 + 1]! = y;
+  }
+
+  set_line(index: number, start: number, end: number) {
+    this.indices[2 * index + 0] = start;
+    this.indices[2 * index + 1] = end;
+  }
+
+  webgl_create(webgl: WebGLRenderingContext) {
+    this.position_buf = webgl.createBuffer();
+    webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
+    webgl.bufferData(
+      webgl.ARRAY_BUFFER,
+      this.positions.buffer,
+      webgl.STATIC_DRAW,
+    );
+
+    this.indices_buf = webgl.createBuffer();
+    webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, this.indices_buf);
+    webgl.bufferData(
+      webgl.ELEMENT_ARRAY_BUFFER,
+      this.indices.buffer,
+      webgl.STATIC_DRAW,
+    );
+  }
+
+  webgl_draw(webgl: WebGLRenderingContext) {
+    webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
+    webgl.enableVertexAttribArray(0);
+    webgl.vertexAttribPointer(0, 2, webgl.FLOAT, false, 0, 0);
+
+    webgl.lineWidth(1);
+    webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, this.indices_buf);
+    webgl.drawElements(webgl.LINES, this.num_indices, webgl.UNSIGNED_SHORT, 0);
+  }
+}
+
+export class Webgl3DObj implements WebglObjKind {
   positions: Float32Array;
   tex_coords: Float32Array;
   indices: Uint16Array;
@@ -53,7 +180,7 @@ export class WebglObj {
     );
   }
 
-  draw(webgl: WebGLRenderingContext) {
+  webgl_draw(webgl: WebGLRenderingContext) {
     webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
     webgl.enableVertexAttribArray(0);
     webgl.vertexAttribPointer(0, 3, webgl.FLOAT, false, 0, 0);
@@ -72,56 +199,69 @@ export class WebglObj {
 }
 
 export class WebglProgram {
+  owner: string;
   webgl: WebGLRenderingContext;
   program: WebGLProgram;
-  u_projection: WebGLUniformLocation | null = null;
-  u_view: WebGLUniformLocation | null = null;
-  u_model: WebGLUniformLocation | null = null;
-  u_color: WebGLUniformLocation | null = null;
-  u_sampler: WebGLUniformLocation | null = null;
+  uniforms: (WebGLUniformLocation | null)[];
   matrix = new Float32Array(16);
 
-  constructor(webgl: WebGLRenderingContext, program: WebGLProgram) {
+  constructor(
+    owner: string,
+    webgl: WebGLRenderingContext,
+    program: WebGLProgram,
+  ) {
+    this.owner = owner;
     this.program = program;
-    this.u_projection = webgl.getUniformLocation(program, "projection");
-    this.u_view = webgl.getUniformLocation(program, "view");
-    this.u_model = webgl.getUniformLocation(program, "model");
-    this.u_color = webgl.getUniformLocation(program, "color");
-    this.u_sampler = webgl.getUniformLocation(program, "uSampler");
+    // At least up to 'Extra' uniforms...
+    this.uniforms = [null, null, null, null, null];
+    const u_projection = webgl.getUniformLocation(program, "projection");
+    const u_view = webgl.getUniformLocation(program, "view");
+    const u_model = webgl.getUniformLocation(program, "model");
+    const u_color = webgl.getUniformLocation(program, "color");
+    const u_sampler = webgl.getUniformLocation(program, "uSampler");
+    this.uniforms[WebglUniform.Projection] = u_projection;
+    this.uniforms[WebglUniform.View] = u_view;
+    this.uniforms[WebglUniform.Model] = u_model;
+    this.uniforms[WebglUniform.Sampler] = u_sampler;
+    this.uniforms[WebglUniform.Color] = u_color;
     this.webgl = webgl;
+
+    console.log(this.uniforms);
   }
 
-  set_projection(matrix: ArrayLike<number>) {
-    if (this.u_projection != null) {
-      this.matrix.set(matrix);
-      this.webgl.uniformMatrix4fv(this.u_projection, false, this.matrix);
+  set_uniform_mat4(
+    uniform: WebglUniform,
+    matrix: ArrayLike<number>,
+    transpose: boolean = false,
+  ) {
+    const u = this.uniforms[uniform];
+    if (u !== null) {
+      if (transpose) {
+        for (let i = 0; i < 4; i++) {
+          for (let j = 0; j < 4; j++) {
+            this.matrix[i * 4 + j]! = matrix[j * 4 + i]!;
+          }
+        }
+      } else {
+        this.matrix.set(matrix);
+      }
+      this.webgl.uniformMatrix4fv(u!, false, this.matrix);
     }
   }
 
-  set_view(matrix: ArrayLike<number>) {
-    if (this.u_view != null) {
-      this.matrix.set(matrix);
-      this.webgl.uniformMatrix4fv(this.u_view, false, this.matrix);
-    }
-  }
-  set_model(matrix: ArrayLike<number>) {
-    if (this.u_model != null) {
-      this.matrix.set(matrix);
-      this.webgl.uniformMatrix4fv(this.u_model, false, this.matrix);
+  set_uniform_vec4(uniform: WebglUniform, value: number[]) {
+    const u = this.uniforms[uniform];
+    if (u !== null) {
+      this.webgl.uniform4fv(u!, value);
     }
   }
 
-  set_color(color: number[]) {
-    if (this.u_color !== null) {
-      this.webgl.uniform4fv(this.u_color, color);
-    }
-  }
-
-  set_texture(texture: WebglTexture) {
-    if (this.u_sampler !== null) {
+  set_texture(uniform: WebglUniform, texture: WebglTexture) {
+    const u = this.uniforms[uniform];
+    if (u !== null) {
       this.webgl.activeTexture(this.webgl.TEXTURE0);
       this.webgl.bindTexture(this.webgl.TEXTURE_2D, texture.texture);
-      this.webgl.uniform1i(this.u_sampler, 0);
+      this.webgl.uniform1i(u!, 0);
     }
   }
 }
@@ -185,6 +325,7 @@ export class Webgl {
   canvas: HTMLCanvasElement;
 
   programs: WebglProgram[] = [];
+  current_program: WebglProgram | null = null;
 
   webgl: WebGLRenderingContext | null = null;
 
@@ -234,7 +375,7 @@ export class Webgl {
     return shader;
   }
 
-  compile_program(vertex_src: string, fragment_src: string): null | number {
+  compile_program(shader: WebglShaderSrc): null | number {
     if (this.webgl === null) {
       return null;
     }
@@ -242,16 +383,23 @@ export class Webgl {
 
     const program = webgl.createProgram();
 
-    const vs = this.load_shader(true, vertex_src);
+    const owner = shader.id;
+    const vs = this.load_shader(true, shader.vertex);
     if (vs == null) {
-      this.logger.error("webgl", `Failed to compile vertex shader`);
+      this.logger.error(
+        "webgl",
+        `Failed to compile vertex shader for ${owner}`,
+      );
       return null;
     }
     webgl.attachShader(program, vs);
     webgl.deleteShader(vs);
-    const fs = this.load_shader(false, fragment_src);
+    const fs = this.load_shader(false, shader.fragment);
     if (fs == null) {
-      this.logger.error("webgl", `Failed to compile fragment shader`);
+      this.logger.error(
+        "webgl",
+        `Failed to compile fragment shader for ${owner}`,
+      );
       return null;
     }
     webgl.attachShader(program, fs);
@@ -262,13 +410,13 @@ export class Webgl {
     if (!webgl.getProgramParameter(program, webgl.LINK_STATUS)) {
       this.logger.error(
         "webgl",
-        `Failed to load shaders ${webgl.getProgramInfoLog(program)}`,
+        `Failed to load shaders for ${owner} ${webgl.getProgramInfoLog(program)}`,
       );
       return null;
     }
 
     const n = this.programs.length;
-    this.programs.push(new WebglProgram(webgl, program));
+    this.programs.push(new WebglProgram(owner, webgl, program));
     return n;
   }
 
@@ -279,14 +427,63 @@ export class Webgl {
     return new WebglTexture(this.webgl);
   }
 
+  clear_buffer() {
+    if (this.webgl === null) {
+      return;
+    }
+    this.webgl.enable(this.webgl.DEPTH_TEST); // Enable depth testing
+    this.webgl.depthFunc(this.webgl.LEQUAL); // Near things obscure far things
+    this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
+  }
+
   use_program(p: number): void {
     if (this.webgl === null) {
       return;
     }
 
-    this.webgl.useProgram(this.programs[p]!.program);
-    this.webgl.enable(this.webgl.DEPTH_TEST); // Enable depth testing
-    this.webgl.depthFunc(this.webgl.LEQUAL); // Near things obscure far things
-    this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
+    const program = this.programs[p];
+    if (program === undefined) {
+      return;
+    }
+    this.current_program = program;
+    console.log("Using program ", this.current_program, p);
+    this.webgl.useProgram(this.current_program.program);
+  }
+
+  create(obj: WebglObjKind) {
+    if (this.webgl !== null) {
+      obj.webgl_create(this.webgl);
+    }
+  }
+
+  set_uniform_mat4(
+    uniform: WebglUniform,
+    matrix: ArrayLike<number>,
+    transpose: boolean = false,
+  ) {
+    if (this.current_program === null) {
+      return;
+    }
+    this.current_program.set_uniform_mat4(uniform, matrix, transpose);
+  }
+
+  set_color(color: number[]) {
+    if (this.current_program === null) {
+      return;
+    }
+    this.current_program.set_uniform_vec4(WebglUniform.Color, color);
+  }
+
+  set_texture(texture: WebglTexture) {
+    if (this.current_program === null) {
+      return;
+    }
+    this.current_program.set_texture(WebglUniform.Sampler, texture);
+  }
+
+  draw(obj: WebglObjKind) {
+    if (this.webgl !== null) {
+      obj.webgl_draw(this.webgl);
+    }
   }
 }

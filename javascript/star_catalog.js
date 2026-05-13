@@ -6,10 +6,12 @@ import * as html from "./html.js";
 import { Tabs } from "./tabbed.js";
 import { Log, Logger, Severity } from "./log.js";
 import { Orientation } from "./orientation.js";
+import { Animate } from "./animate.js";
 import { Controls } from "./controls.js";
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
 import { FindCanvas } from "./find_canvas.js";
+import { TestCanvas } from "./test_canvas.js";
 import { Earth } from "./earth.js";
 import { Styling } from "./styling.js";
 import { ViewProperties } from "./view_properties.js";
@@ -20,8 +22,9 @@ var SelectedTab;
     SelectedTab[SelectedTab["SkyMap"] = 2] = "SkyMap";
     SelectedTab[SelectedTab["Location"] = 3] = "Location";
     SelectedTab[SelectedTab["Find"] = 4] = "Find";
-    SelectedTab[SelectedTab["Log"] = 5] = "Log";
-    SelectedTab[SelectedTab["Info"] = 6] = "Info";
+    SelectedTab[SelectedTab["Test"] = 5] = "Test";
+    SelectedTab[SelectedTab["Log"] = 6] = "Log";
+    SelectedTab[SelectedTab["Info"] = 7] = "Info";
 })(SelectedTab || (SelectedTab = {}));
 export class StarCatalog {
     constructor(params) {
@@ -34,6 +37,7 @@ export class StarCatalog {
             [SelectedTab.SkyMap, "#tab-skymap"],
             [SelectedTab.Location, "#tab-location"],
             [SelectedTab.Find, "#tab-find"],
+            [SelectedTab.Test, "#tab-test"],
             [SelectedTab.Log, "#tab-log"],
             [SelectedTab.Info, "#tab-info"],
         ]);
@@ -46,6 +50,7 @@ export class StarCatalog {
             this.tab_selected(id);
         });
         this.orientation_ctl = new Orientation(this);
+        this.animate = new Animate(this.animate_cb.bind(this));
         let mode = "day";
         const e = document.querySelector("#js_detect_css");
         if (e !== null) {
@@ -70,6 +75,7 @@ export class StarCatalog {
         this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 50, 50);
         this.earth_canvas = new Earth(this, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
         this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas");
+        this.test_canvas = new TestCanvas(this, this.catalog, "TestCanvas");
         this.pending_resize = null;
         this.selected_css_changed();
         for (const resizable_content of document.getElementsByClassName("resizable-content")) {
@@ -98,6 +104,22 @@ export class StarCatalog {
             compass = -90 - e.alpha;
         }
         this.vp.view_observer_set(compass * this.vp.deg2rad, elev * this.vp.deg2rad);
+    }
+    set_playback(interval, seconds_per_interval) {
+        this.vp.play_interval = interval;
+        this.vp.play_seconds = seconds_per_interval;
+        this.schedule_animation();
+    }
+    schedule_animation() {
+        if (this.vp.play_interval != 0 && this.vp.play_seconds != 0) {
+            this.animate.schedule(this.vp.play_interval * 1000);
+        }
+    }
+    animate_cb(_time) {
+        if (this.vp.play_interval != 0 && this.vp.play_seconds != 0) {
+            this.vp.time_add(0, 0, this.vp.play_seconds);
+            this.schedule_animation();
+        }
     }
     resize_canvas(e) {
         for (const ele of e) {
@@ -152,6 +174,9 @@ export class StarCatalog {
         if (this.selected_tab == SelectedTab.Find) {
             this.find_canvas.update();
         }
+        if (this.selected_tab == SelectedTab.Test) {
+            this.test_canvas.update();
+        }
         this.view_needs_update = false;
     }
     tab_selected(tab_id) {
@@ -167,6 +192,7 @@ export class StarCatalog {
             case SelectedTab.SkyMap:
             case SelectedTab.SkyView:
             case SelectedTab.Location:
+            case SelectedTab.Test:
             case SelectedTab.Find: {
                 if (e_ctl !== null) {
                     e_ctl.hidden = false;
@@ -220,7 +246,7 @@ export class StarCatalog {
     //mp time_set
     /// Set the time-of-day to *now*
     time_set() {
-        this.vp.time_set();
+        this.vp.time_set_to_now();
         this.set_view_needs_update();
     }
     //mp update_latlon

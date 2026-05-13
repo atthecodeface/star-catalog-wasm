@@ -200,6 +200,9 @@ html {
 #MapCanvas canvas {
     position: absolute;
 }
+#TestCanvas canvas {
+    position: absolute;
+}
 
 #ctl_selectors {
     label {
