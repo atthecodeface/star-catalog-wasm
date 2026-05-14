@@ -1,7 +1,89 @@
-import { WasmOrbit, WasmVec3f64, WasmVec3f32, WasmQuatf32, WasmMat4f32, WasmIcosphere, WasmBezier3f32, WasmBezierBuilder3f32, } from "../pkg/star_catalog_wasm.js";
+import { WasmOrbit, WasmVec3f32, WasmQuatf32, WasmMat4f32, WasmIcosphere, WasmBezier3f32, WasmBezierBuilder3f32, } from "../pkg/star_catalog_wasm.js";
 import { Mouse } from "./mouse.js";
 import { Logger } from "./log.js";
 import { Webgl, Webgl3DObj, WebglCubicBezierShader, WebglFlatShader, WebglFlatObj, WebglUniform, WebglCubicBezierObj, } from "./web_gl.js";
+class Planet {
+    constructor(name) {
+        this.planet_scale = 0.002;
+        this.planet_color = [1, 1, 1, 1];
+        this.orbit = WasmOrbit.of_solar_system(name);
+        this.orbit_bezier = new WasmBezier3f32();
+        this.orbit_to_parent = this.orbit.orbit_to_parent();
+        this.vec = new WasmVec3f32(0, 0, 0);
+        this.mat = WasmMat4f32.identity();
+    }
+    set_time(secs_since_epoch, builder) {
+        this.orbit_to_parent = this.orbit.orbit_to_parent();
+        const orbit_period = this.orbit.period_of_orbit();
+        builder.clear();
+        for (let t = 0; t <= 3; t++) {
+            const time = secs_since_epoch + orbit_period * (t - 1) * 0.025;
+            this.orbit.orbit_vec_of_unix_time(time, this.vec);
+            builder.add_vec_pt_at(t / 3.0, this.vec);
+        }
+        this.orbit_bezier.reconstruct(builder);
+    }
+    draw_orbit(webgl, bezier, distance_scale) {
+        this.orbit_to_parent.set_rotation4(this.mat);
+        this.mat.scale3(distance_scale);
+        webgl.set_color(this.planet_color);
+        webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, true);
+        bezier.set_bezier(this.orbit_bezier);
+        webgl.draw(bezier);
+    }
+    draw_planet(webgl, icosphere, distance_scale) {
+        this.orbit_bezier.set_vec_point_at(this.vec, 1 / 3.0);
+        this.orbit_to_parent.set_apply3(this.vec);
+        this.vec.set_mulf(distance_scale);
+        this.mat.set_identity();
+        this.mat.scale3(this.planet_scale);
+        this.mat.translate3(this.vec);
+        webgl.set_color(this.planet_color);
+        webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, true);
+        webgl.draw(icosphere);
+    }
+}
+class SolarSystem {
+    constructor() {
+        this.sun_color = [1, 1, 1, 1];
+        this.sun_scale = 0.005;
+        this.planet_scale = 0.002;
+        this.distance_scale = 1 / 3e9;
+        this.mat = WasmMat4f32.identity();
+        this.objects = [];
+        this.objects.push(new Planet("Mercury"));
+        this.objects.push(new Planet("Venus"));
+        this.objects.push(new Planet("Earth"));
+        this.objects.push(new Planet("Mars"));
+        this.objects.push(new Planet("Jupiter"));
+        this.objects.push(new Planet("Saturn"));
+        this.objects.push(new Planet("Uranus"));
+        this.objects.push(new Planet("Neptune"));
+    }
+    set_time(secs_since_epoch) {
+        const builder = new WasmBezierBuilder3f32();
+        for (const o of this.objects) {
+            o.set_time(secs_since_epoch, builder);
+        }
+    }
+    draw_sun(webgl, icosphere) {
+        webgl.set_color(this.sun_color);
+        this.mat.set_identity();
+        this.mat.scale3(this.sun_scale);
+        webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, false);
+        webgl.draw(icosphere);
+    }
+    draw_planets(webgl, icosphere) {
+        for (const p of this.objects) {
+            p.draw_planet(webgl, icosphere, this.distance_scale);
+        }
+    }
+    draw_orbits(webgl, bezier) {
+        for (const p of this.objects) {
+            p.draw_orbit(webgl, bezier, this.distance_scale);
+        }
+    }
+}
 class SphereShader {
     constructor() {
         this.id = "sphere";
@@ -44,7 +126,7 @@ class SphereShader {
 export class TestCanvas {
     constructor(star_catalog, catalog, canvas_div_id) {
         this.webgl = null;
-        this.program = 0;
+        this.sphere_program = 0;
         this.flat_program = 0;
         this.bezier_program = 0;
         this.texture = null;
@@ -55,7 +137,6 @@ export class TestCanvas {
         this.webgl_bezier = null;
         this.view_scale = 3.0;
         this.model = WasmMat4f32.identity();
-        this.objects = [];
         this.star_catalog = star_catalog;
         this.catalog = catalog;
         this.vp = this.star_catalog.vp;
@@ -70,14 +151,7 @@ export class TestCanvas {
         this.icos = new WasmIcosphere();
         this.icos.subdivide(4);
         this.mouse = new Mouse(this, this.canvas);
-        this.objects.push(WasmOrbit.of_solar_system("Mercury"));
-        this.objects.push(WasmOrbit.of_solar_system("Venus"));
-        this.objects.push(WasmOrbit.of_solar_system("Earth"));
-        this.objects.push(WasmOrbit.of_solar_system("Mars"));
-        this.objects.push(WasmOrbit.of_solar_system("Jupiter"));
-        this.objects.push(WasmOrbit.of_solar_system("Saturn"));
-        this.objects.push(WasmOrbit.of_solar_system("Uranus"));
-        this.objects.push(WasmOrbit.of_solar_system("Neptune"));
+        this.solar_system = new SolarSystem();
         this.derive_data();
         let webgl_okay = true;
         if (!this.webgl.start_webgl()) {
@@ -89,7 +163,7 @@ export class TestCanvas {
                 webgl_okay = false;
             }
             else {
-                this.program = program;
+                this.sphere_program = program;
             }
         }
         if (webgl_okay) {
@@ -149,7 +223,6 @@ export class TestCanvas {
         this.redraw_canvas();
     }
     redraw_canvas() {
-        var _a;
         // const style = this.star_catalog.styling.clock;
         const w = this.canvas.width;
         const h = this.canvas.height;
@@ -163,9 +236,8 @@ export class TestCanvas {
         // +Z moves it up
         // +X moves it out of screen
         const origin = new WasmVec3f32(0, 0.0, 0.0);
-        const sun_scale = 0.005;
-        const planet_scale = 0.002;
-        const distance_scale = 1 / 3000.0e6;
+        const secs = this.vp.days_since_epoch * 86400;
+        this.solar_system.set_time(secs);
         let projection = WasmMat4f32.identity().transpose().array;
         projection = WasmMat4f32.perspective(1.6, ar, 2.0, -20.0).transpose().array;
         projection = WasmMat4f32.identity().transpose().array;
@@ -192,55 +264,12 @@ export class TestCanvas {
         this.webgl.use_program(this.bezier_program);
         this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
         this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
-        this.webgl.use_program(this.program);
+        this.solar_system.draw_orbits(this.webgl, this.webgl_bezier);
+        this.webgl.use_program(this.sphere_program);
         this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
         this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
-        // Set model
-        this.webgl.set_color([1, 1, 1, 1]);
-        this.model = WasmMat4f32.identity();
-        this.model.scale3(sun_scale);
-        this.webgl.set_uniform_mat4(WebglUniform.Model, this.model.array, true);
-        this.webgl.draw(this.webgl_icosphere);
-        this.webgl.set_color([1, 0.5, 0.7, 0.7]);
-        const secs = this.vp.days_since_epoch * 86400;
-        const v = new WasmVec3f64(0, 0, 0);
-        for (const o of this.objects) {
-            const q = o.orbit_to_parent();
-            const orbit_period = o.period_of_orbit();
-            const builder = new WasmBezierBuilder3f32();
-            for (let t = 0; t <= 3; t++) {
-                const time = secs + orbit_period * (t - 1) * 0.025;
-                o.orbit_vec_of_unix_time(time, v);
-                const v2 = q.apply3(v);
-                const p = new WasmVec3f32(v2.array[0] * distance_scale, v2.array[1] * distance_scale, v2.array[2] * distance_scale);
-                builder.add_vec_pt_at(t / 3.0, p);
-            }
-            const bezier = WasmBezier3f32.construct(builder);
-            const p = new WasmVec3f32(0, 0, 0);
-            for (const ab of [
-                [0, 0.25],
-                [0.166, 0.25],
-                [0.333, 1.0],
-                [0.5, 0.25],
-                [0.666, 0.25],
-                [1.0, 0.25],
-            ]) {
-                bezier === null || bezier === void 0 ? void 0 : bezier.set_vec_point_at(p, ab[0]);
-                this.model = WasmMat4f32.identity();
-                this.model.scale3(planet_scale * ab[1]);
-                this.model.translate3(p);
-                this.webgl.set_uniform_mat4(WebglUniform.Model, this.model.array, true);
-                this.webgl.draw(this.webgl_icosphere);
-            }
-            this.webgl.use_program(this.bezier_program);
-            this.model = WasmMat4f32.identity();
-            this.webgl.set_color([1, 0.5, 0.7, 0.7]);
-            this.webgl.set_uniform_mat4(WebglUniform.Model, this.model.array, false);
-            (_a = this.webgl_bezier) === null || _a === void 0 ? void 0 : _a.set_bezier(bezier);
-            this.webgl.draw(this.webgl_bezier);
-            this.webgl.use_program(this.program);
-        }
-        return;
+        this.solar_system.draw_sun(this.webgl, this.webgl_icosphere);
+        this.solar_system.draw_planets(this.webgl, this.webgl_icosphere);
     }
     drag_end(_start_xy, _xy) { }
     user_press(_xy, actions) {
