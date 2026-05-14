@@ -25,7 +25,59 @@ export class WebglFlatShader {
   precision mediump float;
   uniform vec4 color;
   void main() {
-  gl_FragColor.r = 1.0; // color.r;
+  gl_FragColor.r = color.r;
+  gl_FragColor.g = color.g;
+  gl_FragColor.b = color.b;
+  gl_FragColor.a = color.a;
+  }
+  `;
+}
+
+export class WebglBezier4Shader {
+  id = "weblgl_bezier4";
+  extra_uniforms = [];
+  vertex = `
+  uniform mat4 projection;
+  uniform mat4 view;
+  uniform mat4 model;
+  uniform mat4 control_points;
+
+  attribute vec2 position;
+
+  void main() {
+    flost t;
+    float u;
+    float c0;
+    float c1;
+    float c2;
+    float c3;
+
+    float u2;
+    float t2;
+    t = position.x;
+    u = 1.0 - x;
+    u2 = u*u;
+    t2 = t*t;
+    c0 = u2*u;
+    c1 = t*u2*3.0;
+    c2 = t2*u*3.0;
+    c3 = t*t2;
+
+    position = c0 * control_points[0];
+    position += c1 * control_points[1];
+    position += c2 * control_points[2];
+    position += c3 * control_points[3];
+
+    position.w = 1.0;
+    pos = projection * view * model * position;
+    gl_Position = pos;
+  }
+  `;
+  fragment = `
+  precision mediump float;
+  uniform vec4 color;
+  void main() {
+  gl_FragColor.r = color.r;
   gl_FragColor.g = color.g;
   gl_FragColor.b = color.b;
   gl_FragColor.a = color.a;

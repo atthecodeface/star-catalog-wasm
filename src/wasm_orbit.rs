@@ -27,6 +27,10 @@ impl WasmOrbit {
         None
     }
 
+    pub fn period_of_orbit(&self) -> f64 {
+        self.orbit.period_of_orbit()
+    }
+
     pub fn orbit_to_parent(&self) -> WasmQuatf64 {
         self.orbit.orbit_to_parent().into()
     }

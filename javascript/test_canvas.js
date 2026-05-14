@@ -112,7 +112,10 @@ export class TestCanvas {
             this.webgl.create(this.webgl_icosphere);
         }
         if (webgl_okay) {
-            this.webgl_axis = WebglFlatObj.axis(2, [[10, 0.2]]);
+            this.webgl_axis = WebglFlatObj.axis(2, [
+                [10, 0.05],
+                [2, 0.1],
+            ]);
             this.webgl.create(this.webgl_axis);
         }
         if (!webgl_okay) {
@@ -144,8 +147,8 @@ export class TestCanvas {
         // +Z moves it up
         // +X moves it out of screen
         const origin = new WasmVec3f32(0, 0.0, 0.0);
-        const sun_scale = 0.015;
-        const planet_scale = 0.006;
+        const sun_scale = 0.005;
+        const planet_scale = 0.002;
         const distance_scale = 1 / 3000.0e6;
         let projection = WasmMat4f32.identity().transpose().array;
         projection = WasmMat4f32.perspective(1.6, ar, 2.0, -20.0).transpose().array;
@@ -168,7 +171,7 @@ export class TestCanvas {
         this.webgl.draw(this.webgl_axis);
         // white for Y axis
         this.webgl.set_color([1, 1, 1, 1]);
-        this.webgl.set_uniform_mat4(WebglUniform.Model, [0, 0, 1, 0, /**/ 1, 0, 0, -1, /**/ 0, 1, 0, 0, /**/ 0, 0, 0, 1], true);
+        this.webgl.set_uniform_mat4(WebglUniform.Model, [0, 1, 0, 0, /**/ 1, 0, 0, -1, /**/ 0, 0, 1, 0, /**/ 0, 0, 0, 1], true);
         this.webgl.draw(this.webgl_axis);
         this.webgl.use_program(this.program);
         this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
@@ -184,32 +187,22 @@ export class TestCanvas {
         const v = new WasmVec3f64(0, 0, 0);
         for (const o of this.objects) {
             const q = o.orbit_to_parent();
-            o.orbit_vec_of_unix_time(secs, v);
-            const v2 = q.apply3(v);
-            console.log(v2.array);
-            this.model = WasmMat4f32.from_array(new Float32Array([
-                planet_scale,
-                0,
-                0,
-                v2.array[0] * distance_scale,
-                //
-                0,
-                planet_scale,
-                0,
-                v2.array[1] * distance_scale,
-                //
-                0,
-                0,
-                planet_scale,
-                v2.array[2] * distance_scale,
-                //
-                0,
-                0,
-                0,
-                1,
-            ]));
-            this.webgl.set_uniform_mat4(WebglUniform.Model, this.model.array, true);
-            this.webgl.draw(this.webgl_icosphere);
+            const orbit_period = o.period_of_orbit();
+            for (const ab of [
+                [0.0, planet_scale],
+                [-0.025, planet_scale / 4.0],
+                [0.025, planet_scale / 4.0],
+                [0.05, planet_scale / 4.0],
+            ]) {
+                const t = secs + orbit_period * ab[0];
+                o.orbit_vec_of_unix_time(t, v);
+                const v2 = q.apply3(v);
+                this.model = WasmMat4f32.identity();
+                this.model.scale3(ab[1]);
+                this.model.translate3(new WasmVec3f32(v2.array[0] * distance_scale, v2.array[1] * distance_scale, v2.array[2] * distance_scale));
+                this.webgl.set_uniform_mat4(WebglUniform.Model, this.model.array, true);
+                this.webgl.draw(this.webgl_icosphere);
+            }
         }
         // const scale = 1 / 1.0e6 / 2;
         // this.triangle_q_ll.set_rotation4(matrix);
