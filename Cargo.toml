@@ -16,8 +16,13 @@ version = ">=0.2.92"
 [dependencies.js-sys]
 version = ">=0.3.64"
 
+[dependencies.bezier-wasm]
+version = "0.6"
+path = "../bezier-wasm"
+
 [dependencies.geo-nd-wasm]
-version = "0.6.4"
+# This version must match that in bezier-wasm
+version = "0.6"
 path = "../geo-nd-wasm"
 
 [dependencies.star-catalog]

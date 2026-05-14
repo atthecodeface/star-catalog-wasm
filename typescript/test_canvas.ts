@@ -6,6 +6,8 @@ import {
   WasmQuatf32,
   WasmMat4f32,
   WasmIcosphere,
+  WasmBezier3f32,
+  WasmBezierBuilder3f32,
 } from "../pkg/star_catalog_wasm.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
@@ -17,9 +19,11 @@ import {
   WebglShaderSrc,
   Webgl,
   Webgl3DObj,
+  WebglCubicBezierShader,
   WebglFlatShader,
   WebglFlatObj,
   WebglUniform,
+  WebglCubicBezierObj,
 } from "./web_gl.js";
 
 class SphereShader implements WebglShaderSrc {
@@ -78,11 +82,13 @@ export class TestCanvas {
   webgl: Webgl | null = null;
   program: number = 0;
   flat_program: number = 0;
+  bezier_program: number = 0;
   texture: WebglTexture | null = null;
   q: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
   triangle_q_ll: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
   webgl_icosphere: Webgl3DObj | null = null;
   webgl_axis: WebglFlatObj | null = null;
+  webgl_bezier: WebglCubicBezierObj | null = null;
   view_scale: number = 3.0;
   model: WasmMat4f32 = WasmMat4f32.identity();
 
@@ -144,6 +150,14 @@ export class TestCanvas {
       }
     }
     if (webgl_okay) {
+      const program = this.webgl!.compile_program(new WebglCubicBezierShader());
+      if (program === null) {
+        webgl_okay = false;
+      } else {
+        this.bezier_program = program;
+      }
+    }
+    if (webgl_okay) {
       this.webgl_icosphere = new Webgl3DObj(
         this.icos.num_vertices,
         this.icos.num_faces * 3,
@@ -164,6 +178,10 @@ export class TestCanvas {
         [2, 0.1],
       ]);
       this.webgl!.create(this.webgl_axis);
+    }
+    if (webgl_okay) {
+      this.webgl_bezier = new WebglCubicBezierObj();
+      this.webgl!.create(this.webgl_bezier);
     }
 
     if (!webgl_okay) {
@@ -248,8 +266,11 @@ export class TestCanvas {
     );
     this.webgl.draw(this.webgl_axis!);
 
-    this.webgl.use_program(this.program);
+    this.webgl.use_program(this.bezier_program);
+    this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+    this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
 
+    this.webgl.use_program(this.program);
     this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
     this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
 
@@ -267,78 +288,39 @@ export class TestCanvas {
     for (const o of this.objects) {
       const q = o.orbit_to_parent();
       const orbit_period = o.period_of_orbit();
-      for (const ab of [
-        [0.0, planet_scale],
-        [-0.025, planet_scale / 4.0],
-        [0.025, planet_scale / 4.0],
-        [0.05, planet_scale / 4.0],
-      ]) {
-        const t = secs + orbit_period * ab[0]!;
-        o.orbit_vec_of_unix_time(t, v);
+      const builder = new WasmBezierBuilder3f32();
+      for (let t = 0; t <= 3; t++) {
+        const time = secs + orbit_period * (t - 1) * 0.025;
+        o.orbit_vec_of_unix_time(time, v);
         const v2 = q.apply3(v);
-        this.model = WasmMat4f32.identity();
-        this.model.scale3(ab[1]!);
-        this.model.translate3(
-          new WasmVec3f32(
-            v2.array[0]! * distance_scale,
-            v2.array[1]! * distance_scale,
-            v2.array[2]! * distance_scale,
-          ),
+        const p = new WasmVec3f32(
+          v2.array[0]! * distance_scale,
+          v2.array[1]! * distance_scale,
+          v2.array[2]! * distance_scale,
         );
-
-        this.webgl.set_uniform_mat4(WebglUniform.Model, this.model.array, true);
-        this.webgl.draw(this.webgl_icosphere!);
+        builder.add_vec_pt_at(t / 3.0, p);
       }
-    }
-    // const scale = 1 / 1.0e6 / 2;
+      const bezier = WasmBezier3f32.construct(builder)!;
+      const p = new WasmVec3f32(0, 0, 0);
+      bezier?.set_vec_point_at(p, 1 / 3.0);
+      this.model = WasmMat4f32.identity();
+      this.model.scale3(planet_scale);
+      this.model.translate3(p);
 
-    // this.triangle_q_ll.set_rotation4(matrix);
-    // this.webgl.programs[this.program]?.set_model(matrix.transpose().array);
+      this.webgl.set_uniform_mat4(WebglUniform.Model, this.model.array, true);
+      this.webgl.draw(this.webgl_icosphere!);
+
+      this.webgl.use_program(this.bezier_program);
+      this.model = WasmMat4f32.identity();
+      this.webgl.set_color([1, 0.5, 0.7, 0.7]);
+      this.webgl.set_uniform_mat4(WebglUniform.Model, this.model.array, false);
+      this.webgl_bezier?.set_bezier(bezier);
+      this.webgl.draw(this.webgl_bezier!);
+
+      this.webgl.use_program(this.program);
+    }
     return;
   }
-  /*
-    this.webgl_triangle!.draw(this.webgl!.webgl!);
-
-    const ctx = this.canvas.getContext("2d")!;
-    ctx.fillStyle = "#000";
-    ctx.clearRect(0, 0, w, h);
-
-    const v = new WasmVec3f64(0, 0, 0);
-
-    ctx.beginPath();
-    ctx.arc(w / 2, h / 2, 10, 0, 360);
-    ctx.fillStyle = "#ec9";
-    ctx.fill();
-
-    const scale = 1 / 1.0e6 / 2;
-    for (const o of this.objects) {
-      // console.log("Object", o);
-
-      const q = o.orbit_to_parent();
-      ctx.strokeStyle = "#696";
-      ctx.beginPath();
-      for (let x = 0.0; x < 6.283; x += 0.02) {
-        o.orbit_vec_of_true_anomaly(x, v);
-        const v2 = q.apply3(v);
-        ctx.lineTo(w / 2 + v2.array[0]! * scale, h / 2 + v2.array[1]! * scale);
-      }
-      ctx.closePath();
-      ctx.stroke();
-      const secs = this.vp.days_since_epoch * 86400;
-      o.orbit_vec_of_unix_time(secs, v);
-      const v2 = q.apply3(v);
-      ctx.beginPath();
-      ctx.arc(
-        w / 2 + v2.array[0]! * scale,
-        h / 2 + v2.array[1]! * scale,
-        3,
-        0,
-        360,
-      );
-      ctx.fillStyle = "#993";
-      ctx.fill();
-    }
-    }*/
 
   drag_end(_start_xy: [number, number], _xy: [number, number]): void {}
   user_press(_xy: [number, number], actions: MousePressActions): void {

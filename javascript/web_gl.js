@@ -1,3 +1,4 @@
+import { WasmVec3f32 } from "../pkg/star_catalog_wasm.js";
 import { Logger } from "./log.js";
 export class WebglFlatShader {
     constructor() {
@@ -33,44 +34,36 @@ export class WebglFlatShader {
   `;
     }
 }
-export class WebglBezier4Shader {
+export class WebglCubicBezierShader {
     constructor() {
-        this.id = "weblgl_bezier4";
-        this.extra_uniforms = [];
+        this.id = "weblgl_cubic_bezier";
+        this.extra_uniforms = ["control_points"];
         this.vertex = `
   uniform mat4 projection;
   uniform mat4 view;
   uniform mat4 model;
   uniform mat4 control_points;
 
-  attribute vec2 position;
+  attribute float position;
 
   void main() {
-    flost t;
-    float u;
-    float c0;
-    float c1;
-    float c2;
-    float c3;
 
-    float u2;
-    float t2;
-    t = position.x;
-    u = 1.0 - x;
-    u2 = u*u;
-    t2 = t*t;
-    c0 = u2*u;
-    c1 = t*u2*3.0;
-    c2 = t2*u*3.0;
-    c3 = t*t2;
+    float t = position;
+    float u = 1.0 - t;
+    float u2 = u * u;
+    float t2 = t*t;
+    float c0 = u2*u;
+    float c1 = t*u2*3.0;
+    float c2 = t2*u*3.0;
+    float c3 = t*t2;
 
-    position = c0 * control_points[0];
-    position += c1 * control_points[1];
-    position += c2 * control_points[2];
-    position += c3 * control_points[3];
+    vec4 pos = c0 * control_points[0];
+    pos += c1 * control_points[1];
+    pos += c2 * control_points[2];
+    pos += c3 * control_points[3];
 
-    position.w = 1.0;
-    pos = projection * view * model * position;
+    pos.w = 1.0;
+    pos = projection * view * model * pos;
     gl_Position = pos;
   }
   `;
@@ -93,7 +86,7 @@ export var WebglUniform;
     WebglUniform[WebglUniform["Model"] = 2] = "Model";
     WebglUniform[WebglUniform["Color"] = 3] = "Color";
     WebglUniform[WebglUniform["Sampler"] = 4] = "Sampler";
-    WebglUniform[WebglUniform["Extra"] = 5] = "Extra";
+    WebglUniform[WebglUniform["Extra0"] = 5] = "Extra0";
 })(WebglUniform || (WebglUniform = {}));
 export class WebglFlatObj {
     constructor(positions, indices) {
@@ -140,6 +133,7 @@ export class WebglFlatObj {
         webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, this.indices_buf);
         webgl.bufferData(webgl.ELEMENT_ARRAY_BUFFER, this.indices.buffer, webgl.STATIC_DRAW);
     }
+    webgl_set_uniforms(_wgl) { }
     webgl_draw(webgl) {
         webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
         webgl.enableVertexAttribArray(0);
@@ -147,6 +141,47 @@ export class WebglFlatObj {
         webgl.lineWidth(1);
         webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, this.indices_buf);
         webgl.drawElements(webgl.LINES, this.num_indices, webgl.UNSIGNED_SHORT, 0);
+    }
+}
+export class WebglCubicBezierObj {
+    constructor(steps = 10, min_t = 0, max_t = 1) {
+        this.position_buf = null;
+        this.positions = new Float32Array(steps);
+        for (let i = 0; i < steps; i++) {
+            this.positions[i] = (i / (steps - 1.0)) * (max_t - min_t) + min_t;
+        }
+        this.control_points = new Float32Array(4 * 4);
+        this.point = new WasmVec3f32(0, 0, 0);
+    }
+    static of_bezier(bezier, steps = 10) {
+        const b = new WebglCubicBezierObj(steps);
+        b.set_bezier(bezier);
+        return b;
+    }
+    set_bezier(bezier) {
+        bezier.set_vec_control_pt(this.point, 0);
+        this.control_points.set(this.point.array, 0);
+        bezier.set_vec_control_pt(this.point, 1);
+        this.control_points.set(this.point.array, 4);
+        bezier.set_vec_control_pt(this.point, 2);
+        this.control_points.set(this.point.array, 8);
+        bezier.set_vec_control_pt(this.point, 3);
+        this.control_points.set(this.point.array, 12);
+    }
+    webgl_create(webgl) {
+        this.position_buf = webgl.createBuffer();
+        webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
+        webgl.bufferData(webgl.ARRAY_BUFFER, this.positions.buffer, webgl.STATIC_DRAW);
+    }
+    webgl_set_uniforms(wgl) {
+        wgl.set_uniform_mat4(WebglUniform.Extra0, this.control_points, false);
+    }
+    webgl_draw(webgl) {
+        webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
+        webgl.enableVertexAttribArray(0);
+        webgl.vertexAttribPointer(0, 1, webgl.FLOAT, false, 0, 0);
+        webgl.lineWidth(1);
+        webgl.drawArrays(webgl.LINE_STRIP, 0, this.positions.length);
     }
 }
 export class Webgl3DObj {
@@ -169,6 +204,7 @@ export class Webgl3DObj {
         this.indices.set(indices, this.num_indices);
         this.num_indices += indices.length;
     }
+    webgl_set_uniforms(_wgl) { }
     webgl_create(webgl) {
         this.position_buf = webgl.createBuffer();
         webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
@@ -192,9 +228,9 @@ export class Webgl3DObj {
     }
 }
 export class WebglProgram {
-    constructor(owner, webgl, program) {
+    constructor(shader, webgl, program) {
         this.matrix = new Float32Array(16);
-        this.owner = owner;
+        this.owner = shader.id;
         this.program = program;
         // At least up to 'Extra' uniforms...
         this.uniforms = [null, null, null, null, null];
@@ -209,7 +245,10 @@ export class WebglProgram {
         this.uniforms[WebglUniform.Sampler] = u_sampler;
         this.uniforms[WebglUniform.Color] = u_color;
         this.webgl = webgl;
-        console.log(this.uniforms);
+        for (const e of shader.extra_uniforms) {
+            const u = webgl.getUniformLocation(program, e);
+            this.uniforms.push(u);
+        }
     }
     set_uniform_mat4(uniform, matrix, transpose = false) {
         const u = this.uniforms[uniform];
@@ -332,7 +371,7 @@ export class Webgl {
             return null;
         }
         const n = this.programs.length;
-        this.programs.push(new WebglProgram(owner, webgl, program));
+        this.programs.push(new WebglProgram(shader, webgl, program));
         return n;
     }
     create_texture() {
@@ -358,7 +397,6 @@ export class Webgl {
             return;
         }
         this.current_program = program;
-        console.log("Using program ", this.current_program, p);
         this.webgl.useProgram(this.current_program.program);
     }
     create(obj) {
@@ -386,6 +424,7 @@ export class Webgl {
     }
     draw(obj) {
         if (this.webgl !== null) {
+            obj.webgl_set_uniforms(this);
             obj.webgl_draw(this.webgl);
         }
     }
