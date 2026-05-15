@@ -158,10 +158,10 @@ export class MapCanvas {
   // canvas XY of a vector
   //
   // X+ is in, Y+ is left, Z+ is up; sin(z) is declination (or atan(z/x))
-  cxy_of_vector(vv: WasmVec3f64): [number, number] {
-    const v = vv.array;
-    const de = Math.asin(v[2]!);
-    const ra = Math.atan2(v[1]!, v[0]!);
+  cxy_of_vector(vec: WasmVec3f64): [number, number] {
+    const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
+    const de = Math.asin(vxyz[2]!);
+    const ra = Math.atan2(vxyz[1]!, vxyz[0]!);
     return this.cxy_of_ra_de(ra, de);
   }
 
@@ -198,7 +198,7 @@ export class MapCanvas {
 
   //mi draw_star
   // Draw a star in the Canvas context
-  draw_star(ctx: CanvasRenderingContext2D, star: any): void {
+  draw_star(ctx: CanvasRenderingContext2D, star: WasmStar): void {
     const m = star.magnitude;
     const rgb = star.rgb.array;
     const ra = star.right_ascension;
@@ -207,9 +207,9 @@ export class MapCanvas {
     const cx = cxy[0];
     const cy = cxy[1];
 
-    let r = Math.floor(Math.min(255, Math.max(0, rgb[0] * 255)));
-    let g = Math.floor(Math.min(255, Math.max(0, rgb[1] * 255)));
-    let b = Math.floor(Math.min(255, Math.max(0, rgb[2] * 255)));
+    let r = Math.floor(Math.min(255, Math.max(0, rgb[0]! * 255)));
+    let g = Math.floor(Math.min(255, Math.max(0, rgb[1]! * 255)));
+    let b = Math.floor(Math.min(255, Math.max(0, rgb[2]! * 255)));
     ctx.fillStyle = `rgb(${r},${g},${b})`;
     if (m < 3) {
       ctx.fillRect(cx - 1, cy - 1, 3, 3);
@@ -282,37 +282,43 @@ export class MapCanvas {
   add_declination_circle(
     q: WasmQuatf64,
     l: Line,
-    v: WasmVec3f64,
+    vec: WasmVec3f64,
     de: number,
     step_size: number,
   ) {
     const de_c = Math.cos(de * this.vp.deg2rad);
     const de_s = Math.sin(de * this.vp.deg2rad);
+    const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
     l.new_segment();
     for (var ra = 0; ra <= 360; ra += step_size) {
       const ra_r = ra * this.vp.deg2rad;
-      v.set(
-        new Float64Array([de_c * Math.cos(ra_r), de_c * Math.sin(ra_r), de_s]),
-      );
-      l.add_pt(this.cxy_of_vector(q.apply(v)));
+      vxyz[0] = de_c * Math.cos(ra_r);
+      vxyz[1] = de_c * Math.sin(ra_r);
+      vxyz[2] = de_s;
+      q.set_vec_apply(vec);
+      l.add_pt(this.cxy_of_vector(vec));
     }
   }
 
   add_ra_great_circle(
     q: WasmQuatf64,
     l: Line,
-    v: WasmVec3f64,
+    vec: WasmVec3f64,
     ra: number,
     _step_size: number,
   ) {
     const ra_c = Math.cos(ra * this.vp.deg2rad);
     const ra_s = Math.sin(ra * this.vp.deg2rad);
+    const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
     l.new_segment();
     for (var de = -80; de <= 80; de += 1) {
       const de_c = Math.cos(de * this.vp.deg2rad);
       const de_s = Math.sin(de * this.vp.deg2rad);
-      v.set(new Float64Array([ra_c * de_c, ra_s * de_c, de_s]));
-      l.add_pt(this.cxy_of_vector(q.apply(v)));
+      vxyz[0] = ra_c * de_c;
+      vxyz[1] = ra_s * de_c;
+      vxyz[2] = de_s;
+      q.set_vec_apply(vec);
+      l.add_pt(this.cxy_of_vector(vec));
     }
   }
 
