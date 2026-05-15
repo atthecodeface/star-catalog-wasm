@@ -138,17 +138,16 @@ export class SphereShader implements WebglShaderSrc {
   id: string = "sphere";
   extra_uniforms: string[] = [];
 
-  vertex: string = `
+  vertex: string = `#version 300 es
   uniform mat4 projection;
   uniform mat4 view;
   uniform mat4 model;
 
-  attribute vec4 position;
-  attribute vec2 tex_coord;
+  in vec4 position;
+  in vec2 tex_coord;
 
-
-  varying vec2 vTextureCoord;
-  varying vec3 col;
+  out vec2 vTextureCoord;
+  out vec3 col;
   void main() {
             vec4 pos;
             pos = projection * view * model * position;
@@ -160,16 +159,95 @@ export class SphereShader implements WebglShaderSrc {
   }
 `;
 
-  fragment: string = `
+  fragment: string = `#version 300 es
   precision mediump float;
-  varying vec2 vTextureCoord;
-  varying vec3 col;
+  in vec2 vTextureCoord;
+  in vec3 col;
   uniform vec4 color;
+  out vec4 FragColor; // must be the only output declaration; is not implicit!
   void main() {
-  gl_FragColor.r = color.r*col.r;
-  gl_FragColor.g = color.g*col.g;
-  gl_FragColor.b = color.b*col.b;
-  gl_FragColor.a = color.a;
+  FragColor.r = color.r*col.r;
+  FragColor.g = color.g*col.g;
+  FragColor.b = color.b*col.b;
+  FragColor.a = color.a;
+  }
+  `;
+}
+
+export class StarShader implements WebglShaderSrc {
+  id: string = "stars";
+  extra_uniforms: string[] = ["magnitude"];
+
+  vertex: string = `#version 300 es
+  uniform mat4 projection;
+  uniform mat4 view;
+  uniform mat4 model;
+
+  uniform float magnitude;
+
+  // These are implicit
+  // in highp int gl_VertexID;
+  // in highp int gl_InstanceID;
+  // out highp vec4 gl_Position;
+  // out highp float gl_PointSize;
+
+  in ivec2 star;
+
+  out vec3 star_color;
+  void main() {
+    uint u = uint(star.x) & 0xffffffu;
+    uint v = uint(star.y) & 0xffffffu;
+    bool u_is_neg = (star.x & 0x1000000)!=0;
+    bool v_is_neg = (star.x & 0x2000000)!=0;
+    bool w_is_neg = (star.x & 0x4000000)!=0;
+    bool x_is_u = (star.x & 0x8000000)!=0;
+    bool z_is_v = (star.x & 0x10000000)!=0;
+    bool y_is_u = !x_is_u;
+    bool y_is_v = !z_is_v;
+    uint magnitude = uint(star.y >> 24) & 0x7fu;
+
+    float uf_unsigned = float(u) / float(0x1000000);
+    float vf_unsigned = float(v) / float(0x1000000);
+    float wf_unsigned = sqrt(1.0 - uf_unsigned*uf_unsigned - vf_unsigned*vf_unsigned);
+    float uf = u_is_neg ? (-uf_unsigned): (uf_unsigned);
+    float vf = v_is_neg ? (-vf_unsigned): (vf_unsigned);
+    float wf = w_is_neg ? (-wf_unsigned): (wf_unsigned);
+
+    float x = x_is_u ? uf : wf;
+    float y = y_is_u ? uf : (y_is_v ? vf : wf);
+    float z = z_is_v ? vf : wf;
+
+    vec4 star_vector;
+    star_vector = vec4(x,y,z,1);
+
+    vec4 position = projection * view * star_vector;
+    gl_Position = position;
+    if (position.z < 0.0) {gl_Position.z = 0.1;}
+    if (position.z > 0.0) {gl_Position.z = 10000.0;}
+    star_color = vec3(1,1,1);
+    gl_PointSize = (magnitude > 4u) ? (float(magnitude)/4.0) : 1.0;
+  }
+`;
+
+  fragment: string = `#version 300 es
+  precision mediump float;
+  in vec3 star_color;
+  uniform vec4 color;
+
+  out vec4 FragColor; // must be the only output declaration; is not implicit!
+
+  // These are implicit
+  // in highp vec4 gl_FragCoord;
+  // in bool gl_FrontFacing;
+  // out highp float gl_FragDepth;
+  // in mediump vec2 gl_PointCoord;
+
+  void main() {
+  FragColor.r = color.r * star_color.r;
+  FragColor.g = color.g * star_color.g;
+  FragColor.b = color.b * star_color.b;
+  FragColor.a = color.a;
+  FragColor = vec4(1,1,1,1);
   }
   `;
 }

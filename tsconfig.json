@@ -80,6 +80,7 @@
     "typescript/earth.ts",
     "typescript/planet.ts",
     "typescript/solar_system.ts",
+    "typescript/star_field.ts",
     "typescript/map_canvas.ts",
     "typescript/sky_canvas.ts",
     "typescript/find_canvas.ts",

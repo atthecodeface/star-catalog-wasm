@@ -453,7 +453,7 @@ export class Webgl {
   start_webgl(): boolean {
     var gl: WebGLRenderingContext | null;
     try {
-      gl = this.canvas.getContext("webgl");
+      gl = this.canvas.getContext("webgl2");
     } catch (x) {
       this.logger.error("webgl", `Failed to get WebGL context`);
       return false;

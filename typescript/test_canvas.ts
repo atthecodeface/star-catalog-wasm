@@ -9,9 +9,10 @@ import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
 
-import { SphereShader } from "./shaders.js";
+import { StarShader, SphereShader } from "./shaders.js";
 
 import { SolarSystem } from "./solar_system.js";
+import { StarField } from "./star_field.js";
 
 import {
   WebglTexture,
@@ -35,9 +36,12 @@ export class TestCanvas {
   mouse: Mouse;
 
   webgl: Webgl | null = null;
+
   sphere_program: number = 0;
   flat_program: number = 0;
   bezier_program: number = 0;
+  star_program: number = 0;
+
   texture: WebglTexture | null = null;
   q: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
   triangle_q_ll: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
@@ -47,6 +51,7 @@ export class TestCanvas {
   view_scale: number = 3.0;
 
   solar_system: SolarSystem;
+  star_field: StarField;
   model: WasmMat4f32 = WasmMat4f32.identity();
 
   current_wh: [number, number];
@@ -69,6 +74,7 @@ export class TestCanvas {
     this.mouse = new Mouse(this, this.canvas);
 
     this.solar_system = new SolarSystem();
+    this.star_field = new StarField(application);
     this.derive_data();
 
     let webgl_okay: boolean = true;
@@ -81,6 +87,14 @@ export class TestCanvas {
         webgl_okay = false;
       } else {
         this.sphere_program = program;
+      }
+    }
+    if (webgl_okay) {
+      const program = this.webgl!.compile_program(new StarShader());
+      if (program === null) {
+        webgl_okay = false;
+      } else {
+        this.star_program = program;
       }
     }
     if (webgl_okay) {
@@ -124,6 +138,9 @@ export class TestCanvas {
     if (webgl_okay) {
       this.webgl_bezier = new WebglCubicBezierObj();
       this.webgl!.create(this.webgl_bezier);
+    }
+    if (webgl_okay) {
+      this.webgl!.create(this.star_field);
     }
 
     if (!webgl_okay) {
@@ -172,8 +189,17 @@ export class TestCanvas {
     const view_matrix = WasmMat4f32.identity();
     this.q.set_mat4_rotation(view_matrix);
     view_matrix.set_scale3(this.view_scale);
-
     view_matrix.set_translate_by_vec3(origin);
+
+    this.webgl.use_program(this.star_program);
+    this.webgl.set_color([1, 1, 1, 1]);
+    this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+    this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
+    this.webgl.draw(this.star_field);
+
+    if (this.star_field === null) {
+      return;
+    }
 
     // Set view
     this.webgl.use_program(this.flat_program);
