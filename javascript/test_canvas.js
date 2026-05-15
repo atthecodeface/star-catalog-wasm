@@ -1,134 +1,17 @@
-import { WasmOrbit, WasmVec3f32, WasmQuatf32, WasmMat4f32, WasmIcosphere, WasmBezier3f32, WasmBezierBuilder3f32, } from "../pkg/star_catalog_wasm.js";
+import { WasmVec3f32, WasmQuatf32, WasmMat4f32, WasmIcosphere, } from "../pkg/star_catalog_wasm.js";
 import { Mouse } from "./mouse.js";
 import { Logger } from "./log.js";
+import { StarShader, SphereShader } from "./shaders.js";
+import { SolarSystem } from "./solar_system.js";
+import { StarField } from "./star_field.js";
 import { Webgl, Webgl3DObj, WebglCubicBezierShader, WebglFlatShader, WebglFlatObj, WebglUniform, WebglCubicBezierObj, } from "./web_gl.js";
-class Planet {
-    constructor(name) {
-        this.planet_scale = 0.002;
-        this.planet_color = [1, 1, 1, 1];
-        this.orbit = WasmOrbit.of_solar_system(name);
-        this.orbit_bezier = new WasmBezier3f32();
-        this.orbit_to_parent = this.orbit.orbit_to_parent();
-        this.vec = new WasmVec3f32(0, 0, 0);
-        this.mat = WasmMat4f32.identity();
-    }
-    set_time(secs_since_epoch, builder) {
-        this.orbit_to_parent = this.orbit.orbit_to_parent();
-        const orbit_period = this.orbit.period_of_orbit();
-        builder.clear();
-        for (let t = 0; t <= 3; t++) {
-            const time = secs_since_epoch + orbit_period * (t - 1) * 0.025;
-            this.orbit.orbit_vec_of_unix_time(time, this.vec);
-            builder.add_vec_pt_at(t / 3.0, this.vec);
-        }
-        this.orbit_bezier.reconstruct(builder);
-    }
-    draw_orbit(webgl, bezier, distance_scale) {
-        this.orbit_to_parent.set_mat4_rotation(this.mat);
-        this.mat.set_scale3(distance_scale);
-        webgl.set_color(this.planet_color);
-        webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, true);
-        bezier.set_bezier(this.orbit_bezier);
-        webgl.draw(bezier);
-    }
-    draw_planet(webgl, icosphere, distance_scale) {
-        this.orbit_bezier.set_vec_point_at(this.vec, 1 / 3.0);
-        this.orbit_to_parent.set_vec_apply(this.vec);
-        this.vec.set_mulf(distance_scale);
-        this.mat.set_identity();
-        this.mat.set_scale3(this.planet_scale);
-        this.mat.set_translate_by_vec3(this.vec);
-        webgl.set_color(this.planet_color);
-        webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, true);
-        webgl.draw(icosphere);
-    }
-}
-class SolarSystem {
-    constructor() {
-        this.sun_color = [1, 1, 1, 1];
-        this.sun_scale = 0.005;
-        this.planet_scale = 0.002;
-        this.distance_scale = 1 / 3e9;
-        this.mat = WasmMat4f32.identity();
-        this.objects = [];
-        this.objects.push(new Planet("Mercury"));
-        this.objects.push(new Planet("Venus"));
-        this.objects.push(new Planet("Earth"));
-        this.objects.push(new Planet("Mars"));
-        this.objects.push(new Planet("Jupiter"));
-        this.objects.push(new Planet("Saturn"));
-        this.objects.push(new Planet("Uranus"));
-        this.objects.push(new Planet("Neptune"));
-    }
-    set_time(secs_since_epoch) {
-        const builder = new WasmBezierBuilder3f32();
-        for (const o of this.objects) {
-            o.set_time(secs_since_epoch, builder);
-        }
-    }
-    draw_sun(webgl, icosphere) {
-        webgl.set_color(this.sun_color);
-        this.mat.set_identity();
-        this.mat.set_scale3(this.sun_scale);
-        webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, false);
-        webgl.draw(icosphere);
-    }
-    draw_planets(webgl, icosphere) {
-        for (const p of this.objects) {
-            p.draw_planet(webgl, icosphere, this.distance_scale);
-        }
-    }
-    draw_orbits(webgl, bezier) {
-        for (const p of this.objects) {
-            p.draw_orbit(webgl, bezier, this.distance_scale);
-        }
-    }
-}
-class SphereShader {
-    constructor() {
-        this.id = "sphere";
-        this.extra_uniforms = [];
-        this.vertex = `
-  uniform mat4 projection;
-  uniform mat4 view;
-  uniform mat4 model;
-
-  attribute vec4 position;
-  attribute vec2 tex_coord;
-
-
-  varying vec2 vTextureCoord;
-  varying vec3 col;
-  void main() {
-            vec4 pos;
-            pos = projection * view * model * position;
-            gl_Position = pos;
-            col.x = (2.0+tex_coord.x)/3.0;
-            col.y = (2.0+tex_coord.y)/3.0;
-            col.z = (2.0+tex_coord.y)/3.0;
-            vTextureCoord = tex_coord;
-  }
-`;
-        this.fragment = `
-  precision mediump float;
-  varying vec2 vTextureCoord;
-  varying vec3 col;
-  uniform vec4 color;
-  void main() {
-  gl_FragColor.r = color.r*col.r;
-  gl_FragColor.g = color.g*col.g;
-  gl_FragColor.b = color.b*col.b;
-  gl_FragColor.a = color.a;
-  }
-  `;
-    }
-}
 export class TestCanvas {
     constructor(application, canvas_div_id) {
         this.webgl = null;
         this.sphere_program = 0;
         this.flat_program = 0;
         this.bezier_program = 0;
+        this.star_program = 0;
         this.texture = null;
         this.q = new WasmQuatf32(0, 0, 0, 1);
         this.triangle_q_ll = new WasmQuatf32(0, 0, 0, 1);
@@ -150,6 +33,7 @@ export class TestCanvas {
         this.icos.subdivide(4);
         this.mouse = new Mouse(this, this.canvas);
         this.solar_system = new SolarSystem();
+        this.star_field = new StarField(application);
         this.derive_data();
         let webgl_okay = true;
         if (!this.webgl.start_webgl()) {
@@ -162,6 +46,15 @@ export class TestCanvas {
             }
             else {
                 this.sphere_program = program;
+            }
+        }
+        if (webgl_okay) {
+            const program = this.webgl.compile_program(new StarShader());
+            if (program === null) {
+                webgl_okay = false;
+            }
+            else {
+                this.star_program = program;
             }
         }
         if (webgl_okay) {
@@ -205,6 +98,9 @@ export class TestCanvas {
             this.webgl_bezier = new WebglCubicBezierObj();
             this.webgl.create(this.webgl_bezier);
         }
+        if (webgl_okay) {
+            this.webgl.create(this.star_field);
+        }
         if (!webgl_okay) {
             this.webgl = null;
         }
@@ -243,6 +139,14 @@ export class TestCanvas {
         this.q.set_mat4_rotation(view_matrix);
         view_matrix.set_scale3(this.view_scale);
         view_matrix.set_translate_by_vec3(origin);
+        this.webgl.use_program(this.star_program);
+        this.webgl.set_color([1, 1, 1, 1]);
+        this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+        this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
+        this.webgl.draw(this.star_field);
+        if (this.star_field === null) {
+            return;
+        }
         // Set view
         this.webgl.use_program(this.flat_program);
         this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);

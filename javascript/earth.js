@@ -3,7 +3,7 @@ import { WasmVec3f32, WasmMat4f32, WasmQuatf32, } from "../pkg/star_catalog_wasm
 import { Mouse } from "./mouse.js";
 import { Logger } from "./log.js";
 import { WebglUniform, Webgl, Webgl3DObj } from "./web_gl.js";
-import { EarthShader } from "./earth_shaders.js";
+import { EarthShader } from "./shaders.js";
 export class Earth {
     constructor(application, canvas_div_id, width, height, use_webgl, division) {
         this.deg2rad = Math.PI / 180;

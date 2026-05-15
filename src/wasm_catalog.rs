@@ -63,6 +63,16 @@ impl WasmCatalog {
         Some(index.as_usize())
     }
 
+    pub fn set_star(&self, star: &mut WasmStar, index: usize) -> bool {
+        let cat = self.cat.borrow();
+        if index >= cat.len() {
+            return false;
+        }
+        let index: CatalogIndex = index.into();
+        *star = cat[index].clone().into();
+        true
+    }
+
     //mp star
     pub fn star(&self, index: usize) -> Option<WasmStar> {
         let index: CatalogIndex = index.into();
