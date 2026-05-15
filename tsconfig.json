@@ -76,6 +76,7 @@
     "typescript/view_properties.ts",
 
     "typescript/shaders.ts",
+    "typescript/webgl_canvas.ts",
 
     "typescript/earth.ts",
     "typescript/planet.ts",

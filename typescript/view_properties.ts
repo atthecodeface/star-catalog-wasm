@@ -3,6 +3,7 @@ import {
   WasmCatalog,
   WasmStar,
   WasmVec3f64,
+  WasmQuatf32,
   WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
@@ -232,6 +233,9 @@ export class ViewProperties implements Application {
 
   view_ecef_center_dir: WasmVec3f64 = new WasmVec3f64(0, 0, 0);
   view_observer_center_dir: WasmVec3f64 = new WasmVec3f64(0, 0, 0);
+
+  solar_sytem_orientation: WasmQuatf32 = WasmQuatf32.unit();
+  solar_system_fovh: number = 3.0;
 
   ra: number = 0;
   de: number = 0;

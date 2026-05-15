@@ -303,7 +303,6 @@ export class WebglTexture {
         w.texParameteri(w.TEXTURE_2D, w.TEXTURE_WRAP_T, w.CLAMP_TO_EDGE);
     }
     image_loaded(_event) {
-        console.log("Loaded image", _event);
         this.image_load_completed = true;
         this.bind_to_image(this.image);
     }
