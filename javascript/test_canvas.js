@@ -129,24 +129,51 @@ export class TestCanvas {
         // +Y moves it right
         // +Z moves it up
         // +X moves it out of screen
-        const origin = new WasmVec3f32(0, 0.0, 0.0);
+        const origin = new WasmVec3f32(0.0, 0.0, -3.0);
         const secs = this.vp.days_since_epoch * 86400;
         this.solar_system.set_time(secs);
         let projection = WasmMat4f32.identity().transpose().array;
         projection = WasmMat4f32.perspective(1.6, ar, 2.0, -20.0).transpose().array;
         projection = WasmMat4f32.identity().transpose().array;
+        const fov = 3.0 / (this.view_scale + 1);
+        const f = 1.0 / Math.tan(fov / 2);
+        const near = 1.0; // Maps to -1 in the Z, closest to the viewer, should scale by 1/near
+        const far = 200.0; // Maps to +1 in the Z, furthest to the viewer, should scale by 1/far
+        // W = -z
+        // Z = (near + far) / (near - far) * z - (near * far * 2) / (near - far) = (near * z + far * z - near * far * 2) / (near - far)
+        //  if z = near, Z(*w) = (near * near + far * near - near * far * 2) / (near - far) = (near * near - near * far) / (near - far) = near; Z = -1
+        //  if z = far, Z(*w) = (near * far + far * far - near * far * 2) / (near - far) = (far * far - near * far) / (near - far) = -far; Z = 1
+        // Note this has to flip the polarity of Z as the OpenGL clipping space is + into the screen, so -1 is near, +1 is far
+        projection = new Float32Array([
+            f,
+            0,
+            0,
+            0,
+            0,
+            f * ar,
+            0,
+            0,
+            0,
+            0,
+            (near + far) / (near - far), // scale by
+            -1,
+            0,
+            0,
+            (near * far * 2) / (near - far),
+            0,
+        ]);
         const view_matrix = WasmMat4f32.identity();
         this.q.set_mat4_rotation(view_matrix);
-        view_matrix.set_scale3(this.view_scale);
-        view_matrix.set_translate_by_vec3(origin);
         this.webgl.use_program(this.star_program);
         this.webgl.set_color([1, 1, 1, 1]);
         this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
         this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
         this.webgl.draw(this.star_field);
+        this.webgl.clear_depth_buffer();
         if (this.star_field === null) {
             return;
         }
+        view_matrix.set_translate_by_vec3(origin);
         // Set view
         this.webgl.use_program(this.flat_program);
         this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);

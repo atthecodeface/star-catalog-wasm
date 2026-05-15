@@ -388,6 +388,12 @@ export class Webgl {
         this.webgl.depthFunc(this.webgl.LEQUAL); // Near things obscure far things
         this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
     }
+    clear_depth_buffer() {
+        if (this.webgl === null) {
+            return;
+        }
+        this.webgl.clear(this.webgl.DEPTH_BUFFER_BIT);
+    }
     use_program(p) {
         if (this.webgl === null) {
             return;

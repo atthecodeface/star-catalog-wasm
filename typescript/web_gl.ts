@@ -548,6 +548,13 @@ export class Webgl {
     this.webgl.clear(this.webgl.COLOR_BUFFER_BIT | this.webgl.DEPTH_BUFFER_BIT);
   }
 
+  clear_depth_buffer() {
+    if (this.webgl === null) {
+      return;
+    }
+    this.webgl.clear(this.webgl.DEPTH_BUFFER_BIT);
+  }
+
   use_program(p: number): void {
     if (this.webgl === null) {
       return;
