@@ -133,3 +133,43 @@ export class EarthShader implements WebglShaderSrc {
 
   extra_uniforms: string[] = [];
 }
+
+export class SphereShader implements WebglShaderSrc {
+  id: string = "sphere";
+  extra_uniforms: string[] = [];
+
+  vertex: string = `
+  uniform mat4 projection;
+  uniform mat4 view;
+  uniform mat4 model;
+
+  attribute vec4 position;
+  attribute vec2 tex_coord;
+
+
+  varying vec2 vTextureCoord;
+  varying vec3 col;
+  void main() {
+            vec4 pos;
+            pos = projection * view * model * position;
+            gl_Position = pos;
+            col.x = (2.0+tex_coord.x)/3.0;
+            col.y = (2.0+tex_coord.y)/3.0;
+            col.z = (2.0+tex_coord.y)/3.0;
+            vTextureCoord = tex_coord;
+  }
+`;
+
+  fragment: string = `
+  precision mediump float;
+  varying vec2 vTextureCoord;
+  varying vec3 col;
+  uniform vec4 color;
+  void main() {
+  gl_FragColor.r = color.r*col.r;
+  gl_FragColor.g = color.g*col.g;
+  gl_FragColor.b = color.b*col.b;
+  gl_FragColor.a = color.a;
+  }
+  `;
+}

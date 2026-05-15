@@ -1,20 +1,20 @@
 import {
-  WasmOrbit,
   WasmVec3f32,
   WasmQuatf32,
   WasmMat4f32,
   WasmIcosphere,
-  WasmBezier3f32,
-  WasmBezierBuilder3f32,
 } from "../pkg/star_catalog_wasm.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
 
+import { SphereShader } from "./shaders.js";
+
+import { SolarSystem } from "./solar_system.js";
+
 import {
   WebglTexture,
-  WebglShaderSrc,
   Webgl,
   Webgl3DObj,
   WebglCubicBezierShader,
@@ -23,151 +23,6 @@ import {
   WebglUniform,
   WebglCubicBezierObj,
 } from "./web_gl.js";
-
-class Planet {
-  orbit: WasmOrbit;
-  orbit_to_parent: WasmQuatf32;
-  orbit_bezier: WasmBezier3f32;
-  mat: WasmMat4f32;
-  vec: WasmVec3f32;
-  planet_scale: number = 0.002;
-  planet_color: [number, number, number, number] = [1, 1, 1, 1];
-  constructor(name: string) {
-    this.orbit = WasmOrbit.of_solar_system(name)!;
-    this.orbit_bezier = new WasmBezier3f32();
-    this.orbit_to_parent = this.orbit.orbit_to_parent();
-    this.vec = new WasmVec3f32(0, 0, 0);
-    this.mat = WasmMat4f32.identity();
-  }
-
-  set_time(secs_since_epoch: number, builder: WasmBezierBuilder3f32) {
-    this.orbit_to_parent = this.orbit.orbit_to_parent();
-    const orbit_period = this.orbit.period_of_orbit();
-    builder.clear();
-
-    for (let t = 0; t <= 3; t++) {
-      const time = secs_since_epoch + orbit_period * (t - 1) * 0.025;
-      this.orbit.orbit_vec_of_unix_time(time, this.vec);
-      builder.add_vec_pt_at(t / 3.0, this.vec);
-    }
-    this.orbit_bezier.reconstruct(builder);
-  }
-
-  draw_orbit(
-    webgl: Webgl,
-    bezier: WebglCubicBezierObj,
-    distance_scale: number,
-  ) {
-    this.orbit_to_parent.set_mat4_rotation(this.mat);
-    this.mat.set_scale3(distance_scale);
-    webgl.set_color(this.planet_color);
-    webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, true);
-    bezier.set_bezier(this.orbit_bezier);
-    webgl.draw(bezier);
-  }
-
-  draw_planet(webgl: Webgl, icosphere: Webgl3DObj, distance_scale: number) {
-    this.orbit_bezier.set_vec_point_at(this.vec, 1 / 3.0);
-    this.orbit_to_parent.set_vec_apply(this.vec);
-    this.vec.set_mulf(distance_scale);
-    this.mat.set_identity();
-    this.mat.set_scale3(this.planet_scale);
-    this.mat.set_translate_by_vec3(this.vec);
-    webgl.set_color(this.planet_color);
-    webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, true);
-
-    webgl.draw(icosphere);
-  }
-}
-
-class SolarSystem {
-  mat: WasmMat4f32;
-  sun_color: [number, number, number, number] = [1, 1, 1, 1];
-  sun_scale: number = 0.005;
-  planet_scale: number = 0.002;
-  distance_scale: number = 1 / 3e9;
-  objects: Planet[];
-
-  constructor() {
-    this.mat = WasmMat4f32.identity();
-    this.objects = [];
-    this.objects.push(new Planet("Mercury"));
-    this.objects.push(new Planet("Venus"));
-    this.objects.push(new Planet("Earth"));
-    this.objects.push(new Planet("Mars"));
-    this.objects.push(new Planet("Jupiter"));
-    this.objects.push(new Planet("Saturn"));
-    this.objects.push(new Planet("Uranus"));
-    this.objects.push(new Planet("Neptune"));
-  }
-
-  set_time(secs_since_epoch: number) {
-    const builder = new WasmBezierBuilder3f32();
-    for (const o of this.objects) {
-      o.set_time(secs_since_epoch, builder);
-    }
-  }
-
-  draw_sun(webgl: Webgl, icosphere: Webgl3DObj) {
-    webgl.set_color(this.sun_color);
-    this.mat.set_identity();
-    this.mat.set_scale3(this.sun_scale);
-    webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, false);
-    webgl.draw(icosphere);
-  }
-
-  draw_planets(webgl: Webgl, icosphere: Webgl3DObj) {
-    for (const p of this.objects) {
-      p.draw_planet(webgl, icosphere, this.distance_scale);
-    }
-  }
-
-  draw_orbits(webgl: Webgl, bezier: WebglCubicBezierObj) {
-    for (const p of this.objects) {
-      p.draw_orbit(webgl, bezier, this.distance_scale);
-    }
-  }
-}
-
-class SphereShader implements WebglShaderSrc {
-  id: string = "sphere";
-  extra_uniforms: string[] = [];
-
-  vertex: string = `
-  uniform mat4 projection;
-  uniform mat4 view;
-  uniform mat4 model;
-
-  attribute vec4 position;
-  attribute vec2 tex_coord;
-
-
-  varying vec2 vTextureCoord;
-  varying vec3 col;
-  void main() {
-            vec4 pos;
-            pos = projection * view * model * position;
-            gl_Position = pos;
-            col.x = (2.0+tex_coord.x)/3.0;
-            col.y = (2.0+tex_coord.y)/3.0;
-            col.z = (2.0+tex_coord.y)/3.0;
-            vTextureCoord = tex_coord;
-  }
-`;
-
-  fragment: string = `
-  precision mediump float;
-  varying vec2 vTextureCoord;
-  varying vec3 col;
-  uniform vec4 color;
-  void main() {
-  gl_FragColor.r = color.r*col.r;
-  gl_FragColor.g = color.g*col.g;
-  gl_FragColor.b = color.b*col.b;
-  gl_FragColor.a = color.a;
-  }
-  `;
-}
 
 export class TestCanvas {
   application: Application;

@@ -75,9 +75,11 @@
 
     "typescript/view_properties.ts",
 
-    "typescript/earth_shaders.ts",
+    "typescript/shaders.ts",
 
     "typescript/earth.ts",
+    "typescript/planet.ts",
+    "typescript/solar_system.ts",
     "typescript/map_canvas.ts",
     "typescript/sky_canvas.ts",
     "typescript/find_canvas.ts",

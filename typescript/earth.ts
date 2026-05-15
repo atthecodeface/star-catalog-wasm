@@ -13,7 +13,7 @@ import { WebglTexture, WebglUniform, Webgl, Webgl3DObj } from "./web_gl.js";
 import { Application } from "./application.js";
 import { ViewProperties } from "./view_properties.js";
 
-import { EarthShader } from "./earth_shaders.js";
+import { EarthShader } from "./shaders.js";
 
 export class Earth {
   application: Application;
