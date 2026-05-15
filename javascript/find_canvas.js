@@ -105,17 +105,16 @@ class FindOrientation {
     }
 }
 export class FindCanvas {
-    constructor(star_catalog, catalog, canvas_div_id) {
+    constructor(application, canvas_div_id) {
         this.img = null;
         this.img_w = 0;
         this.img_h = 0;
         this.img_cx = 0;
         this.img_cy = 0;
         this.max_angle_delta = 1.0;
-        this.star_catalog = star_catalog;
-        this.catalog = catalog;
-        this.vp = this.star_catalog.vp;
-        this.logger = new Logger(star_catalog.log, "find");
+        this.application = application;
+        this.vp = this.application.view_properties;
+        this.logger = new Logger(application.log, "find");
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
@@ -294,11 +293,9 @@ export class FindCanvas {
         for (const ixy of this.selected_stars) {
             star_vectors.push(this.vector_of_img_xy(ixy));
         }
-        const find_orientation = new FindOrientation(this.catalog, star_vectors, this.vp.brightness, this.max_angle_delta);
+        const find_orientation = new FindOrientation(this.application.catalog, star_vectors, this.vp.brightness, this.max_angle_delta);
         const mappings = find_orientation.find_best_star_mappings();
-        this.star_catalog.sky_view_set_orientation(
-        //        q_err![0].rotate_y(-Math.PI / 2).rotate_x(Math.PI / 2),
-        mappings[0]);
+        this.vp.view_observer_set_orientation(mappings[0]);
     }
     vector_of_img_xy(ixy) {
         const rdx = ((ixy[0] - this.img_w / 2) / this.img_w) * 2;
@@ -340,7 +337,7 @@ export class FindCanvas {
         this.redraw_canvas();
     }
     redraw_canvas() {
-        const style = this.star_catalog.styling.clock;
+        const style = this.application.styling().clock;
         const w = this.canvas.width;
         const h = this.canvas.height;
         const ctx = this.canvas.getContext("2d");
@@ -375,7 +372,7 @@ export class FindCanvas {
             ctx.closePath();
             ctx.stroke();
         }
-        const stars = this.star_catalog.sky_canvas.star_cache.get();
+        const stars = this.vp.star_catalog.sky_canvas.star_cache.get();
         for (const star of stars.stars) {
             star.set_vector(this.star_vector);
             this.star_vector.set_apply_q3(this.vp.ecef_to_view_q);

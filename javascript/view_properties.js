@@ -204,7 +204,9 @@ export class ViewProperties {
         this.catalog = star_catalog.catalog;
         this.current_styling = star_catalog.styling;
         this.wasm_memory = this.star_catalog.wasm_memory;
-        this.logger = new Logger(star_catalog.log, "view_prop");
+        this.log = star_catalog.log;
+        this.view_properties = this;
+        this.logger = new Logger(this.log, "view_prop");
         this.resizable_content_size = [100, 100];
         this.vec_of_ra_de = WasmStar.vec_of_ra_de;
         this.max_stars_in_sky = 5000;
@@ -321,10 +323,9 @@ export class ViewProperties {
             this.lon = lon;
         }
         this.update_latlon(this.lat, this.lon);
-        this.star_catalog.center_lat_lon(this.lat, this.lon);
+        this.star_catalog.earth_canvas.center_lat_lon(this.lat, this.lon);
     }
-    //mp set_selected_star
-    set_selected_star(star) {
+    select_star(star) {
         if (star) {
             this.selected_star = star;
             this.update_html_star_info();
@@ -606,7 +607,7 @@ export class ViewProperties {
         this.lon = lon;
         this.log_latlon_update();
         // Content change!
-        this.time_date_updated();
+        this.location_updated();
     }
     /**
      *  Record a change of lat/lon in the log
@@ -653,11 +654,16 @@ export class ViewProperties {
      */
     view_observer_set(compass, elevation) {
         // Setting the viewer will indirectly set observer_elevation and observer_compass
-        this.view_to_ecef_q = WasmQuatf64.unit()
+        const q = WasmQuatf64.unit()
             .rotate_y(elevation)
             .rotate_z(compass)
             .mul(this.ecef_to_observer_q)
             .conjugate();
+        this.view_observer_set_orientation(q);
+    }
+    /// Set the whole quaternion
+    view_observer_set_orientation(q) {
+        this.view_to_ecef_q = q;
         // Update the rest of the data after view_to_ecef_q
         this.derive_data();
         this.star_catalog.set_view_needs_update();
@@ -695,5 +701,28 @@ export class ViewProperties {
         this.brightness = html.get_input_float("ctl_magnitude", 1, 12);
         // Content change!
         this.time_date_updated();
+    }
+    sky_view_center_on_ra_de(ra, de) {
+        // Get new direction that is desired for the center of the view
+        const ecef_v = this.vec_of_ra_de(ra, de);
+        // Get quaternon to rotate current center of view to the desired center of view
+        // const q = WasmQuatf64.rotation_of_vec_to_vec(this.vp.view_ecef_center_dir, new_qv);
+        //
+        // Add that rotation to the map camera
+        // this.vp.view_q_pre_mul(q);
+        const ce = this.compass_elevation_of_ecef(ecef_v);
+        this.view_observer_set(ce[0] * this.deg2rad, ce[1] * this.deg2rad);
+    }
+    /// Set the zoom of the sky view window
+    sky_view_zoom_by(factor) {
+        this.fovh = 2 * Math.atan(factor * Math.tan(this.fovh / 2));
+        // Content change ?!!
+        this.time_date_updated();
+    }
+    /// Map a frame XY into a star unit direction vector
+    sky_view_frame_to_ecef_set_vec(fx, fy, vec) {
+        const vxyz = this.wasm_memory.float_array_of_vec3f64(vec);
+        this.star_catalog.sky_canvas.set_vector_of_fxy(vxyz, [fx, fy]);
+        vec.set_apply_q3(this.view_to_ecef_q);
     }
 }

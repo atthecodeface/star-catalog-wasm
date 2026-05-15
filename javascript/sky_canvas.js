@@ -6,14 +6,15 @@ import { Logger } from "./log.js";
 //a SkyCanvas
 export class SkyCanvas {
     //fp constructor
-    constructor(star_catalog, canvas_div_id, width, height) {
+    constructor(application, canvas_div_id, width, height) {
         this.win_ar = 0;
         // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
         this.tan_pixh = 0;
         this.tan_pixv = 0;
         this.drag_rotate = "";
-        this.vp = star_catalog.vp;
-        this.logger = new Logger(star_catalog.log, "clock");
+        this.application = application;
+        this.vp = application.view_properties;
+        this.logger = new Logger(application.log, "clock");
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
@@ -97,27 +98,19 @@ export class SkyCanvas {
         this.derive_data();
         this.redraw_canvas();
     }
-    //mp set_vector_of_cxy
-    // Set a vector of canvas coord +X right +Y down
-    set_vector_of_cxy(v, cxy) {
-        const fx = (-cxy[0] / this.width + 0.5) * 2;
-        const fy = (-cxy[1] / this.height + 0.5) * 2;
-        this.set_vector_of_fxy(v, [fx, fy]);
-    }
     //mp set_vector_of_fxy
     // Vector of *square* canvas fraction with -1,-1 being bottom left, 1,1 top right
     //
     // This assumes that -1 in the Y corresponds to a 'full' width
-    set_vector_of_fxy(v, fxy) {
+    set_vector_of_fxy(vxyz, fxy) {
         const fx = fxy[0];
         const fy = (fxy[1] * this.win_ar) / this.tan_yx;
         const roll = Math.atan2(fy, fx);
         const f = Math.sqrt(fx * fx + fy * fy);
         const yaw = Math.atan(f * this.vp.tan_hfovh);
-        const vx = Math.cos(yaw);
-        const vy = Math.sin(yaw) * Math.cos(roll);
-        const vz = Math.sin(yaw) * Math.sin(roll);
-        v.set(new Float64Array([vx, vy, vz]));
+        vxyz[0] = Math.cos(yaw);
+        vxyz[1] = Math.sin(yaw) * Math.cos(roll);
+        vxyz[2] = Math.sin(yaw) * Math.sin(roll);
         return;
     }
     //mp cxy_of_vector
@@ -133,12 +126,6 @@ export class SkyCanvas {
         const y = this.height / 2.0 - v[2] / v[0] / this.tan_pixh; // v / this.win_ar );
         return [x, y];
     }
-    //mp select
-    select(s) {
-        this.logger.verbose("select", `Selected ${s}`);
-        this.vp.set_selected_star(s);
-        this.redraw_canvas();
-    }
     //mi rotate_axis
     rotate_axis(axis, delta) {
         var v = new WasmVec3f64(1, 0, 0);
@@ -150,18 +137,6 @@ export class SkyCanvas {
         }
         const q = WasmQuatf64.of_axis_angle(v, delta);
         this.vp.view_q_post_mul(q);
-    }
-    //mi center
-    center(ra_de) {
-        // Get new direction that is desired for the center of the view
-        const ecef_v = this.vp.vec_of_ra_de(ra_de[0], ra_de[1]);
-        // Get quaternon to rotate current center of view to the desired center of view
-        // const q = WasmQuatf64.rotation_of_vec_to_vec(this.vp.view_ecef_center_dir, new_qv);
-        //
-        // Add that rotation to the map camera
-        // this.vp.view_q_pre_mul(q);
-        const ce = this.vp.compass_elevation_of_ecef(ecef_v);
-        this.vp.view_observer_set(ce[0] * this.vp.deg2rad, ce[1] * this.vp.deg2rad);
     }
     //mi draw_star
     draw_star(ctx, star) {
@@ -194,26 +169,34 @@ export class SkyCanvas {
         }
     }
     //mi add_declination_circle
-    add_declination_circle(q, l, v, de, step_size) {
+    add_declination_circle(q, l, vec, de, step_size) {
         const de_c = Math.cos(de * this.vp.deg2rad);
         const de_s = Math.sin(de * this.vp.deg2rad);
+        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
         l.new_segment();
         for (var ra = 0; ra <= 360; ra += step_size) {
             const ra_r = ra * this.vp.deg2rad;
-            v.set(new Float64Array([de_c * Math.cos(ra_r), de_c * Math.sin(ra_r), de_s]));
-            l.add_pt(this.cxy_of_vector(q.apply(v)));
+            vxyz[0] = de_c * Math.cos(ra_r);
+            vxyz[1] = de_c * Math.sin(ra_r);
+            vxyz[2] = de_s;
+            q.set_vec_apply(vec);
+            l.add_pt(this.cxy_of_vector(vec));
         }
     }
     //mi add_ra_great_circle - for azimuthal grid
-    add_ra_great_circle(q, l, v, ra, _step_size) {
+    add_ra_great_circle(q, l, vec, ra, _step_size) {
         const ra_c = Math.cos(ra * this.vp.deg2rad);
         const ra_s = Math.sin(ra * this.vp.deg2rad);
+        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
         l.new_segment();
         for (var de = -80; de <= 80; de += 1) {
             const de_c = Math.cos(de * this.vp.deg2rad);
             const de_s = Math.sin(de * this.vp.deg2rad);
-            v.set(new Float64Array([ra_c * de_c, ra_s * de_c, de_s]));
-            l.add_pt(this.cxy_of_vector(q.apply(v)));
+            vxyz[0] = ra_c * de_c;
+            vxyz[1] = ra_s * de_c;
+            vxyz[2] = de_s;
+            q.set_vec_apply(vec);
+            l.add_pt(this.cxy_of_vector(vec));
         }
     }
     //mi draw_grid - draw a grid given a styling and ecef-to-view quaternion
@@ -344,21 +327,20 @@ export class SkyCanvas {
     }
     user_release(_start_xy, cxy) {
         const catalog = this.vp.catalog;
+        const fx = (-cxy[0] / this.width + 0.5) * 2;
+        const fy = (-cxy[1] / this.height + 0.5) * 2;
         // Map click location to ECEF direction
-        const v = new WasmVec3f64(0, 0, 0);
-        this.set_vector_of_cxy(v, cxy);
-        v.set_apply_q3(this.vp.view_to_ecef_q);
-        const qv = v.array;
-        const ra = Math.atan2(qv[1], qv[0]);
-        const de = Math.asin(qv[2]);
+        const vec = new WasmVec3f64(0, 0, 0);
+        this.vp.sky_view_frame_to_ecef_set_vec(fx, fy, vec);
+        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
+        const ra = Math.atan2(vxyz[1], vxyz[0]);
+        const de = Math.asin(vxyz[2]);
         catalog.clear_filter();
         catalog.filter_max_magnitude(this.vp.brightness);
-        this.select(catalog.closest_to_ra_de(ra, de));
+        this.application.select_star(catalog.closest_to_ra_de(ra, de));
     }
     user_zoom(_cxy, factor) {
-        this.vp.fovh = 2 * Math.atan(factor * Math.tan(this.vp.fovh / 2));
-        // Content change ?!!
-        this.vp.time_date_updated();
+        this.application.sky_view_zoom_by(factor);
     }
     user_rotate(_xy, angle) {
         const v = new WasmVec3f64(1, 0, 0);

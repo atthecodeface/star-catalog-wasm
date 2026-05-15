@@ -5,7 +5,7 @@ import { Logger } from "./log.js";
 import { WebglUniform, Webgl, Webgl3DObj } from "./web_gl.js";
 import { EarthShader } from "./earth_shaders.js";
 export class Earth {
-    constructor(star_catalog, canvas_div_id, width, height, use_webgl, division) {
+    constructor(application, canvas_div_id, width, height, use_webgl, division) {
         this.deg2rad = Math.PI / 180;
         this.rad2deg = 180 / Math.PI;
         this.webgl_icosphere = null;
@@ -15,10 +15,9 @@ export class Earth {
         this.texture = null;
         this.q = new WasmQuatf32(0, 0, 0, 1);
         this.triangle_q_ll = new WasmQuatf32(0, 0, 0, 1);
-        this.star_catalog = star_catalog;
-        this.vp = this.star_catalog.vp;
-        this.logger = new Logger(star_catalog.log, "earth");
-        this.styling = this.star_catalog.styling;
+        this.application = application;
+        this.vp = application.view_properties;
+        this.logger = new Logger(application.log, "earth");
         const size = Math.min(width, height);
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
@@ -27,7 +26,7 @@ export class Earth {
         this.height = size;
         this.canvas.width = this.width;
         this.canvas.height = this.height;
-        this.webgl = new Webgl(star_catalog.log, this.canvas);
+        this.webgl = new Webgl(application.log, this.canvas);
         this.use_webgl = use_webgl;
         this.ctx = null;
         this.mouse = new Mouse(this, this.canvas);
@@ -102,6 +101,7 @@ export class Earth {
     }
     webgl_draw() {
         var _a;
+        const styling = this.vp.styling();
         if (this.webgl === null) {
             return;
         }
@@ -138,7 +138,7 @@ export class Earth {
         if (this.texture_created) {
             this.webgl.set_texture(this.texture);
         }
-        this.webgl.set_color(this.styling.earth.color);
+        this.webgl.set_color(styling.earth.color);
         const model = WasmMat4f32.identity();
         this.webgl.set_uniform_mat4(WebglUniform.Model, model.array, false);
         this.webgl.draw(this.webgl_icosphere);
@@ -327,7 +327,8 @@ export class Earth {
         if (lat_lon == null) {
             return;
         }
-        this.star_catalog.update_latlon(lat_lon[0], lat_lon[1]);
+        this.vp.update_latlon(lat_lon[0], lat_lon[1]);
+        this.application.location_updated();
     }
     user_zoom(_cxy, factor) {
         if (factor < 1.0) {

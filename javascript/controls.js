@@ -67,11 +67,11 @@ export class Controls {
         this.elevation.update();
     }
     set_ctl_magnitude() {
-        this.star_catalog.sky_view_brightness_set();
+        this.vp.brightness_set();
         this.schedule_animation();
     }
     set_ctl_zoom() {
-        this.star_catalog.sky_view_zoom_set();
+        this.vp.zoom_set();
         this.schedule_animation();
     }
     schedule_animation() {

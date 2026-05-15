@@ -6,7 +6,10 @@ export class WasmMemory {
     refresh_view() {
         this.memory_view = new DataView(this.memory.buffer);
     }
-    float32_array(ptr, num_floats) {
-        return new Float32Array(this.memory.buffer, ptr, num_floats * 4);
+    float64_array(ptr, num_floats) {
+        return new Float64Array(this.memory.buffer, ptr, num_floats);
+    }
+    float_array_of_vec3f64(vec) {
+        return this.float64_array(vec.buffer, 3);
     }
 }

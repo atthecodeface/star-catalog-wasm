@@ -124,7 +124,7 @@ class SphereShader {
     }
 }
 export class TestCanvas {
-    constructor(star_catalog, catalog, canvas_div_id) {
+    constructor(application, canvas_div_id) {
         this.webgl = null;
         this.sphere_program = 0;
         this.flat_program = 0;
@@ -137,17 +137,15 @@ export class TestCanvas {
         this.webgl_bezier = null;
         this.view_scale = 3.0;
         this.model = WasmMat4f32.identity();
-        this.star_catalog = star_catalog;
-        this.catalog = catalog;
-        this.vp = this.star_catalog.vp;
-        this.logger = new Logger(star_catalog.log, "test");
-        this.styling = this.star_catalog.styling;
+        this.application = application;
+        this.vp = application.view_properties;
+        this.logger = new Logger(application.log, "test");
         this.div = document.getElementById(canvas_div_id);
         this.canvas = document.createElement("canvas");
         this.div.appendChild(this.canvas);
         this.canvas.height = 900;
         this.current_wh = [50, 50];
-        this.webgl = new Webgl(star_catalog.log, this.canvas);
+        this.webgl = new Webgl(application.log, this.canvas);
         this.icos = new WasmIcosphere();
         this.icos.subdivide(4);
         this.mouse = new Mouse(this, this.canvas);

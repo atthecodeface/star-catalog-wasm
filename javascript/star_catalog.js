@@ -1,7 +1,7 @@
 //a To do
 // Orbit, more names
 // precession, catalog in j2000 precession maps j2000 to current ecef (sky map is in ecef, optionally j2000)
-import star_catalog_init, { WasmCatalog, WasmVec3f64, } from "../pkg/star_catalog_wasm.js";
+import star_catalog_init, { WasmCatalog, } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import { WasmMemory } from "./wasm_memory.js";
 import { Tabs } from "./tabbed.js";
@@ -72,11 +72,11 @@ export class StarCatalog {
         this.vp = new ViewProperties(this, params);
         this.resize_observer = new ResizeObserver(this.resize_canvas.bind(this));
         this.controls = new Controls(this, "controls");
-        this.sky_canvas = new SkyCanvas(this, "SkyCanvas", 50, 50);
-        this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 50, 50);
-        this.earth_canvas = new Earth(this, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
-        this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas");
-        this.test_canvas = new TestCanvas(this, this.catalog, "TestCanvas");
+        this.sky_canvas = new SkyCanvas(this.vp, "SkyCanvas", 50, 50);
+        this.map_canvas = new MapCanvas(this.vp, "MapCanvas", 50, 50);
+        this.earth_canvas = new Earth(this.vp, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
+        this.find_canvas = new FindCanvas(this.vp, "FindCanvas");
+        this.test_canvas = new TestCanvas(this.vp, "TestCanvas");
         this.pending_resize = null;
         this.selected_css_changed();
         for (const resizable_content of document.getElementsByClassName("resizable-content")) {
@@ -250,61 +250,10 @@ export class StarCatalog {
         this.vp.time_set_to_now();
         this.set_view_needs_update();
     }
-    //mp update_latlon
-    /// Update the view, because of a view change, time change, etc
-    update_latlon(lat, lon) {
-        this.vp.update_latlon(lat, lon);
-        this.set_view_needs_update();
-    }
     //mp view_q_post_mul
     view_q_post_mul(q) {
         this.vp.view_q_post_mul(q);
         this.set_view_needs_update();
-    }
-    //mp view_q_pre_mul
-    view_q_pre_mul(q) {
-        this.vp.view_q_pre_mul(q);
-        this.set_view_needs_update();
-    }
-    //mp center_lat_lon
-    /// Center the earth view on a specific lat lon
-    center_lat_lon(lat, lon) {
-        this.earth_canvas.center_lat_lon(lat, lon);
-        this.set_view_needs_update();
-    }
-    //mp center_sky_view
-    /// Center the sky view on a specific right ascension / declination
-    center_sky_view(ra_de) {
-        this.sky_canvas.center(ra_de);
-    }
-    //mp sky_view_set_orientation
-    /// Set the whole quaternion
-    sky_view_set_orientation(q) {
-        this.vp.view_to_ecef_q = q;
-        this.set_view_needs_update();
-    }
-    //mp sky_view_vector_of_fxy
-    /// Map a frame XY into a star unit direction vector
-    sky_view_vector_of_fxy(fxy) {
-        const v = new WasmVec3f64(0, 0, 0);
-        this.sky_canvas.set_vector_of_fxy(v, fxy);
-        v.set_apply_q3(this.vp.view_to_ecef_q);
-        return v;
-    }
-    //mp sky_view_brightness_set
-    /// Set the maximum magnitude of the stars shown in the sky view
-    sky_view_brightness_set() {
-        this.vp.brightness_set();
-    }
-    //mp sky_view_zoom_set
-    /// Set the zoom of the sky view window
-    sky_view_zoom_set() {
-        this.vp.zoom_set();
-    }
-    //mp sky_view_zoom_by
-    /// Set the zoom of the sky view window
-    sky_view_zoom_by(factor) {
-        this.sky_canvas.user_zoom([0, 0], factor);
     }
 }
 //a Top level on load...
