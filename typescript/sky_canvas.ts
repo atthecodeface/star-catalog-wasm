@@ -229,19 +229,21 @@ export class SkyCanvas {
   add_declination_circle(
     q: WasmQuatf64,
     l: Line,
-    v: WasmVec3f64,
+    vec: WasmVec3f64,
     de: number,
     step_size: number,
   ) {
     const de_c = Math.cos(de * this.vp.deg2rad);
     const de_s = Math.sin(de * this.vp.deg2rad);
+    const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
     l.new_segment();
     for (var ra = 0; ra <= 360; ra += step_size) {
       const ra_r = ra * this.vp.deg2rad;
-      v.set(
-        new Float64Array([de_c * Math.cos(ra_r), de_c * Math.sin(ra_r), de_s]),
-      );
-      l.add_pt(this.cxy_of_vector(q.apply(v)));
+      vxyz[0] = de_c * Math.cos(ra_r);
+      vxyz[1] = de_c * Math.sin(ra_r);
+      vxyz[2] = de_s;
+      q.set_vec_apply(vec);
+      l.add_pt(this.cxy_of_vector(vec));
     }
   }
 
@@ -249,18 +251,22 @@ export class SkyCanvas {
   add_ra_great_circle(
     q: WasmQuatf64,
     l: Line,
-    v: WasmVec3f64,
+    vec: WasmVec3f64,
     ra: number,
     _step_size: number,
   ) {
     const ra_c = Math.cos(ra * this.vp.deg2rad);
     const ra_s = Math.sin(ra * this.vp.deg2rad);
+    const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
     l.new_segment();
     for (var de = -80; de <= 80; de += 1) {
       const de_c = Math.cos(de * this.vp.deg2rad);
       const de_s = Math.sin(de * this.vp.deg2rad);
-      v.set(new Float64Array([ra_c * de_c, ra_s * de_c, de_s]));
-      l.add_pt(this.cxy_of_vector(q.apply(v)));
+      vxyz[0] = ra_c * de_c;
+      vxyz[1] = ra_s * de_c;
+      vxyz[2] = de_s;
+      q.set_vec_apply(vec);
+      l.add_pt(this.cxy_of_vector(vec));
     }
   }
 
