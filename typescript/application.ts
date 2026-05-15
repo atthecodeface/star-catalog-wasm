@@ -19,5 +19,9 @@ export interface Application {
   select_star(catalog_index: number | undefined): void;
   sky_view_center_on_ra_de(ra: number, de: number): void;
   sky_view_zoom_by(factor: number): void;
-  sky_view_frame_set_vec(fx: number, fy: number, vec: WasmVec3f64): void;
+  sky_view_frame_to_ecef_set_vec(
+    fx: number,
+    fy: number,
+    vec: WasmVec3f64,
+  ): void;
 }

@@ -150,28 +150,20 @@ export class SkyCanvas {
     this.redraw_canvas();
   }
 
-  //mp set_vector_of_cxy
-  // Set a vector of canvas coord +X right +Y down
-  set_vector_of_cxy(v: WasmVec3f64, cxy: [number, number]) {
-    const fx = (-cxy[0] / this.width + 0.5) * 2;
-    const fy = (-cxy[1] / this.height + 0.5) * 2;
-    this.set_vector_of_fxy(v, [fx, fy]);
-  }
-
   //mp set_vector_of_fxy
   // Vector of *square* canvas fraction with -1,-1 being bottom left, 1,1 top right
   //
   // This assumes that -1 in the Y corresponds to a 'full' width
-  set_vector_of_fxy(v: WasmVec3f64, fxy: [number, number]) {
+  set_vector_of_fxy(vxyz: Float64Array, fxy: [number, number]) {
     const fx = fxy[0];
     const fy = (fxy[1] * this.win_ar) / this.tan_yx;
     const roll = Math.atan2(fy, fx);
     const f = Math.sqrt(fx * fx + fy * fy);
     const yaw = Math.atan(f * this.vp.tan_hfovh);
-    const vx = Math.cos(yaw);
-    const vy = Math.sin(yaw) * Math.cos(roll);
-    const vz = Math.sin(yaw) * Math.sin(roll);
-    v.set(new Float64Array([vx, vy, vz]));
+
+    vxyz[0] = Math.cos(yaw);
+    vxyz[1] = Math.sin(yaw) * Math.cos(roll);
+    vxyz[2] = Math.sin(yaw) * Math.sin(roll);
     return;
   }
 
@@ -417,14 +409,17 @@ export class SkyCanvas {
 
   user_release(_start_xy: [number, number], cxy: [number, number]): void {
     const catalog = this.vp.catalog;
-    // Map click location to ECEF direction
-    const v = new WasmVec3f64(0, 0, 0);
-    this.set_vector_of_cxy(v, cxy);
-    v.set_apply_q3(this.vp.view_to_ecef_q);
-    const qv = v.array;
+    const fx = (-cxy[0] / this.width + 0.5) * 2;
+    const fy = (-cxy[1] / this.height + 0.5) * 2;
 
-    const ra = Math.atan2(qv[1]!, qv[0]!);
-    const de = Math.asin(qv[2]!);
+    // Map click location to ECEF direction
+    const vec = new WasmVec3f64(0, 0, 0);
+    this.vp.sky_view_frame_to_ecef_set_vec(fx, fy, vec);
+
+    const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
+
+    const ra = Math.atan2(vxyz[1]!, vxyz[0]!);
+    const de = Math.asin(vxyz[2]!);
     catalog.clear_filter();
     catalog.filter_max_magnitude(this.vp.brightness);
     this.application.select_star(catalog.closest_to_ra_de(ra, de));

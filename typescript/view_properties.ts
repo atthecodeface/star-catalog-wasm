@@ -873,8 +873,9 @@ export class ViewProperties implements Application {
   }
 
   /// Map a frame XY into a star unit direction vector
-  sky_view_frame_set_vec(fx: number, fy: number, vec: WasmVec3f64) {
-    this.star_catalog.sky_canvas.set_vector_of_fxy(vec, [fx, fy]);
+  sky_view_frame_to_ecef_set_vec(fx: number, fy: number, vec: WasmVec3f64) {
+    const vxyz = this.wasm_memory.float_array_of_vec3f64(vec);
+    this.star_catalog.sky_canvas.set_vector_of_fxy(vxyz, [fx, fy]);
     vec.set_apply_q3(this.view_to_ecef_q);
   }
 }

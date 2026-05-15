@@ -175,7 +175,7 @@ export class MapCanvas {
       for (const y of [-1, 1]) {
         const l = new Line(ctx, this.width, this.height);
         for (var x = -1; x < 1.01; x += 0.1) {
-          this.application.sky_view_frame_set_vec(x, y, vec);
+          this.application.sky_view_frame_to_ecef_set_vec(x, y, vec);
           l.add_pt(this.cxy_of_vector(vec));
         }
         l.finish();
@@ -186,7 +186,7 @@ export class MapCanvas {
       for (const x of [-1, 1]) {
         const l = new Line(ctx, this.width, this.height);
         for (var y = -1; y < 1.01; y += 0.1) {
-          this.application.sky_view_frame_set_vec(x, y, vec);
+          this.application.sky_view_frame_to_ecef_set_vec(x, y, vec);
           l.add_pt(this.cxy_of_vector(vec));
         }
         l.finish();
