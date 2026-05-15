@@ -450,6 +450,14 @@ export class Mouse {
         ele.addEventListener("touchmove", this.touch_move.bind(this));
         ele.addEventListener("wheel", this.wheel.bind(this));
     }
+    /** Change the client to another */
+    set_client(client) {
+        if (this.client_interaction !== null) {
+            this.client_interaction.abort();
+            this.client_interaction = null;
+        }
+        this.client = client;
+    }
     /** Convert an event position to relative location
      *
      * @param {MouseEvent | Touch} e Event or similar that has a clientX/Y

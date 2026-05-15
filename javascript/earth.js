@@ -140,6 +140,7 @@ export class Earth {
             this.triangle_q_ll = qz.mul(qy);
         }
     }
+    // Used in user_release
     latlon_of_cxy(cxy) {
         this.derive_data();
         const dx = ((cxy[0] / this.width) * 2 - 1.0) / this.view_scale;
@@ -158,16 +159,6 @@ export class Earth {
         const lat = this.rad2deg * Math.asin(world.array[2]);
         const lon = this.rad2deg * Math.atan2(world.array[1], world.array[0]);
         return [lat, lon];
-    }
-    v_of_p(xyz_vec) {
-        let xyz = xyz_vec.array;
-        xyz[2] += 4;
-        // if (xyz[2] < 0.1) {
-        // return null;
-        // }
-        const x = (xyz[0] / xyz[2] + 0.5) * this.width;
-        const y = (xyz[1] / xyz[2] + 0.5) * this.height;
-        return [x, y];
     }
     draw() {
         this.derive_data();
@@ -190,7 +181,7 @@ export class Earth {
         const dcy = old_xy[1] - new_xy[1];
         this.center_on_lat -= dcy;
         this.center_on_lon -= dcx;
-        this.draw();
+        this.application.view_updated();
     }
     user_release(_start_xy, cxy) {
         const lat_lon = this.latlon_of_cxy(cxy);
@@ -207,6 +198,6 @@ export class Earth {
         else {
             this.center_on_lon += factor;
         }
-        this.draw();
+        this.application.view_updated();
     }
 }

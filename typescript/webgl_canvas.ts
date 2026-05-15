@@ -2,6 +2,7 @@ import {
   WasmVec3f32,
   WasmMat4f32,
   WasmIcosphere,
+  WasmQuatf32,
 } from "../pkg/star_catalog_wasm.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
@@ -40,6 +41,7 @@ export class WebglCanvas {
   webgl_icosphere: Webgl3DObj | null = null;
   webgl_axis: WebglFlatObj | null = null;
   webgl_bezier: WebglCubicBezierObj | null = null;
+  webgl_triangle: Webgl3DObj | null = null;
 
   solar_system: SolarSystem;
   star_field: StarField;
@@ -121,6 +123,22 @@ export class WebglCanvas {
         this.bezier_program = program;
       }
     }
+
+    this.webgl_triangle = new Webgl3DObj(3, 3);
+    this.webgl_triangle.add_vertex(
+      new Float32Array([1.0, 0, 0.05773]),
+      new Float32Array([0, 0]),
+    );
+    this.webgl_triangle.add_vertex(
+      new Float32Array([1.0, -0.05, -0.02887]),
+      new Float32Array([0, 0]),
+    );
+    this.webgl_triangle.add_vertex(
+      new Float32Array([1.0, 0.05, -0.02887]),
+      new Float32Array([0, 0]),
+    );
+    this.webgl_triangle.add_face([0, 2, 1]);
+    this.webgl!.create(this.webgl_triangle);
 
     const icos = new WasmIcosphere();
     icos.subdivide(division);
@@ -275,5 +293,72 @@ export class WebglCanvas {
     this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
     this.solar_system.draw_sun(this.webgl, this.webgl_icosphere!);
     this.solar_system.draw_planets(this.webgl, this.webgl_icosphere!);
+  }
+
+  draw_earth(q: WasmQuatf32, triangle_q_ll: WasmQuatf32) {
+    let wh = this.vp.get_resizable_content_size();
+    if (this.current_wh != wh) {
+      this.canvas.width = wh[0];
+      this.canvas.height = wh[1];
+      this.current_wh = wh;
+    }
+
+    // const style = this.star_catalog.styling.clock;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const view_scale = 0.9;
+    const ar = w / h;
+
+    if (this.webgl === null) {
+      return;
+    }
+
+    this.webgl.webgl!.viewport(0, 0, w, h);
+    this.webgl.clear_buffer();
+
+    const styling = this.vp.styling();
+    this.webgl.use_program(this.earth_program);
+
+    // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
+    const projection = [
+      0,
+      0,
+      -view_scale,
+      0,
+
+      view_scale * ar,
+      0,
+      0,
+      0,
+
+      0,
+      view_scale,
+      0,
+      0,
+
+      0,
+      0,
+      0,
+      1,
+    ];
+    this.webgl.set_uniform_mat4(WebglUniform.Projection, projection);
+
+    const matrix = WasmMat4f32.identity();
+    q.set_mat4_rotation(matrix);
+    this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+
+    this.webgl.set_texture(this.earth_texture!);
+
+    this.webgl.set_color(styling.earth.color);
+
+    const model = WasmMat4f32.identity();
+    this.webgl.set_uniform_mat4(WebglUniform.Model, model.array, false);
+    this.webgl.draw(this.webgl_icosphere!);
+
+    this.webgl.set_color([1, 0, 0, 0]);
+
+    triangle_q_ll.set_mat4_rotation(matrix);
+    this.webgl.set_uniform_mat4(WebglUniform.Model, matrix.array, true);
+    this.webgl.draw(this.webgl_triangle!);
   }
 }

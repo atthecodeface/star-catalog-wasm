@@ -56,6 +56,8 @@ export class TestCanvas {
     this.webgl_canvas = new WebglCanvas(application, this.canvas);
 
     this.mouse = new Mouse(this, this.canvas);
+
+    this.mouse.set_client(this.vp.star_catalog.earth_canvas);
   }
 
   update() {

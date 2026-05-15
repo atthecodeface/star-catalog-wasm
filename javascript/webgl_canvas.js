@@ -15,6 +15,7 @@ export class WebglCanvas {
         this.webgl_icosphere = null;
         this.webgl_axis = null;
         this.webgl_bezier = null;
+        this.webgl_triangle = null;
         this.model = WasmMat4f32.identity();
         this.application = application;
         this.vp = application.view_properties;
@@ -80,6 +81,12 @@ export class WebglCanvas {
                 this.bezier_program = program;
             }
         }
+        this.webgl_triangle = new Webgl3DObj(3, 3);
+        this.webgl_triangle.add_vertex(new Float32Array([1.0, 0, 0.05773]), new Float32Array([0, 0]));
+        this.webgl_triangle.add_vertex(new Float32Array([1.0, -0.05, -0.02887]), new Float32Array([0, 0]));
+        this.webgl_triangle.add_vertex(new Float32Array([1.0, 0.05, -0.02887]), new Float32Array([0, 0]));
+        this.webgl_triangle.add_face([0, 2, 1]);
+        this.webgl.create(this.webgl_triangle);
         const icos = new WasmIcosphere();
         icos.subdivide(division);
         this.webgl_icosphere = new Webgl3DObj(icos.num_vertices, icos.num_faces * 3);
@@ -192,5 +199,57 @@ export class WebglCanvas {
         this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
         this.solar_system.draw_sun(this.webgl, this.webgl_icosphere);
         this.solar_system.draw_planets(this.webgl, this.webgl_icosphere);
+    }
+    draw_earth(q, triangle_q_ll) {
+        let wh = this.vp.get_resizable_content_size();
+        if (this.current_wh != wh) {
+            this.canvas.width = wh[0];
+            this.canvas.height = wh[1];
+            this.current_wh = wh;
+        }
+        // const style = this.star_catalog.styling.clock;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const view_scale = 0.9;
+        const ar = w / h;
+        if (this.webgl === null) {
+            return;
+        }
+        this.webgl.webgl.viewport(0, 0, w, h);
+        this.webgl.clear_buffer();
+        const styling = this.vp.styling();
+        this.webgl.use_program(this.earth_program);
+        // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
+        const projection = [
+            0,
+            0,
+            -view_scale,
+            0,
+            view_scale * ar,
+            0,
+            0,
+            0,
+            0,
+            view_scale,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+        ];
+        this.webgl.set_uniform_mat4(WebglUniform.Projection, projection);
+        const matrix = WasmMat4f32.identity();
+        q.set_mat4_rotation(matrix);
+        this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+        this.webgl.set_texture(this.earth_texture);
+        this.webgl.set_color(styling.earth.color);
+        const model = WasmMat4f32.identity();
+        this.webgl.set_uniform_mat4(WebglUniform.Model, model.array, false);
+        this.webgl.draw(this.webgl_icosphere);
+        this.webgl.set_color([1, 0, 0, 0]);
+        triangle_q_ll.set_mat4_rotation(matrix);
+        this.webgl.set_uniform_mat4(WebglUniform.Model, matrix.array, true);
+        this.webgl.draw(this.webgl_triangle);
     }
 }
