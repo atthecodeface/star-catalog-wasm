@@ -10,14 +10,13 @@ import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { WebglTexture, WebglUniform, Webgl, Webgl3DObj } from "./web_gl.js";
 
+import { Application } from "./application.js";
 import { ViewProperties } from "./view_properties.js";
-import { Styling } from "./styling.js";
-import { StarCatalog } from "./star_catalog.js";
 
 import { EarthShader } from "./earth_shaders.js";
 
 export class Earth {
-  star_catalog: StarCatalog;
+  application: Application;
   vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
@@ -46,20 +45,18 @@ export class Earth {
   texture: WebglTexture | null = null;
   q: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
   triangle_q_ll: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
-  styling: Styling;
 
   constructor(
-    star_catalog: StarCatalog,
+    application: Application,
     canvas_div_id: string,
     width: number,
     height: number,
     use_webgl: boolean,
     division: number,
   ) {
-    this.star_catalog = star_catalog;
-    this.vp = this.star_catalog.vp;
-    this.logger = new Logger(star_catalog.log, "earth");
-    this.styling = this.star_catalog.styling;
+    this.application = application;
+    this.vp = application.view_properties;
+    this.logger = new Logger(application.log, "earth");
 
     const size = Math.min(width, height);
 
@@ -72,7 +69,7 @@ export class Earth {
 
     this.canvas.width = this.width;
     this.canvas.height = this.height;
-    this.webgl = new Webgl(star_catalog.log, this.canvas);
+    this.webgl = new Webgl(application.log, this.canvas);
 
     this.use_webgl = use_webgl;
     this.ctx = null;
@@ -177,6 +174,7 @@ export class Earth {
   }
 
   webgl_draw() {
+    const styling = this.vp.styling();
     if (this.webgl === null) {
       return;
     }
@@ -221,7 +219,7 @@ export class Earth {
       this.webgl.set_texture(this.texture!);
     }
 
-    this.webgl.set_color(this.styling.earth.color);
+    this.webgl.set_color(styling.earth.color);
 
     const model = WasmMat4f32.identity();
     this.webgl.set_uniform_mat4(WebglUniform.Model, model.array, false);
@@ -443,7 +441,8 @@ export class Earth {
     if (lat_lon == null) {
       return;
     }
-    this.star_catalog.update_latlon(lat_lon[0], lat_lon[1]);
+    this.vp.update_latlon(lat_lon[0], lat_lon[1]);
+    this.application.location_updated();
   }
 
   user_zoom(_cxy: [number, number], factor: number): void {

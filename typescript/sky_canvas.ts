@@ -8,10 +8,11 @@ import { Mouse, MousePressActions } from "./mouse.js";
 import { Cache } from "./cache.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
-import { StarCatalog } from "./star_catalog.js";
+import { Application } from "./application.js";
 
 //a SkyCanvas
 export class SkyCanvas {
+  application: Application;
   vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
@@ -33,13 +34,14 @@ export class SkyCanvas {
 
   //fp constructor
   constructor(
-    star_catalog: StarCatalog,
+    application: Application,
     canvas_div_id: string,
     width: number,
     height: number,
   ) {
-    this.vp = star_catalog.vp;
-    this.logger = new Logger(star_catalog.log, "clock");
+    this.application = application;
+    this.vp = application.view_properties;
+    this.logger = new Logger(application.log, "clock");
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -187,14 +189,6 @@ export class SkyCanvas {
     return [x, y];
   }
 
-  //mp select
-  select(s: undefined | number) {
-    this.logger.verbose("select", `Selected ${s}`);
-    this.vp.set_selected_star(s);
-
-    this.redraw_canvas();
-  }
-
   //mi rotate_axis
   rotate_axis(axis: number, delta: number) {
     var v = new WasmVec3f64(1, 0, 0);
@@ -205,23 +199,6 @@ export class SkyCanvas {
     }
     const q = WasmQuatf64.of_axis_angle(v, delta);
     this.vp.view_q_post_mul(q);
-  }
-
-  //mi center
-  center(ra_de: [number, number]) {
-    // Get new direction that is desired for the center of the view
-    const ecef_v = this.vp.vec_of_ra_de(ra_de[0], ra_de[1]);
-
-    // Get quaternon to rotate current center of view to the desired center of view
-    // const q = WasmQuatf64.rotation_of_vec_to_vec(this.vp.view_ecef_center_dir, new_qv);
-    //
-    // Add that rotation to the map camera
-    // this.vp.view_q_pre_mul(q);
-    const ce = this.vp.compass_elevation_of_ecef(ecef_v);
-    this.vp.view_observer_set(
-      ce[0]! * this.vp.deg2rad,
-      ce[1]! * this.vp.deg2rad,
-    );
   }
 
   //mi draw_star
@@ -450,13 +427,11 @@ export class SkyCanvas {
     const de = Math.asin(qv[2]!);
     catalog.clear_filter();
     catalog.filter_max_magnitude(this.vp.brightness);
-    this.select(catalog.closest_to_ra_de(ra, de));
+    this.application.select_star(catalog.closest_to_ra_de(ra, de));
   }
 
   user_zoom(_cxy: [number, number], factor: number): void {
-    this.vp.fovh = 2 * Math.atan(factor * Math.tan(this.vp.fovh / 2));
-    // Content change ?!!
-    this.vp.time_date_updated();
+    this.application.sky_view_zoom_by(factor);
   }
 
   user_rotate(_xy: [number, number], angle: number): void {

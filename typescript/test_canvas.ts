@@ -1,5 +1,4 @@
 import {
-  WasmCatalog,
   WasmOrbit,
   WasmVec3f32,
   WasmQuatf32,
@@ -11,8 +10,8 @@ import {
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
-import { Styling } from "./styling.js";
-import { StarCatalog } from "./star_catalog.js";
+import { Application } from "./application.js";
+
 import {
   WebglTexture,
   WebglShaderSrc,
@@ -171,8 +170,7 @@ class SphereShader implements WebglShaderSrc {
 }
 
 export class TestCanvas {
-  star_catalog: StarCatalog;
-  catalog: WasmCatalog;
+  application: Application;
   vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
@@ -180,8 +178,6 @@ export class TestCanvas {
   icos: WasmIcosphere;
 
   mouse: Mouse;
-
-  styling: Styling;
 
   webgl: Webgl | null = null;
   sphere_program: number = 0;
@@ -200,16 +196,10 @@ export class TestCanvas {
 
   current_wh: [number, number];
 
-  constructor(
-    star_catalog: StarCatalog,
-    catalog: WasmCatalog,
-    canvas_div_id: string,
-  ) {
-    this.star_catalog = star_catalog;
-    this.catalog = catalog;
-    this.vp = this.star_catalog.vp;
-    this.logger = new Logger(star_catalog.log, "test");
-    this.styling = this.star_catalog.styling;
+  constructor(application: Application, canvas_div_id: string) {
+    this.application = application;
+    this.vp = application.view_properties;
+    this.logger = new Logger(application.log, "test");
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -217,7 +207,7 @@ export class TestCanvas {
 
     this.canvas.height = 900;
     this.current_wh = [50, 50];
-    this.webgl = new Webgl(star_catalog.log, this.canvas);
+    this.webgl = new Webgl(application.log, this.canvas);
     this.icos = new WasmIcosphere();
     this.icos.subdivide(4);
 

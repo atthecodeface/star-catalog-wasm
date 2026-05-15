@@ -4,7 +4,6 @@
 
 import star_catalog_init, {
   WasmCatalog,
-  WasmVec3f64,
   WasmQuatf64,
   InitOutput,
 } from "../pkg/star_catalog_wasm.js";
@@ -114,10 +113,10 @@ export class StarCatalog {
 
     this.controls = new Controls(this, "controls");
 
-    this.sky_canvas = new SkyCanvas(this, "SkyCanvas", 50, 50);
-    this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 50, 50);
+    this.sky_canvas = new SkyCanvas(this.vp, "SkyCanvas", 50, 50);
+    this.map_canvas = new MapCanvas(this.vp, "MapCanvas", 50, 50);
     this.earth_canvas = new Earth(
-      this,
+      this.vp,
       "EarthCanvas",
       800,
       400,
@@ -125,8 +124,8 @@ export class StarCatalog {
       this.vp.earth_division,
     );
 
-    this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas");
-    this.test_canvas = new TestCanvas(this, this.catalog, "TestCanvas");
+    this.find_canvas = new FindCanvas(this.vp, "FindCanvas");
+    this.test_canvas = new TestCanvas(this.vp, "TestCanvas");
 
     this.pending_resize = null;
     this.selected_css_changed();
@@ -326,70 +325,10 @@ export class StarCatalog {
     this.set_view_needs_update();
   }
 
-  //mp update_latlon
-  /// Update the view, because of a view change, time change, etc
-  update_latlon(lat: number, lon: number) {
-    this.vp.update_latlon(lat, lon);
-    this.set_view_needs_update();
-  }
-
   //mp view_q_post_mul
   view_q_post_mul(q: WasmQuatf64) {
     this.vp.view_q_post_mul(q);
     this.set_view_needs_update();
-  }
-
-  //mp view_q_pre_mul
-  view_q_pre_mul(q: WasmQuatf64) {
-    this.vp.view_q_pre_mul(q);
-    this.set_view_needs_update();
-  }
-
-  //mp center_lat_lon
-  /// Center the earth view on a specific lat lon
-  center_lat_lon(lat: number, lon: number) {
-    this.earth_canvas.center_lat_lon(lat, lon);
-    this.set_view_needs_update();
-  }
-
-  //mp center_sky_view
-  /// Center the sky view on a specific right ascension / declination
-  center_sky_view(ra_de: [number, number]) {
-    this.sky_canvas.center(ra_de);
-  }
-
-  //mp sky_view_set_orientation
-  /// Set the whole quaternion
-  sky_view_set_orientation(q: WasmQuatf64) {
-    this.vp.view_to_ecef_q = q;
-    this.set_view_needs_update();
-  }
-
-  //mp sky_view_vector_of_fxy
-  /// Map a frame XY into a star unit direction vector
-  sky_view_vector_of_fxy(fxy: [number, number]) {
-    const v = new WasmVec3f64(0, 0, 0);
-    this.sky_canvas.set_vector_of_fxy(v, fxy);
-    v.set_apply_q3(this.vp.view_to_ecef_q);
-    return v;
-  }
-
-  //mp sky_view_brightness_set
-  /// Set the maximum magnitude of the stars shown in the sky view
-  sky_view_brightness_set() {
-    this.vp.brightness_set();
-  }
-
-  //mp sky_view_zoom_set
-  /// Set the zoom of the sky view window
-  sky_view_zoom_set() {
-    this.vp.zoom_set();
-  }
-
-  //mp sky_view_zoom_by
-  /// Set the zoom of the sky view window
-  sky_view_zoom_by(factor: number) {
-    this.sky_canvas.user_zoom([0, 0], factor);
   }
 }
 

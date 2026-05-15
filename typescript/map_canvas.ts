@@ -1,7 +1,6 @@
 import {
   WasmVec3f64,
   WasmQuatf64,
-  WasmCatalog,
   WasmStar,
 } from "../pkg/star_catalog_wasm.js";
 import { Line } from "./draw.js";
@@ -9,13 +8,10 @@ import { Cache } from "./cache.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
-import { Styling } from "./styling.js";
-
-import { StarCatalog } from "./star_catalog.js";
+import { Application } from "./application.js";
 
 export class MapCanvas {
-  star_catalog: StarCatalog;
-  catalog: WasmCatalog;
+  application: Application;
   vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
@@ -26,23 +22,19 @@ export class MapCanvas {
   star_cache: Cache<any>;
 
   mouse: Mouse;
-  styling: Styling;
 
   last_drag_polar: [number, number] = [0, 0];
   drag_minutes: boolean = false;
 
   constructor(
-    star_catalog: StarCatalog,
-    catalog: WasmCatalog,
+    application: Application,
     canvas_div_id: string,
     width: number,
     height: number,
   ) {
-    this.star_catalog = star_catalog;
-    this.catalog = catalog;
-    this.vp = this.star_catalog.vp;
-    this.logger = new Logger(star_catalog.log, "map");
-    this.styling = this.star_catalog.styling;
+    this.application = application;
+    this.vp = this.application.view_properties;
+    this.logger = new Logger(application.log, "map");
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -71,25 +63,26 @@ export class MapCanvas {
 
   //mi fill_star_cache
   fill_star_cache(_x: WasmStar[]): WasmStar[] {
+    const catalog = this.application.catalog;
     const stars = [];
     console.log("Fill map canvas cache");
 
     const XP_AXIS = new WasmVec3f64(1, 0, 0);
-    this.catalog.clear_filter();
-    this.catalog.filter_max_magnitude(this.brightness);
-    for (const index of this.catalog.find_stars_around(XP_AXIS, 1.6, 0, 1000)) {
-      stars.push(this.catalog.star(index)!);
+    catalog.clear_filter();
+    catalog.filter_max_magnitude(this.brightness);
+    for (const index of catalog.find_stars_around(XP_AXIS, 1.6, 0, 1000)) {
+      stars.push(catalog.star(index)!);
     }
 
-    this.catalog.clear_filter();
-    this.catalog.filter_max_magnitude(this.brightness);
-    for (const index of this.catalog.find_stars_around(
+    catalog.clear_filter();
+    catalog.filter_max_magnitude(this.brightness);
+    for (const index of catalog.find_stars_around(
       XP_AXIS.neg(),
       1.6,
       0,
       1000,
     )) {
-      stars.push(this.catalog.star(index)!);
+      stars.push(catalog.star(index)!);
     }
     return stars;
   }
@@ -175,28 +168,30 @@ export class MapCanvas {
   //mi draw_sky_rect
   // Draw the 'rectangle' that the Sky canvas represents
   draw_sky_rect(ctx: CanvasRenderingContext2D): void {
-    if (this.styling.map.view_border != null) {
-      ctx.strokeStyle = this.styling.map.view_border[0]!;
+    const styling = this.application.styling();
+    const vec = new WasmVec3f64(0, 0, 0);
+    if (styling.map.view_border != null) {
+      ctx.strokeStyle = styling.map.view_border[0]!;
       for (const y of [-1, 1]) {
         const l = new Line(ctx, this.width, this.height);
         for (var x = -1; x < 1.01; x += 0.1) {
-          const v = this.star_catalog.sky_view_vector_of_fxy([x, y]);
-          l.add_pt(this.cxy_of_vector(v));
+          this.application.sky_view_frame_set_vec(x, y, vec);
+          l.add_pt(this.cxy_of_vector(vec));
         }
         l.finish();
-        ctx.strokeStyle = this.styling.map.view_border[2]!;
+        ctx.strokeStyle = styling.map.view_border[2]!;
       }
 
-      ctx.strokeStyle = this.styling.map.view_border[1]!;
+      ctx.strokeStyle = styling.map.view_border[1]!;
       for (const x of [-1, 1]) {
         const l = new Line(ctx, this.width, this.height);
         for (var y = -1; y < 1.01; y += 0.1) {
-          const v = this.star_catalog.sky_view_vector_of_fxy([x, y]);
-          l.add_pt(this.cxy_of_vector(v));
+          this.application.sky_view_frame_set_vec(x, y, vec);
+          l.add_pt(this.cxy_of_vector(vec));
         }
         l.finish();
         ctx.stroke();
-        ctx.strokeStyle = this.styling.map.view_border[3]!;
+        ctx.strokeStyle = styling.map.view_border[3]!;
       }
     }
   }
@@ -227,18 +222,20 @@ export class MapCanvas {
 
   //mi draw_equatorial_grid
   draw_equatorial_grid(ctx: CanvasRenderingContext2D) {
+    const styling = this.application.styling();
+
     if (!this.vp.show_equatorial) {
       return;
     }
     const l = new Line(ctx, this.width, this.height);
     ctx.lineWidth = 2.0;
 
-    ctx.strokeStyle = this.styling.map.equatorial_grid[3]!;
+    ctx.strokeStyle = styling.map.equatorial_grid[3]!;
     for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
       l.add_pt(this.cxy_of_ra_de(0 * Math.PI, (de * Math.PI) / 2));
     }
     l.finish();
-    ctx.strokeStyle = this.styling.map.equatorial_grid[4]!;
+    ctx.strokeStyle = styling.map.equatorial_grid[4]!;
     for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
       l.add_pt(this.cxy_of_ra_de(0.999 * Math.PI, (de * Math.PI) / 2));
     }
@@ -248,7 +245,7 @@ export class MapCanvas {
     }
     l.finish();
 
-    ctx.strokeStyle = this.styling.map.equatorial_grid[1]!;
+    ctx.strokeStyle = styling.map.equatorial_grid[1]!;
     ctx.lineWidth = 1.0;
     for (var ra = 1 / 6; ra < 0.999; ra += 1 / 6) {
       for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
@@ -261,7 +258,7 @@ export class MapCanvas {
       l.finish();
     }
 
-    ctx.strokeStyle = this.styling.map.equatorial_grid[1]!;
+    ctx.strokeStyle = styling.map.equatorial_grid[1]!;
     for (var de = -1; de < -0.01; de += 1 / 3) {
       l.new_segment();
       for (const ra of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
@@ -274,7 +271,7 @@ export class MapCanvas {
     }
     l.finish();
 
-    ctx.strokeStyle = this.styling.map.equatorial_grid[2]!;
+    ctx.strokeStyle = styling.map.equatorial_grid[2]!;
     for (const ra of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
       l.add_pt(this.cxy_of_ra_de(ra * Math.PI, 0));
     }
@@ -325,6 +322,7 @@ export class MapCanvas {
   // Create a RH set of axes with z as 'up', and ideally x with no
   // component in the 'declination' direction
   draw_azimuthal_grid(ctx: CanvasRenderingContext2D): void {
+    const styling = this.application.styling();
     if (!this.vp.show_azimuthal) {
       return;
     }
@@ -334,33 +332,33 @@ export class MapCanvas {
     const v = new WasmVec3f64(0, 0, 0);
 
     // ecliptic
-    ctx.strokeStyle = this.styling.map.azimuthal_grid[2]!;
+    ctx.strokeStyle = styling.map.azimuthal_grid[2]!;
     this.add_declination_circle(q_grid, l, v, 0, 1);
     l.finish();
 
     // above horizon
-    ctx.strokeStyle = this.styling.map.azimuthal_grid[0]!;
+    ctx.strokeStyle = styling.map.azimuthal_grid[0]!;
     for (var de = 10; de <= 80; de += 10) {
       this.add_declination_circle(q_grid, l, v, de, 1);
     }
     l.finish();
 
     // below horizon
-    ctx.strokeStyle = this.styling.map.azimuthal_grid[1]!;
+    ctx.strokeStyle = styling.map.azimuthal_grid[1]!;
     for (var de = -80; de < 0; de += 10) {
       this.add_declination_circle(q_grid, l, v, de, 1);
     }
     l.finish();
 
-    ctx.strokeStyle = this.styling.map.azimuthal_grid[3]!;
+    ctx.strokeStyle = styling.map.azimuthal_grid[3]!;
     this.add_ra_great_circle(q_grid, l, v, 0, 1);
     l.finish();
 
-    ctx.strokeStyle = this.styling.map.azimuthal_grid[4]!;
+    ctx.strokeStyle = styling.map.azimuthal_grid[4]!;
     this.add_ra_great_circle(q_grid, l, v, 180, 1);
     l.finish();
 
-    ctx.strokeStyle = this.styling.map.azimuthal_grid[1]!;
+    ctx.strokeStyle = styling.map.azimuthal_grid[1]!;
     for (var ra = 15; ra < 175; ra += 15) {
       this.add_ra_great_circle(q_grid, l, v, ra, 1);
       this.add_ra_great_circle(q_grid, l, v, ra + 180, 1);
@@ -370,6 +368,8 @@ export class MapCanvas {
 
   //mi redraw_canvas
   redraw_canvas() {
+    const catalog = this.application.catalog;
+
     const ctx = this.canvas.getContext("2d")!;
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -383,7 +383,7 @@ export class MapCanvas {
 
     this.draw_sky_rect(ctx);
     if (this.vp.selected_star) {
-      const star = this.catalog.star(this.vp.selected_star);
+      const star = catalog.star(this.vp.selected_star);
       const cxy = this.cxy_of_vector(star!.vector);
       if (cxy != null) {
         ctx.strokeStyle = "white";
@@ -402,12 +402,12 @@ export class MapCanvas {
   user_rotate(_xy: [number, number], _angle: number): void {}
 
   user_zoom(_cxy: [number, number], factor: number): void {
-    this.star_catalog.sky_view_zoom_by(factor);
+    this.application.sky_view_zoom_by(factor);
   }
 
   drag_start(_start_xy: [number, number], xy: [number, number]): void {
     const ra_de = this.ra_de_of_cxy(xy);
-    this.star_catalog.center_sky_view(ra_de);
+    this.application.sky_view_center_on_ra_de(ra_de[0], ra_de[1]);
   }
 
   drag_to(
@@ -416,21 +416,20 @@ export class MapCanvas {
     new_xy: [number, number],
   ): void {
     const ra_de = this.ra_de_of_cxy(new_xy);
-    this.star_catalog.center_sky_view(ra_de);
+    this.application.sky_view_center_on_ra_de(ra_de[0], ra_de[1]);
   }
 
   drag_end(_start_xy: [number, number], xy: [number, number]): void {
     const ra_de = this.ra_de_of_cxy(xy);
-    this.star_catalog.center_sky_view(ra_de);
+    this.application.sky_view_center_on_ra_de(ra_de[0], ra_de[1]);
     this.vp.log_compass_elevation_update();
   }
 
   user_release(_start_xy: [number, number], xy: [number, number]): void {
+    const catalog = this.application.catalog;
     const ra_de = this.ra_de_of_cxy(xy);
-    this.catalog.clear_filter();
-    this.catalog.filter_max_magnitude(this.brightness);
-    this.star_catalog.sky_canvas.select(
-      this.catalog.closest_to_ra_de(ra_de[0], ra_de[1]),
-    );
+    catalog.clear_filter();
+    catalog.filter_max_magnitude(this.brightness);
+    this.application.select_star(catalog.closest_to_ra_de(ra_de[0], ra_de[1]));
   }
 }

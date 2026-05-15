@@ -9,8 +9,8 @@ import { Mouse, MousePressActions } from "./mouse.js";
 import { ZoomedWindow } from "./zoomed_window.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
-import { StarCatalog } from "./star_catalog.js";
 import { HtmlElement } from "./html.js";
+import { Application } from "./application.js";
 
 interface LensMapping {
   map_sensor_r_to_world_yaw(mm_equiv: number, sensor_r: number): number;
@@ -164,8 +164,7 @@ class FindOrientation {
 }
 
 export class FindCanvas {
-  star_catalog: StarCatalog;
-  catalog: WasmCatalog;
+  application: Application;
   vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
@@ -190,15 +189,10 @@ export class FindCanvas {
   selected_stars: [number, number][];
 
   lens_mapping: LensMapping;
-  constructor(
-    star_catalog: StarCatalog,
-    catalog: WasmCatalog,
-    canvas_div_id: string,
-  ) {
-    this.star_catalog = star_catalog;
-    this.catalog = catalog;
-    this.vp = this.star_catalog.vp;
-    this.logger = new Logger(star_catalog.log, "find");
+  constructor(application: Application, canvas_div_id: string) {
+    this.application = application;
+    this.vp = this.application.view_properties;
+    this.logger = new Logger(application.log, "find");
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -419,7 +413,7 @@ export class FindCanvas {
     }
 
     const find_orientation = new FindOrientation(
-      this.catalog,
+      this.application.catalog,
       star_vectors,
       this.vp.brightness,
       this.max_angle_delta,
@@ -427,10 +421,7 @@ export class FindCanvas {
 
     const mappings = find_orientation.find_best_star_mappings();
 
-    this.star_catalog.sky_view_set_orientation(
-      //        q_err![0].rotate_y(-Math.PI / 2).rotate_x(Math.PI / 2),
-      mappings[0]!,
-    );
+    this.vp.view_observer_set_orientation(mappings[0]!);
   }
 
   vector_of_img_xy(ixy: [number, number]): WasmVec3f64 {
@@ -489,7 +480,7 @@ export class FindCanvas {
   }
 
   redraw_canvas() {
-    const style = this.star_catalog.styling.clock;
+    const style = this.application.styling().clock;
     const w = this.canvas.width;
     const h = this.canvas.height;
     const ctx = this.canvas.getContext("2d")!;
@@ -526,7 +517,7 @@ export class FindCanvas {
       ctx.stroke();
     }
 
-    const stars = this.star_catalog.sky_canvas.star_cache.get();
+    const stars = this.vp.star_catalog.sky_canvas.star_cache.get();
     for (const star of stars.stars) {
       star.set_vector(this.star_vector);
       this.star_vector.set_apply_q3(this.vp.ecef_to_view_q);
