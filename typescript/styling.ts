@@ -2,8 +2,6 @@ class SkyStyling {
   azimuthal_grid: string[] = [];
   equatorial_grid: string[] = [];
   view_border: string[] = [];
-  show_azimuthal: boolean = false;
-  show_equatorial: boolean = false;
 }
 
 export class Styling {
@@ -41,8 +39,6 @@ export class Styling {
   };
 
   css: string = "night";
-  show_azimuthal: boolean = false;
-  show_equatorial: boolean = false;
 
   constructor(day_or_night: string) {
     this.set(day_or_night);
@@ -86,9 +82,6 @@ export class Styling {
     this.clock.moon = "#777";
 
     this.css = "day";
-
-    // this.show_azimuthal = true;
-    // this.show_equatorial = true;
   }
 
   set_night(): void {
@@ -120,8 +113,6 @@ export class Styling {
     this.clock.moon = "#777";
 
     this.css = "night";
-    // this.show_azimuthal = true;
-    // this.show_equatorial = true;
   }
 
   /// Set all elements with a 'dn' class to be also in night or day

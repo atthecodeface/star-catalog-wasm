@@ -1,7 +1,6 @@
 import {
   WasmVec3f64,
   WasmQuatf64,
-  WasmCatalog,
   WasmStar,
 } from "../pkg/star_catalog_wasm.js";
 import { Line } from "./draw.js";
@@ -9,13 +8,10 @@ import { Mouse, MousePressActions } from "./mouse.js";
 import { Cache } from "./cache.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
-import { Styling } from "./styling.js";
 import { StarCatalog } from "./star_catalog.js";
 
 //a SkyCanvas
 export class SkyCanvas {
-  star_catalog: StarCatalog;
-  catalog: WasmCatalog;
   vp: ViewProperties;
   logger: Logger;
   div: HTMLElement;
@@ -28,8 +24,6 @@ export class SkyCanvas {
   star_cache: Cache<any>;
   tan_yx: number;
 
-  styling: Styling;
-
   win_ar: number = 0;
   // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
   tan_pixh: number = 0;
@@ -40,16 +34,12 @@ export class SkyCanvas {
   //fp constructor
   constructor(
     star_catalog: StarCatalog,
-    catalog: WasmCatalog,
     canvas_div_id: string,
     width: number,
     height: number,
   ) {
-    this.star_catalog = star_catalog;
-    this.catalog = catalog;
-    this.vp = this.star_catalog.vp;
+    this.vp = star_catalog.vp;
     this.logger = new Logger(star_catalog.log, "clock");
-    this.styling = this.star_catalog.styling;
 
     this.div = document.getElementById(canvas_div_id)!;
     this.canvas = document.createElement("canvas");
@@ -109,17 +99,17 @@ export class SkyCanvas {
     return false;
   }
 
-  //mi try_to_fill_star_cache
   try_to_fill_star_cache(stars: any) {
-    this.catalog.clear_filter();
-    this.catalog.filter_max_magnitude(this.vp.brightness);
+    const catalog = this.vp.catalog;
+    catalog.clear_filter();
+    catalog.filter_max_magnitude(this.vp.brightness);
 
     stars.brightness = this.vp.brightness;
     stars.center = this.vp.view_ecef_center_dir;
     const angle = 1.5 * this.vp.fovh;
     stars.angle = angle;
     stars.stars = [];
-    const s = this.catalog.find_stars_around(
+    const s = catalog.find_stars_around(
       this.vp.view_ecef_center_dir,
       angle,
       0,
@@ -129,12 +119,11 @@ export class SkyCanvas {
       return stars;
     }
     for (const index of s) {
-      stars.stars.push(this.catalog.star(index));
+      stars.stars.push(catalog.star(index));
     }
     return stars;
   }
 
-  //mp derive_data
   derive_data() {
     const wh = this.vp.get_resizable_content_size();
     let set_w = wh[0];
@@ -283,7 +272,7 @@ export class SkyCanvas {
       v.set(
         new Float64Array([de_c * Math.cos(ra_r), de_c * Math.sin(ra_r), de_s]),
       );
-      l.add_pt(this.cxy_of_vector(q.apply3(v)));
+      l.add_pt(this.cxy_of_vector(q.apply(v)));
     }
   }
 
@@ -302,7 +291,7 @@ export class SkyCanvas {
       const de_c = Math.cos(de * this.vp.deg2rad);
       const de_s = Math.sin(de * this.vp.deg2rad);
       v.set(new Float64Array([ra_c * de_c, ra_s * de_c, de_s]));
-      l.add_pt(this.cxy_of_vector(q.apply3(v)));
+      l.add_pt(this.cxy_of_vector(q.apply(v)));
     }
   }
 
@@ -344,32 +333,35 @@ export class SkyCanvas {
 
   //mi draw_border
   draw_border(ctx: CanvasRenderingContext2D): void {
-    if (this.styling.sky.view_border == null) {
+    const styling = this.vp.styling();
+    if (styling.sky.view_border == null) {
       return;
     }
     const rx = this.canvas.width;
     const by = this.canvas.height;
-    ctx.fillStyle = this.styling.sky.view_border[0]!;
+    ctx.fillStyle = styling.sky.view_border[0]!;
     ctx.fillRect(0, by - 2, rx, 2);
-    ctx.fillStyle = this.styling.sky.view_border[2]!;
+    ctx.fillStyle = styling.sky.view_border[2]!;
     ctx.fillRect(0, 0, rx, 2);
-    ctx.fillStyle = this.styling.sky.view_border[1]!;
+    ctx.fillStyle = styling.sky.view_border[1]!;
     ctx.fillRect(0, 0, 2, by);
-    ctx.fillStyle = this.styling.sky.view_border[3]!;
+    ctx.fillStyle = styling.sky.view_border[3]!;
     ctx.fillRect(rx - 2, 0, 2, by);
   }
 
   //mi redraw_canvas
   redraw_canvas(): void {
+    const catalog = this.vp.catalog;
+    const styling = this.vp.styling();
     const ctx = this.canvas.getContext("2d")!;
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.draw_border(ctx);
     if (this.vp.selected_star !== null) {
-      const star = this.catalog.star(this.vp.selected_star)!;
+      const star = catalog.star(this.vp.selected_star)!;
       ctx.strokeStyle = "White";
-      const qv = this.vp.ecef_to_view_q.apply3(star.vector);
+      const qv = this.vp.ecef_to_view_q.apply(star.vector);
       const cxy = this.cxy_of_vector(qv);
       if (cxy !== null) {
         const cx = cxy[0]!;
@@ -381,19 +373,15 @@ export class SkyCanvas {
       }
     }
 
-    if (this.styling.sky.show_azimuthal) {
+    if (this.vp.show_azimuthal) {
       this.draw_grid(
         ctx,
         this.vp.ecef_to_view_q.mul(this.vp.observer_to_ecef_q),
-        this.styling.sky.azimuthal_grid,
+        styling.sky.azimuthal_grid,
       );
     }
-    if (this.styling.sky.show_equatorial) {
-      this.draw_grid(
-        ctx,
-        this.vp.ecef_to_view_q,
-        this.styling.sky.equatorial_grid,
-      );
+    if (this.vp.show_equatorial) {
+      this.draw_grid(ctx, this.vp.ecef_to_view_q, styling.sky.equatorial_grid);
     }
 
     const stars = this.star_cache.get();
@@ -451,6 +439,7 @@ export class SkyCanvas {
   }
 
   user_release(_start_xy: [number, number], cxy: [number, number]): void {
+    const catalog = this.vp.catalog;
     // Map click location to ECEF direction
     const v = new WasmVec3f64(0, 0, 0);
     this.set_vector_of_cxy(v, cxy);
@@ -459,14 +448,15 @@ export class SkyCanvas {
 
     const ra = Math.atan2(qv[1]!, qv[0]!);
     const de = Math.asin(qv[2]!);
-    this.catalog.clear_filter();
-    this.catalog.filter_max_magnitude(this.vp.brightness);
-    this.select(this.catalog.closest_to_ra_de(ra, de));
+    catalog.clear_filter();
+    catalog.filter_max_magnitude(this.vp.brightness);
+    this.select(catalog.closest_to_ra_de(ra, de));
   }
 
   user_zoom(_cxy: [number, number], factor: number): void {
     this.vp.fovh = 2 * Math.atan(factor * Math.tan(this.vp.fovh / 2));
-    this.star_catalog.set_view_needs_update();
+    // Content change ?!!
+    this.vp.time_date_updated();
   }
 
   user_rotate(_xy: [number, number], angle: number): void {

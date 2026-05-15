@@ -214,7 +214,7 @@ export class Earth {
     this.webgl.set_uniform_mat4(WebglUniform.Projection, projection);
 
     const matrix = WasmMat4f32.identity();
-    this.q.set_rotation4(matrix);
+    this.q.set_mat4_rotation(matrix);
     this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
 
     if (this.texture_created) {
@@ -229,7 +229,7 @@ export class Earth {
 
     this.webgl.set_color([1, 0, 0, 0]);
 
-    this.triangle_q_ll.set_rotation4(matrix);
+    this.triangle_q_ll.set_mat4_rotation(matrix);
     this.webgl.set_uniform_mat4(WebglUniform.Model, matrix.array, true);
     this.webgl.draw(this.webgl_triangle!);
   }
@@ -281,7 +281,7 @@ export class Earth {
       Math.sin(yaw) * Math.sin(roll),
     );
 
-    const world = this.q.conjugate().apply3(v);
+    const world = this.q.conjugate().apply(v);
     // const world = this.q.apply3(v);
     const lat = this.rad2deg * Math.asin(world.array[2]!);
     const lon = this.rad2deg * Math.atan2(world.array[1]!, world.array[0]!);
@@ -315,9 +315,9 @@ export class Earth {
       const p_t0 = this.icos.subdiv_vertex(vertices[0]!);
       const p_t1 = this.icos.subdiv_vertex(vertices[1]!);
       const p_t2 = this.icos.subdiv_vertex(vertices[2]!);
-      const p0 = this.q.apply3(p_t0.position);
-      const p1 = this.q.apply3(p_t1.position);
-      const p2 = this.q.apply3(p_t2.position);
+      const p0 = this.q.apply(p_t0.position);
+      const p1 = this.q.apply(p_t1.position);
+      const p2 = this.q.apply(p_t2.position);
       const n = p1.sub(p0).cross_product(p2.sub(p0));
       if (n.array[2]! < 0) {
         continue;

@@ -1,8 +1,9 @@
 //a To do
 // Orbit, more names
 // precession, catalog in j2000 precession maps j2000 to current ecef (sky map is in ecef, optionally j2000)
-import init, { WasmCatalog, WasmVec3f64, } from "../pkg/star_catalog_wasm.js";
+import star_catalog_init, { WasmCatalog, WasmVec3f64, } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
+import { WasmMemory } from "./wasm_memory.js";
 import { Tabs } from "./tabbed.js";
 import { Log, Logger, Severity } from "./log.js";
 import { Orientation } from "./orientation.js";
@@ -27,7 +28,7 @@ var SelectedTab;
     SelectedTab[SelectedTab["Info"] = 7] = "Info";
 })(SelectedTab || (SelectedTab = {}));
 export class StarCatalog {
-    constructor(params) {
+    constructor(wasm_instance, params) {
         this.view_needs_update = false;
         this.selected_css = "day";
         this.selected_tab = SelectedTab.Help;
@@ -42,7 +43,7 @@ export class StarCatalog {
             [SelectedTab.Info, "#tab-info"],
         ]);
         this.pending_resize = null;
-        console.log(params);
+        this.wasm_memory = new WasmMemory(wasm_instance.memory);
         this.log = new Log("Log", Severity.Info, Severity.Warning);
         this.logger = new Logger(this.log, "main");
         this.catalog = new WasmCatalog("hipp_bright");
@@ -71,7 +72,7 @@ export class StarCatalog {
         this.vp = new ViewProperties(this, params);
         this.resize_observer = new ResizeObserver(this.resize_canvas.bind(this));
         this.controls = new Controls(this, "controls");
-        this.sky_canvas = new SkyCanvas(this, this.catalog, "SkyCanvas", 50, 50);
+        this.sky_canvas = new SkyCanvas(this, "SkyCanvas", 50, 50);
         this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 50, 50);
         this.earth_canvas = new Earth(this, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
         this.find_canvas = new FindCanvas(this, this.catalog, "FindCanvas");
@@ -308,11 +309,11 @@ export class StarCatalog {
 }
 //a Top level on load...
 window.star_catalog = null;
-function complete_init() {
-    window.star_catalog = new StarCatalog(new URLSearchParams(window.location.search));
+function complete_init(star_catalog_wasm) {
+    window.star_catalog = new StarCatalog(star_catalog_wasm, new URLSearchParams(window.location.search));
 }
 window.addEventListener("load", (_e) => {
-    init().then(() => {
-        complete_init();
+    star_catalog_init().then((x) => {
+        complete_init(x);
     });
 });

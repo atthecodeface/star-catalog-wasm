@@ -1,5 +1,6 @@
 //a Imports
 import {
+  WasmCatalog,
   WasmStar,
   WasmVec3f64,
   WasmQuatf64,
@@ -8,6 +9,9 @@ import * as html from "./html.js";
 import { Names } from "./hipparcos.js";
 import { Logger } from "./log.js";
 import { StarCatalog } from "./star_catalog.js";
+import { Application } from "./application.js";
+import { WasmMemory } from "./wasm_memory.js";
+import { Styling } from "./styling.js";
 
 //a Useful functions
 //fi fract
@@ -181,8 +185,12 @@ class ViewPropertiesHtml {
 ///
 /// The earth actually rotates 360 * 366.25 every year,
 /// so 360*366.25/365.25 degrees per UTC day = 360.98562628336754 degrees per UTC day
-export class ViewProperties {
+export class ViewProperties implements Application {
   star_catalog: StarCatalog;
+  wasm_memory: WasmMemory;
+  catalog: WasmCatalog;
+
+  current_styling: Styling;
   logger: Logger;
 
   lat: number = 0;
@@ -203,6 +211,9 @@ export class ViewProperties {
   play_seconds: number = 0;
 
   max_stars_in_sky: number;
+
+  show_azimuthal: boolean = false;
+  show_equatorial: boolean = false;
 
   vector_x: WasmVec3f64 = new WasmVec3f64(1, 0, 0);
   vector_y: WasmVec3f64 = new WasmVec3f64(0, 1, 0);
@@ -241,6 +252,10 @@ export class ViewProperties {
 
   constructor(star_catalog: StarCatalog, params: URLSearchParams) {
     this.star_catalog = star_catalog;
+    this.catalog = star_catalog.catalog;
+    this.current_styling = star_catalog.styling;
+    this.wasm_memory = this.star_catalog.wasm_memory;
+
     this.logger = new Logger(star_catalog.log, "view_prop");
 
     this.resizable_content_size = [100, 100];
@@ -331,6 +346,39 @@ export class ViewProperties {
   set_resizable_content_size(wh: [number, number]) {
     this.resizable_content_size = wh;
   }
+
+  styling(): Styling {
+    return this.current_styling;
+  }
+
+  /**
+   * Zoom, pan, etc requires the view to be updated
+   */
+  view_updated(): void {
+    this.star_catalog.set_view_needs_update();
+  }
+  window_updated(): void {
+    this.star_catalog.set_view_needs_update();
+  }
+
+  /**
+   * Time, date, latitude, longitude, change requires view to be updated
+   *
+   * This includes the *observer* view direction etc
+   */
+  time_date_updated(): void {
+    this.star_catalog.set_view_needs_update();
+  }
+  location_updated(): void {
+    this.star_catalog.set_view_needs_update();
+  }
+  styling_updated(): void {
+    this.star_catalog.set_view_needs_update();
+  }
+  observer_view_updated(): void {
+    this.star_catalog.set_view_needs_update();
+  }
+
   //mi request_geolocation
   request_geolocation() {
     const options = {
@@ -375,7 +423,7 @@ export class ViewProperties {
   //
   // The observed elevation is asin(z); the observed compass is atan2(y,x)
   compass_elevation_of_ecef(ecef_v: WasmVec3f64) {
-    const observer_v = this.ecef_to_observer_q.apply3(ecef_v);
+    const observer_v = this.ecef_to_observer_q.apply(ecef_v);
     const xyz = observer_v.array;
 
     // Note that if the ECEF is along +Y, then
@@ -498,7 +546,7 @@ export class ViewProperties {
     // - so map the view_ecef_center_dir to observer
     //
     // The observed elevation is asin(z); the observed compass is atan2(y,x)
-    this.view_observer_center_dir = this.ecef_to_observer_q.apply3(
+    this.view_observer_center_dir = this.ecef_to_observer_q.apply(
       this.view_ecef_center_dir,
     );
 
@@ -547,16 +595,11 @@ export class ViewProperties {
     this.tan_hfovh = Math.tan(this.fovh / 2);
     this.mm_equiv = 18 / this.tan_hfovh;
 
-    const show_azimuthal = html.get_input_checked("show_azimuthal");
-    this.star_catalog.styling.sky.show_azimuthal = show_azimuthal;
-    this.star_catalog.styling.map.show_azimuthal = show_azimuthal;
-
-    const show_equatorial = html.get_input_checked("show_equatorial");
-    this.star_catalog.styling.sky.show_equatorial = show_equatorial;
-    this.star_catalog.styling.map.show_equatorial = show_equatorial;
+    this.show_azimuthal = html.get_input_checked("show_azimuthal");
+    this.show_equatorial = html.get_input_checked("show_equatorial");
 
     this.ecef_to_view_q = this.view_to_ecef_q.conjugate();
-    this.view_ecef_center_dir = this.view_to_ecef_q.apply3(this.vector_x);
+    this.view_ecef_center_dir = this.view_to_ecef_q.apply(this.vector_x);
 
     this.date.setTime(this.days_since_epoch * 24 * 60 * 60 * 1000);
 
@@ -641,7 +684,8 @@ export class ViewProperties {
     date.setUTCHours(0, 0, 0);
     this.days_since_epoch = Math.round(date.valueOf() / (24 * 60 * 60 * 1000));
     this.date.setTime(this.days_since_epoch * 24 * 60 * 60 * 1000);
-    this.star_catalog.set_view_needs_update();
+    // Content change!
+    this.time_date_updated();
   }
 
   /** Set the time-of-day to *now* */
@@ -650,7 +694,8 @@ export class ViewProperties {
     date.setUTCMonth(0, 1);
     date.setUTCFullYear(1970);
     this.time_of_day = date.valueOf() / (60 * 60 * 1000);
-    this.star_catalog.set_view_needs_update();
+    // Content change!
+    this.time_date_updated();
   }
 
   /** Add to the time-of-day */
@@ -679,7 +724,8 @@ export class ViewProperties {
       this.derive_observer_frame();
       this.view_observer_set(compass, elevation);
     }
-    this.star_catalog.set_view_needs_update();
+    // Content change!
+    this.time_date_updated();
   }
 
   /** Update the view, because of a view change, time change, etc */
@@ -687,7 +733,8 @@ export class ViewProperties {
     this.lat = lat;
     this.lon = lon;
     this.log_latlon_update();
-    this.star_catalog.set_view_needs_update();
+    // Content change!
+    this.time_date_updated();
   }
 
   /**
@@ -773,22 +820,26 @@ export class ViewProperties {
 
   view_q_post_mul(q: WasmQuatf64) {
     this.view_to_ecef_q = this.view_to_ecef_q.mul(q);
-    this.star_catalog.set_view_needs_update();
+    // Content change! ??
+    this.time_date_updated();
   }
 
   view_q_pre_mul(q: WasmQuatf64) {
     this.view_to_ecef_q = q.mul(this.view_to_ecef_q);
-    this.star_catalog.set_view_needs_update();
+    // Content change! ??
+    this.time_date_updated();
   }
 
   zoom_set() {
     const zoom = html.get_input_float("ctl_zoom", 0, 100);
     this.fovh = this.map_zoom_to_fovh(zoom);
-    this.star_catalog.set_view_needs_update();
+    // Content change! ??
+    this.time_date_updated();
   }
 
   brightness_set() {
     this.brightness = html.get_input_float("ctl_magnitude", 1, 12);
-    this.star_catalog.set_view_needs_update();
+    // Content change!
+    this.time_date_updated();
   }
 }

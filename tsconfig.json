@@ -55,12 +55,14 @@
     "typescript/tabbed.ts",
     "typescript/orientation.ts",
     "typescript/storage.ts",
+    "typescript/wasm_memory.ts",
     "typescript/zoomed_window.ts",
     "typescript/web_gl.ts",
 
     "typescript/draw.ts",
 
     "typescript/styling.ts",
+    "typescript/application.ts",
 
     "typescript/clock.ts",
     "typescript/calendar.ts",

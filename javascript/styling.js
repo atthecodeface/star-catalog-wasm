@@ -3,8 +3,6 @@ class SkyStyling {
         this.azimuthal_grid = [];
         this.equatorial_grid = [];
         this.view_border = [];
-        this.show_azimuthal = false;
-        this.show_equatorial = false;
     }
 }
 export class Styling {
@@ -33,8 +31,6 @@ export class Styling {
             moon: "",
         };
         this.css = "night";
-        this.show_azimuthal = false;
-        this.show_equatorial = false;
         this.set(day_or_night);
     }
     set(day_or_night) {
@@ -69,8 +65,6 @@ export class Styling {
         this.clock.sun = "#ff0";
         this.clock.moon = "#777";
         this.css = "day";
-        // this.show_azimuthal = true;
-        // this.show_equatorial = true;
     }
     set_night() {
         this.sky.azimuthal_grid = ["#733", "#522", "#c44", "#c44", "#943"];
@@ -95,8 +89,6 @@ export class Styling {
         this.clock.sun = "#ff0";
         this.clock.moon = "#777";
         this.css = "night";
-        // this.show_azimuthal = true;
-        // this.show_equatorial = true;
     }
     /// Set all elements with a 'dn' class to be also in night or day
     set_css() {

@@ -59,8 +59,8 @@ class Planet {
     bezier: WebglCubicBezierObj,
     distance_scale: number,
   ) {
-    this.orbit_to_parent.set_rotation4(this.mat);
-    this.mat.scale3(distance_scale);
+    this.orbit_to_parent.set_mat4_rotation(this.mat);
+    this.mat.set_scale3(distance_scale);
     webgl.set_color(this.planet_color);
     webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, true);
     bezier.set_bezier(this.orbit_bezier);
@@ -69,11 +69,11 @@ class Planet {
 
   draw_planet(webgl: Webgl, icosphere: Webgl3DObj, distance_scale: number) {
     this.orbit_bezier.set_vec_point_at(this.vec, 1 / 3.0);
-    this.orbit_to_parent.set_apply3(this.vec);
+    this.orbit_to_parent.set_vec_apply(this.vec);
     this.vec.set_mulf(distance_scale);
     this.mat.set_identity();
-    this.mat.scale3(this.planet_scale);
-    this.mat.translate3(this.vec);
+    this.mat.set_scale3(this.planet_scale);
+    this.mat.set_translate_by_vec3(this.vec);
     webgl.set_color(this.planet_color);
     webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, true);
 
@@ -112,7 +112,7 @@ class SolarSystem {
   draw_sun(webgl: Webgl, icosphere: Webgl3DObj) {
     webgl.set_color(this.sun_color);
     this.mat.set_identity();
-    this.mat.scale3(this.sun_scale);
+    this.mat.set_scale3(this.sun_scale);
     webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, false);
     webgl.draw(icosphere);
   }
@@ -325,10 +325,10 @@ export class TestCanvas {
     projection = WasmMat4f32.identity().transpose().array;
 
     const view_matrix = WasmMat4f32.identity();
-    this.q.set_rotation4(view_matrix);
-    view_matrix.scale3(this.view_scale);
+    this.q.set_mat4_rotation(view_matrix);
+    view_matrix.set_scale3(this.view_scale);
 
-    view_matrix.translate3(origin);
+    view_matrix.set_translate_by_vec3(origin);
 
     // Set view
     this.webgl.use_program(this.flat_program);
@@ -393,17 +393,24 @@ export class TestCanvas {
     const dy = cxy1[1] - cxy0[1];
     const dqx = WasmQuatf32.of_axis_angle(new WasmVec3f32(0, 1, 0), dx * 0.01);
     const dqy = WasmQuatf32.of_axis_angle(new WasmVec3f32(1, 0, 0), dy * 0.01);
-    this.q.premul(dqx);
-    this.q.premul(dqy);
-    this.star_catalog.set_view_needs_update();
+    this.q.set_premul(dqx);
+    this.q.set_premul(dqy);
+    // No content change, purely visual
+    this.vp.view_updated();
   }
 
   user_release(_start_xy: [number, number], _cxy: [number, number]): void {}
 
   user_zoom(_cxy: [number, number], factor: number): void {
     this.view_scale *= factor;
-    this.star_catalog.set_view_needs_update();
+    // No content change, purely visual
+    this.vp.view_updated();
   }
 
-  user_rotate(_xy: [number, number], _angle: number): void {}
+  user_rotate(_xy: [number, number], angle: number): void {
+    const dqz = WasmQuatf32.of_axis_angle(new WasmVec3f32(0, 0, 1), angle);
+    this.q.set_premul(dqz);
+    // No content change, purely visual
+    this.vp.view_updated();
+  }
 }

@@ -346,21 +346,21 @@ export class FindCanvas {
         let x = new HtmlElement(document.getElementById("Rectiliinear")!);
         x.set_input_checked(true);
         this.vp.fovh = this.vp.map_mm_equiv_to_fovh(27.05);
-        this.star_catalog.set_view_needs_update();
+        this.vp.view_updated();
         break;
       }
       case "rebel_50mm": {
         let x = new HtmlElement(document.getElementById("Rectilinear")!);
         x.set_input_checked(true);
         this.vp.fovh = this.vp.map_mm_equiv_to_fovh(82.4);
-        this.star_catalog.set_view_needs_update();
+        this.vp.view_updated();
         break;
       }
       case "rebel_15mm": {
         let x = new HtmlElement(document.getElementById("Stereographic")!);
         x.set_input_checked(true);
         this.vp.fovh = this.vp.map_mm_equiv_to_fovh(24.1);
-        this.star_catalog.set_view_needs_update();
+        this.vp.view_updated();
         break;
       }
     }
@@ -390,7 +390,7 @@ export class FindCanvas {
         break;
       }
     }
-    this.star_catalog.set_view_needs_update();
+    this.vp.view_updated();
   }
 
   populate_html() {

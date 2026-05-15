@@ -2,13 +2,15 @@
 // Orbit, more names
 // precession, catalog in j2000 precession maps j2000 to current ecef (sky map is in ecef, optionally j2000)
 
-import init, {
+import star_catalog_init, {
   WasmCatalog,
   WasmVec3f64,
   WasmQuatf64,
+  InitOutput,
 } from "../pkg/star_catalog_wasm.js";
 
 import * as html from "./html.js";
+import { WasmMemory } from "./wasm_memory.js";
 import { Tabs } from "./tabbed.js";
 import { Log, Logger, Severity } from "./log.js";
 import { Orientation } from "./orientation.js";
@@ -40,6 +42,7 @@ export class StarCatalog {
   log: Log;
   logger: Logger;
   catalog: WasmCatalog;
+  wasm_memory: WasmMemory;
   tabs: Tabs;
   orientation_ctl: Orientation;
 
@@ -72,8 +75,8 @@ export class StarCatalog {
   resize_observer: ResizeObserver;
   pending_resize: [number, number] | null = null;
 
-  constructor(params: URLSearchParams) {
-    console.log(params);
+  constructor(wasm_instance: InitOutput, params: URLSearchParams) {
+    this.wasm_memory = new WasmMemory(wasm_instance.memory);
     this.log = new Log("Log", Severity.Info, Severity.Warning);
     this.logger = new Logger(this.log, "main");
 
@@ -111,7 +114,7 @@ export class StarCatalog {
 
     this.controls = new Controls(this, "controls");
 
-    this.sky_canvas = new SkyCanvas(this, this.catalog, "SkyCanvas", 50, 50);
+    this.sky_canvas = new SkyCanvas(this, "SkyCanvas", 50, 50);
     this.map_canvas = new MapCanvas(this, this.catalog, "MapCanvas", 50, 50);
     this.earth_canvas = new Earth(
       this,
@@ -392,14 +395,15 @@ export class StarCatalog {
 
 //a Top level on load...
 (window as any).star_catalog = null;
-function complete_init() {
+function complete_init(star_catalog_wasm: InitOutput) {
   (window as any).star_catalog = new StarCatalog(
+    star_catalog_wasm,
     new URLSearchParams(window.location.search),
   );
 }
 
 window.addEventListener("load", (_e) => {
-  init().then(() => {
-    complete_init();
+  star_catalog_init().then((x) => {
+    complete_init(x);
   });
 });

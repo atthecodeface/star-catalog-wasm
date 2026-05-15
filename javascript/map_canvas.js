@@ -168,7 +168,7 @@ export class MapCanvas {
     }
     //mi draw_equatorial_grid
     draw_equatorial_grid(ctx) {
-        if (!this.styling.map.show_equatorial) {
+        if (!this.vp.show_equatorial) {
             return;
         }
         const l = new Line(ctx, this.width, this.height);
@@ -225,7 +225,7 @@ export class MapCanvas {
         for (var ra = 0; ra <= 360; ra += step_size) {
             const ra_r = ra * this.vp.deg2rad;
             v.set(new Float64Array([de_c * Math.cos(ra_r), de_c * Math.sin(ra_r), de_s]));
-            l.add_pt(this.cxy_of_vector(q.apply3(v)));
+            l.add_pt(this.cxy_of_vector(q.apply(v)));
         }
     }
     add_ra_great_circle(q, l, v, ra, _step_size) {
@@ -236,7 +236,7 @@ export class MapCanvas {
             const de_c = Math.cos(de * this.vp.deg2rad);
             const de_s = Math.sin(de * this.vp.deg2rad);
             v.set(new Float64Array([ra_c * de_c, ra_s * de_c, de_s]));
-            l.add_pt(this.cxy_of_vector(q.apply3(v)));
+            l.add_pt(this.cxy_of_vector(q.apply(v)));
         }
     }
     //mi draw_azimuthal_grid
@@ -245,7 +245,7 @@ export class MapCanvas {
     // Create a RH set of axes with z as 'up', and ideally x with no
     // component in the 'declination' direction
     draw_azimuthal_grid(ctx) {
-        if (!this.styling.map.show_azimuthal) {
+        if (!this.vp.show_azimuthal) {
             return;
         }
         const q_grid = this.vp.observer_to_ecef_q;
