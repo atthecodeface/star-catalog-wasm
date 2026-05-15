@@ -1,6 +1,5 @@
 import { WasmIcosphere } from "../pkg/star_catalog_wasm.js";
 import {
-  WasmVec2f32,
   WasmVec3f32,
   WasmMat4f32,
   WasmQuatf32,
@@ -35,9 +34,6 @@ export class Earth {
   view_scale: number;
   center_on_lat: number;
   center_on_lon: number;
-  texture_image: HTMLImageElement;
-  texture_loaded: boolean;
-  texture_created: boolean;
   webgl_icosphere: Webgl3DObj | null = null;
   webgl_triangle: Webgl3DObj | null = null;
   webgl: Webgl | null = null;
@@ -83,18 +79,7 @@ export class Earth {
     this.center_on_lat = this.vp.lat;
     this.center_on_lon = -this.vp.lon;
 
-    this.texture_image = new Image();
-    this.texture_loaded = false;
-    this.texture_created = false;
-
-    this.texture_image.onload = () => {
-      this.logger.info("webgl", `Loaded earth texture`);
-      this.texture_loaded = true;
-      this.draw();
-    };
-    this.texture_image.src = "Blue_Marble_2002_x10.jpg";
-
-    this.window_loaded();
+    this.start_webgl();
   }
 
   center_lat_lon(lat: number, lon: number) {
@@ -106,26 +91,6 @@ export class Earth {
     this.draw();
   }
 
-  //mi window_loaded
-  window_loaded() {
-    if (this.use_webgl) {
-      this.start_webgl();
-    }
-
-    // this.canvas.width = this.canvas.offsetWidth;
-    // this.canvas.height = this.canvas.offsetHeight;
-    if (this.webgl === null) {
-      this.ctx = this.canvas.getContext("2d")!;
-      this.logger.info(
-        "webgl",
-        `Using 2D context for the earth sphere ${this.ctx}`,
-      );
-    } else {
-      this.logger.info("webgl", `Using 3D context for the earth sphere`);
-    }
-  }
-
-  //mi start_webgl
   start_webgl() {
     if (!this.webgl!.start_webgl()) {
       this.webgl = null;
@@ -151,7 +116,7 @@ export class Earth {
       const f = this.icos.subdiv_face(i);
       this.webgl_icosphere.add_face([f[0]!, f[1]!, f[2]!]);
     }
-    this.webgl_icosphere.webgl_create(this.webgl!.webgl!);
+    this.webgl!.create(this.webgl_icosphere);
 
     this.webgl_triangle = new Webgl3DObj(3, 3);
     this.webgl_triangle.add_vertex(
@@ -167,9 +132,11 @@ export class Earth {
       new Float32Array([0, 0]),
     );
     this.webgl_triangle.add_face([0, 2, 1]);
-    this.webgl_triangle.webgl_create(this.webgl!.webgl!);
+    this.webgl!.create(this.webgl_triangle);
 
-    this.texture = this.webgl!.create_texture();
+    this.texture = new WebglTexture(this.webgl!, new Image()); // on loaded call this.draw()!
+    this.texture.image!.src = "Blue_Marble_2002_x10.jpg";
+
     this.logger.info("webgl", `WebGl started successfully`);
   }
 
@@ -181,11 +148,6 @@ export class Earth {
     this.webgl.webgl!.viewport(0, 0, this.width, this.height);
     this.webgl.use_program(this.program);
     this.webgl.clear_buffer();
-
-    if (this.texture_loaded && !this.texture_created) {
-      this.texture?.bind_to_image(this.texture_image);
-      this.texture_created = true;
-    }
 
     // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
     const projection = [
@@ -215,9 +177,7 @@ export class Earth {
     this.q.set_mat4_rotation(matrix);
     this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
 
-    if (this.texture_created) {
-      this.webgl.set_texture(this.texture!);
-    }
+    this.webgl.set_texture(this.texture!);
 
     this.webgl.set_color(styling.earth.color);
 
@@ -299,121 +259,12 @@ export class Earth {
 
   draw() {
     this.derive_data();
-    if (!this.texture_loaded) {
+    if (!this.texture!.texture_bound) {
       return;
     }
     if (this.webgl !== null) {
       this.webgl_draw();
-      return;
     }
-    const f0 = 0;
-    const f1 = this.icos.num_faces;
-    for (var f = f0; f < f1; f++) {
-      const vertices = this.icos.subdiv_face(f);
-      const p_t0 = this.icos.subdiv_vertex(vertices[0]!);
-      const p_t1 = this.icos.subdiv_vertex(vertices[1]!);
-      const p_t2 = this.icos.subdiv_vertex(vertices[2]!);
-      const p0 = this.q.apply(p_t0.position);
-      const p1 = this.q.apply(p_t1.position);
-      const p2 = this.q.apply(p_t2.position);
-      const n = p1.sub(p0).cross_product(p2.sub(p0));
-      if (n.array[2]! < 0) {
-        continue;
-      }
-      const v0 = this.v_of_p(p0);
-      const v1 = this.v_of_p(p1);
-      const v2 = this.v_of_p(p2);
-      if (v0 == null || v1 == null || v2 == null) {
-        continue;
-      }
-      const t0 = p_t0.texture;
-      const t1 = p_t1.texture;
-      const t2 = p_t2.texture;
-      this.draw_triangle(v0, t0, v1, t1, v2, t2);
-    }
-  }
-
-  // Draw a triangle in this context with three canvas coorinates an
-  // three corresponding texture coordinates (0 to 1)
-  //
-  // Set the clip path to that of the canvas coordinates
-  //
-  // Set a transformation that is translate by v0 of (matrix M * N)
-  //
-  // Draw image at nominal -t0
-  //
-  // where N = rotate+skew ( (t1-t0) to X, (t2-t0) to Y )
-  //
-  // and M = rotate+skew ( X to (v1-v0), Y to (v2-v0) )
-  //
-  // Hence nominal coordinate (0,0) is texture t0; this maps through
-  // M*N to 0, and hence to v0
-  //
-  // Nominal coordinate t1-t0 is texture t1; this maps through
-  // M*N to X to (v1-v0), and hence to v1
-  //
-  // Nominal coordinate t2-t0 is texture t2; this maps through
-  // M*N to Y to (v2-v0), and hence to v21
-  draw_triangle(
-    v0: [number, number],
-    t0: WasmVec2f32,
-    v1: [number, number],
-    t1: WasmVec2f32,
-    v2: [number, number],
-    t2: WasmVec2f32,
-  ): void {
-    const ctx = this.ctx!;
-    const tw = this.texture_image.width;
-    const th = this.texture_image.height;
-    ctx.save();
-    if (true) {
-      ctx.beginPath();
-      ctx.moveTo(v0[0], v0[1]);
-      ctx.lineTo(v1[0], v1[1]);
-      ctx.lineTo(v2[0], v2[1]);
-      ctx.lineTo(v0[0], v0[1]);
-      ctx.clip();
-    }
-
-    // Want to map t0 to v0, t1 to v1, t2 to v2
-    //
-    // Use a transform that maps (t1-t0) to (v1-v0)
-    // and (t2-t0) to (v2-v0), and then adds v0
-    //
-    // Then draw the texture at -t0
-    const tex0 = t0.array;
-    const tex1 = t1.array;
-    const tex2 = t2.array;
-    const dt10: [number, number] = [
-      (tex1[0]! - tex0[0]!) * tw,
-      (tex1[1]! - tex0[1]!) * th,
-    ];
-    const dt20: [number, number] = [
-      (tex2[0]! - tex0[0]!) * tw,
-      (tex2[1]! - tex0[1]!) * th,
-    ];
-    const dv10: [number, number] = [v1[0] - v0[0], v1[1] - v0[1]];
-    const dv20: [number, number] = [v2[0] - v0[0], v2[1] - v0[1]];
-
-    const inv_det = dt10[0] * dt20[1] - dt10[1] * dt20[0];
-    const inv: [number, number, number, number] = [
-      dt20[1] / inv_det,
-      -dt20[0] / inv_det,
-      -dt10[1] / inv_det,
-      dt10[0] / inv_det,
-    ];
-    const mat: [number, number, number, number] = [
-      dv10[0] * inv[0] + dv20[0] * inv[2],
-      dv10[0] * inv[1] + dv20[0] * inv[3],
-      dv10[1] * inv[0] + dv20[1] * inv[2],
-      dv10[1] * inv[1] + dv20[1] * inv[3],
-    ];
-    // console.log(mat[0] * dt20[0] + mat[1] * dt20[1],
-    // mat[2] * dt20[0] + mat[3] * dt20[1],
-    // );
-    ctx.setTransform(mat[0], mat[2], mat[1], mat[3], v0[0], v0[1]);
-    ctx.drawImage(this.texture_image, -tex0[0]! * tw, -tex0[1]! * th);
-    ctx.restore();
   }
 
   drag_start(_start_xy: [number, number], _xy: [number, number]): void {}

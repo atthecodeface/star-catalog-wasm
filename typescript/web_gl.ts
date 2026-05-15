@@ -379,56 +379,57 @@ export class WebglProgram {
 }
 
 export class WebglTexture {
-  webgl: WebGLRenderingContext;
+  webgl: Webgl;
   texture: WebGLTexture;
-  constructor(webgl: WebGLRenderingContext) {
-    const texture = webgl.createTexture();
-    webgl.bindTexture(webgl.TEXTURE_2D, texture);
-    webgl.texImage2D(
-      webgl.TEXTURE_2D,
+
+  image: HTMLImageElement | null = null;
+  image_load_completed: boolean = false;
+  texture_bound: boolean = false;
+
+  constructor(webgl: Webgl, image: HTMLImageElement | null = null) {
+    this.webgl = webgl;
+
+    const w = webgl.webgl;
+    if (w === null) {
+      throw "Webgl not constructed correctly for a WebglTexture";
+    }
+
+    this.texture = w.createTexture();
+    this.image = image;
+    if (this.image !== null) {
+      this.image.addEventListener("load", this.image_loaded.bind(this));
+    }
+
+    w.bindTexture(w.TEXTURE_2D, this.texture);
+    w.texImage2D(
+      w.TEXTURE_2D,
       0,
-      webgl.RGBA,
+      w.RGBA,
       1,
       1,
       0,
-      webgl.RGBA,
-      webgl.UNSIGNED_BYTE,
+      w.RGBA,
+      w.UNSIGNED_BYTE,
       new Uint8Array([0, 0, 255, 255]),
     );
 
-    webgl.texParameteri(
-      webgl.TEXTURE_2D,
-      webgl.TEXTURE_MIN_FILTER,
-      webgl.LINEAR,
-    );
+    w.texParameteri(w.TEXTURE_2D, w.TEXTURE_MIN_FILTER, w.LINEAR);
 
-    webgl.texParameteri(
-      webgl.TEXTURE_2D,
-      webgl.TEXTURE_WRAP_S,
-      webgl.CLAMP_TO_EDGE,
-    );
+    w.texParameteri(w.TEXTURE_2D, w.TEXTURE_WRAP_S, w.CLAMP_TO_EDGE);
 
-    webgl.texParameteri(
-      webgl.TEXTURE_2D,
-      webgl.TEXTURE_WRAP_T,
-      webgl.CLAMP_TO_EDGE,
-    );
+    w.texParameteri(w.TEXTURE_2D, w.TEXTURE_WRAP_T, w.CLAMP_TO_EDGE);
+  }
 
-    this.webgl = webgl;
-    this.texture = texture;
+  image_loaded(_event: any) {
+    this.image_load_completed = true;
+    this.bind_to_image(this.image!);
   }
 
   bind_to_image(source: TexImageSource) {
-    const webgl = this.webgl;
-    webgl.bindTexture(webgl.TEXTURE_2D, this.texture);
-    webgl.texImage2D(
-      webgl.TEXTURE_2D,
-      0,
-      webgl.RGBA,
-      webgl.RGBA,
-      webgl.UNSIGNED_BYTE,
-      source,
-    );
+    const w = this.webgl.webgl!;
+    w.bindTexture(w.TEXTURE_2D, this.texture);
+    w.texImage2D(w.TEXTURE_2D, 0, w.RGBA, w.RGBA, w.UNSIGNED_BYTE, source);
+    this.texture_bound = true;
   }
 }
 
@@ -530,13 +531,6 @@ export class Webgl {
     const n = this.programs.length;
     this.programs.push(new WebglProgram(shader, webgl, program));
     return n;
-  }
-
-  create_texture(): null | WebglTexture {
-    if (this.webgl === null) {
-      return null;
-    }
-    return new WebglTexture(this.webgl);
   }
 
   clear_buffer() {
