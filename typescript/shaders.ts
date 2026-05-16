@@ -1,5 +1,22 @@
 import { WebglShaderSrc } from "./web_gl";
 
+const decode_star = `
+  uint u = uint(star.x) & 0xffffffu;
+  uint v = uint(star.y) & 0xffffffu;
+  bool u_is_neg = (star.x & 0x1000000)!=0;
+  bool v_is_neg = (star.x & 0x2000000)!=0;
+  bool w_is_neg = (star.x & 0x4000000)!=0;
+  bool x_is_u = (star.x & 0x8000000)!=0;
+  bool z_is_v = (star.x & 0x10000000)!=0;
+  bool y_is_u = !x_is_u;
+  bool y_is_v = !z_is_v;
+  uint m = uint(star.y >> 24) & 0x3fu;
+  uint t = uint(star.z >> 26) & 0xfu;
+  uint ra = uint(star.z) & 0x00003fffu;
+  uint de = (uint(star.z) & 0x03ffc000u) >> 14 ;
+
+`;
+
 export class EarthShader implements WebglShaderSrc {
   id = "earth";
   vertex = `
@@ -195,31 +212,29 @@ export class StarMapShader implements WebglShaderSrc {
 
   out vec3 star_color;
   void main() {
-    uint x = uint(star.z) & 0x00003fffu;
-    uint y = (uint(star.z) & 0x03ffc000u) >> 14 ;
-    uint m = uint(star.y >> 24) & 0x3fu;
-    uint temperature = uint(star.z >> 26) & 0xfu;
 
+   // decode 'star' into all its parameters
+    ${decode_star}
 
-    float xf = float(x) / float(0x2000) - 1.0;
-    float yf = float(y) / float(0x800) - 1.0;
-    float tf = float(temperature);
-    float mf = float(m) / 4.0;
-    bool discard_star = (mf > magnitude);
-    float zf = (discard_star) ? -4.0 : 0.0;
+    float ra_f = float(ra) / float(0x2000) - 1.0;
+    float de_f = float(de) / float(0x800) - 1.0;
+    float t_f = float(t);
+    float m_f = float(m) / 4.0;
+    bool discard_star = (m_f > magnitude);
+    float z_f = (discard_star) ? -4.0 : 0.0;
 
-    gl_Position = view * vec4(xf, yf, zf, 1);
+    gl_Position = view * vec4(ra_f, de_f, z_f, 1);
 
     // A polynomial fitting 4bit to red has a reasonable polynomial of red = 5.8x + 256x^2 (clamp to 255)
     // A polynomial fitting 4bit to green has a reasonable polynomial of green = 18x + 167x^2 (clamp to 255)
     // A polynomial fitting 4bit to blue has a reasonable polynomial of blue = 111 + 16x
-    float red = clamp(tf * (5.8/255.0 + 255.0/255.0*tf),0.0,1.0);
-    float green = clamp(tf * (18.0/255.0 + 167.0/255.0*tf),0.0,1.0);
-    float blue = clamp(tf * 16.0/255.0 + 111.0/255.0,0.0,1.0);
+    float red = clamp(t_f * (5.8/255.0 + 255.0/255.0*t_f),0.0,1.0);
+    float green = clamp(t_f * (18.0/255.0 + 167.0/255.0*t_f),0.0,1.0);
+    float blue = clamp(t_f * 16.0/255.0 + 111.0/255.0,0.0,1.0);
 
-    float brightness = clamp(1.0 - mf/16.0, 0.5, 1.0);
+    float brightness = clamp(1.0 - m_f/16.0, 0.5, 1.0);
     star_color = vec3(brightness*red, brightness*green, brightness*blue);
-    gl_PointSize = clamp(4.0 - 0.5 * mf, 1.0, 4.0);
+    gl_PointSize = clamp(4.0 - 0.5 * m_f, 1.0, 4.0);
   }
 `;
 
@@ -267,17 +282,9 @@ export class StarShader implements WebglShaderSrc {
 
   out vec3 star_color;
   void main() {
-    uint u = uint(star.x) & 0xffffffu;
-    uint v = uint(star.y) & 0xffffffu;
-    bool u_is_neg = (star.x & 0x1000000)!=0;
-    bool v_is_neg = (star.x & 0x2000000)!=0;
-    bool w_is_neg = (star.x & 0x4000000)!=0;
-    bool x_is_u = (star.x & 0x8000000)!=0;
-    bool z_is_v = (star.x & 0x10000000)!=0;
-    bool y_is_u = !x_is_u;
-    bool y_is_v = !z_is_v;
-    uint m = uint(star.y >> 24) & 0x3fu;
-    uint temperature = uint(star.z >> 26) & 0xfu;
+
+    // decode 'star' into all its parameters
+    ${decode_star}
 
     float uf_unsigned = float(u) / float(0x1000000);
     float vf_unsigned = float(v) / float(0x1000000);
@@ -285,7 +292,7 @@ export class StarShader implements WebglShaderSrc {
     float uf = u_is_neg ? (-uf_unsigned): (uf_unsigned);
     float vf = v_is_neg ? (-vf_unsigned): (vf_unsigned);
     float wf = w_is_neg ? (-wf_unsigned): (wf_unsigned);
-    float tf = float(temperature);
+    float tf = float(t);
     float mf = float(m) / 4.0;
 
     float x = x_is_u ? uf : wf;
@@ -341,3 +348,21 @@ export class StarShader implements WebglShaderSrc {
   }
   `;
 }
+
+/*
+// canvas XY of a vector
+//
+// X+ is in, Y+ is left, Z+ is up; sin(z) is declination (or atan(z/x))
+cxy_of_vector(vec: WasmVec3f64): [number, number] {
+  const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
+  const de = Math.asin(vxyz[2]!);
+  const ra = Math.atan2(vxyz[1]!, vxyz[0]!);
+  const x = 0.5 + ra / (2 * Math.PI);
+  const y = 0.5 - de / Math.PI;
+  const fx = x - Math.floor(x);
+  const fy = y - Math.floor(y);
+  const cx = fx * this.width;
+  const cy = fy * this.height;
+  return [cx, cy];
+}
+*/

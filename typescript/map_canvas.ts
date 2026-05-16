@@ -126,19 +126,6 @@ export class MapCanvas {
     return [ra, de];
   }
 
-  //mi vector_of_cxy
-  // Vector of a canvas XY
-  //
-  // X+ is in, Y+ is left, Z+ is up
-  unused_vector_of_cxy(cxy: [number, number]): [number, number, number] {
-    const de_ra = this.ra_de_of_cxy(cxy);
-    const vz = Math.sin(de_ra[0]);
-    const c = Math.cos(de_ra[0]);
-    const vx = c * Math.cos(de_ra[1]);
-    const vy = -c * Math.sin(de_ra[1]);
-    return [vx, vy, vz];
-  }
-
   //mi cxy_of_ra_de
   // Canvas XY of RA and DE
   //
