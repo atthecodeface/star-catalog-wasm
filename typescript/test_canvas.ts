@@ -10,13 +10,7 @@ import { Application } from "./application.js";
 
 import { WebglCanvas } from "./webgl_canvas.js";
 
-import {
-  WebglTexture,
-  Webgl,
-  Webgl3DObj,
-  WebglFlatObj,
-  WebglCubicBezierObj,
-} from "./web_gl.js";
+import { Webgl } from "./web_gl.js";
 
 export class TestCanvas {
   application: Application;
@@ -28,17 +22,6 @@ export class TestCanvas {
   mouse: Mouse;
 
   webgl: Webgl | null = null;
-
-  sphere_program: number = 0;
-  flat_program: number = 0;
-  bezier_program: number = 0;
-  star_program: number = 0;
-
-  texture: WebglTexture | null = null;
-  triangle_q_ll: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
-  webgl_icosphere: Webgl3DObj | null = null;
-  webgl_axis: WebglFlatObj | null = null;
-  webgl_bezier: WebglCubicBezierObj | null = null;
 
   model: WasmMat4f32 = WasmMat4f32.identity();
 
@@ -56,8 +39,6 @@ export class TestCanvas {
     this.webgl_canvas = new WebglCanvas(application, this.canvas);
 
     this.mouse = new Mouse(this, this.canvas);
-
-    this.mouse.set_client(this.vp.star_catalog.earth_canvas);
   }
 
   update() {
@@ -65,9 +46,13 @@ export class TestCanvas {
   }
 
   redraw_canvas() {
-    // this.webgl_canvas.redraw_canvas();
-
-    this.webgl_canvas.draw_earth();
+    if (this.vp.webgl_canvas_show_earth) {
+      this.webgl_canvas.draw_earth();
+      this.mouse.set_client(this.vp.star_catalog.earth_canvas);
+    } else {
+      this.webgl_canvas.redraw_canvas();
+      this.mouse.set_client(this);
+    }
   }
 
   drag_end(_start_xy: [number, number], _xy: [number, number]): void {}
@@ -98,7 +83,13 @@ export class TestCanvas {
   user_release(_start_xy: [number, number], _cxy: [number, number]): void {}
 
   user_zoom(_cxy: [number, number], factor: number): void {
-    this.vp.solar_system_fovh *= Math.pow(factor, 0.1);
+    this.vp.solar_system_fovh += (1.0 - factor) * 0.1;
+    console.log(factor, this.vp.solar_system_fovh);
+    this.vp.solar_system_fovh = Math.min(
+      Math.max(this.vp.solar_system_fovh, 0.01),
+      1.5,
+    );
+    console.log(factor, this.vp.solar_system_fovh);
     // No content change, purely visual
     this.vp.view_updated();
   }

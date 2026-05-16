@@ -338,6 +338,8 @@ export class ViewProperties implements Application {
   vp_html: ViewPropertiesHtml;
   resizable_content_size: [number, number];
 
+  webgl_canvas_show_earth: boolean = false;
+
   constructor(star_catalog: StarCatalog, params: URLSearchParams) {
     this.star_catalog = star_catalog;
     this.catalog = star_catalog.catalog;

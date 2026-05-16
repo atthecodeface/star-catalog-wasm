@@ -545,6 +545,9 @@ export class Mouse {
 
   /** Change the client to another */
   set_client(client: MouseClient) {
+    if (client == this.client) {
+      return;
+    }
     if (this.client_interaction !== null) {
       this.client_interaction.abort();
       this.client_interaction = null;
