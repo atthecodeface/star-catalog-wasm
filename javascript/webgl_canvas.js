@@ -3,7 +3,7 @@ import { Logger } from "./log.js";
 import { EarthShader, StarShader, SphereShader } from "./shaders.js";
 import { SolarSystem } from "./solar_system.js";
 import { StarField } from "./star_field.js";
-import { WebglTexture, Webgl, Webgl3DObj, WebglCubicBezierShader, WebglFlatShader, WebglFlatObj, WebglUniform, WebglCubicBezierObj, } from "./web_gl.js";
+import { Webgl, Webgl3DObj, WebglCubicBezierShader, WebglFlatShader, WebglFlatObj, WebglUniform, WebglCubicBezierObj, } from "./web_gl.js";
 export class WebglCanvas {
     constructor(application, canvas) {
         this.webgl = null;
@@ -26,12 +26,9 @@ export class WebglCanvas {
         this.webgl = new Webgl(application.log, this.canvas);
         this.solar_system = new SolarSystem();
         this.star_field = new StarField(application);
-        this.start_webgl(5); // icos_division
-        if (this.webgl === null) {
+        if (!this.start_webgl(5)) {
             throw "Webgl was not created correctly; aborting webgl canvas";
         }
-        this.earth_texture = new WebglTexture(this.webgl, new Image());
-        this.earth_texture.image.src = "Blue_Marble_2002_x10.jpg";
     }
     start_webgl(division) {
         if (!this.webgl.start_webgl()) {
@@ -40,7 +37,6 @@ export class WebglCanvas {
         {
             const program = this.webgl.compile_program(new EarthShader());
             if (program === null) {
-                this.webgl = null;
                 return false;
             }
             this.earth_program = program;
@@ -107,19 +103,23 @@ export class WebglCanvas {
         this.webgl_bezier = new WebglCubicBezierObj();
         this.webgl.create(this.webgl_bezier);
         this.webgl.create(this.star_field);
+        this.solar_system.webgl_init(this.webgl);
         this.logger.info(`Created full webgl content`);
         return true;
     }
-    redraw_canvas() {
+    resize_canvas() {
         let wh = this.vp.get_resizable_content_size();
         if (this.current_wh != wh) {
             this.canvas.width = wh[0];
             this.canvas.height = wh[1];
             this.current_wh = wh;
         }
-        // const style = this.star_catalog.styling.clock;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        this.vp.view_wh = this.current_wh;
+    }
+    redraw_canvas() {
+        this.resize_canvas();
+        const w = this.vp.view_wh[0];
+        const h = this.vp.view_wh[1];
         const ar = w / h;
         if (this.webgl === null) {
             return;
@@ -194,27 +194,22 @@ export class WebglCanvas {
         this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
         this.solar_system.draw_orbits(this.webgl, this.webgl_bezier);
         this.webgl.use_program(this.earth_program);
-        this.webgl.set_texture(this.earth_texture);
         this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
         this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
         this.solar_system.draw_sun(this.webgl, this.webgl_icosphere);
         this.solar_system.draw_planets(this.webgl, this.webgl_icosphere);
     }
-    draw_earth(q, triangle_q_ll) {
-        let wh = this.vp.get_resizable_content_size();
-        if (this.current_wh != wh) {
-            this.canvas.width = wh[0];
-            this.canvas.height = wh[1];
-            this.current_wh = wh;
-        }
-        // const style = this.star_catalog.styling.clock;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+    draw_earth() {
+        this.resize_canvas();
+        const w = this.vp.view_wh[0];
+        const h = this.vp.view_wh[1];
         const view_scale = 0.9;
         const ar = w / h;
         if (this.webgl === null) {
             return;
         }
+        const q = this.vp.earth.q;
+        const triangle_q_ll = this.vp.earth.triangle_q_ll;
         this.webgl.webgl.viewport(0, 0, w, h);
         this.webgl.clear_buffer();
         const styling = this.vp.styling();
@@ -225,7 +220,7 @@ export class WebglCanvas {
             0,
             -view_scale,
             0,
-            view_scale * ar,
+            view_scale / ar,
             0,
             0,
             0,
@@ -242,7 +237,10 @@ export class WebglCanvas {
         const matrix = WasmMat4f32.identity();
         q.set_mat4_rotation(matrix);
         this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
-        this.webgl.set_texture(this.earth_texture);
+        const t = this.solar_system.earth_texture();
+        if (t !== null) {
+            this.webgl.set_texture(t);
+        }
         this.webgl.set_color(styling.earth.color);
         const model = WasmMat4f32.identity();
         this.webgl.set_uniform_mat4(WebglUniform.Model, model.array, false);

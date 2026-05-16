@@ -1,5 +1,5 @@
 //a Imports
-import { WasmStar, WasmVec3f64, WasmQuatf32, WasmQuatf64, } from "../pkg/star_catalog_wasm.js";
+import { WasmStar, WasmVec3f32, WasmVec3f64, WasmQuatf32, WasmQuatf64, } from "../pkg/star_catalog_wasm.js";
 import * as html from "./html.js";
 import { Names } from "./hipparcos.js";
 import { Logger } from "./log.js";
@@ -60,6 +60,67 @@ class ViewPropertiesHtml {
         for (const e of this.magnitudes) {
             e.clear().add_content(`${vp.brightness.toFixed(2)}`);
         }
+    }
+}
+class VPEarth {
+    constructor(vp) {
+        this.q = new WasmQuatf32(0, 0, 0, 1);
+        this.triangle_q_ll = new WasmQuatf32(0, 0, 0, 1);
+        this.center_on_lat = vp.lat;
+        this.center_on_lon = -vp.lon;
+    }
+    derive_data(vp) {
+        if (this.center_on_lat < -80) {
+            this.center_on_lat = -80;
+        }
+        if (this.center_on_lat > 80) {
+            this.center_on_lat = 80;
+        }
+        if (this.center_on_lon < -180) {
+            this.center_on_lon += 360;
+        }
+        if (this.center_on_lon > 180) {
+            this.center_on_lon -= 360;
+        }
+        {
+            const qy = WasmQuatf32.unit().rotate_y(this.center_on_lat * vp.deg2rad);
+            const qz = WasmQuatf32.unit().rotate_z(this.center_on_lon * vp.deg2rad);
+            this.q = qy.mul(qz);
+        }
+        {
+            const qy = WasmQuatf32.unit().rotate_y(-vp.lat * vp.deg2rad);
+            const qz = WasmQuatf32.unit().rotate_z(vp.lon * vp.deg2rad);
+            this.triangle_q_ll = qz.mul(qy);
+        }
+    }
+    center_lat_lon(lat, lon) {
+        this.center_on_lat = lat;
+        this.center_on_lon = -lon;
+    }
+    latlon_of_cxy(vp, cxy) {
+        const w = vp.view_wh[0];
+        const h = vp.view_wh[1];
+        const view_scale = 0.9;
+        // Convert the location cxy into a position on the *circle* that is the drawing of the earth
+        const dx = ((cxy[0] - w / 2) / h / view_scale) * 2;
+        const dy = ((h / 2 - cxy[1]) / h / view_scale) * 2;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= 0.98) {
+            return null;
+        }
+        // Convert to a roll/yaw on the sphere that the circle is a projection of
+        const d = Math.sqrt(d2);
+        const dz = Math.sqrt(1 - d2);
+        const yaw = Math.atan2(d, dz);
+        const roll = Math.atan2(dy, dx);
+        // Convert the roll/yaw to a unit vector on the sphere
+        const v = new WasmVec3f32(Math.cos(yaw), Math.sin(yaw) * Math.cos(roll), Math.sin(yaw) * Math.sin(roll));
+        // Undo the orientation that mapped the earth to the last displayed earth image
+        const world = this.q.conjugate().apply(v);
+        // Extract the lat/lon of this
+        const lat = vp.rad2deg * Math.asin(world.array[2]);
+        const lon = vp.rad2deg * Math.atan2(world.array[1], world.array[0]);
+        return [lat, lon];
     }
 }
 /**
@@ -172,6 +233,7 @@ class ViewPropertiesHtml {
 /// so 360*366.25/365.25 degrees per UTC day = 360.98562628336754 degrees per UTC day
 export class ViewProperties {
     constructor(star_catalog, params) {
+        this.view_wh = [0, 0];
         this.lat = 0;
         this.lon = 0;
         this.deg2rad = Math.PI / 180;
@@ -257,6 +319,7 @@ export class ViewProperties {
         this.observer_to_ecef_q = WasmQuatf64.unit();
         this.fovh = Math.PI / 2;
         this.tan_hfovh = 0;
+        this.earth = new VPEarth(this);
         this.derive_data();
         if (compass_param !== null) {
             this.observer_compass = parseFloat(compass_param);
@@ -325,7 +388,8 @@ export class ViewProperties {
             this.lon = lon;
         }
         this.update_latlon(this.lat, this.lon);
-        this.star_catalog.earth_canvas.center_lat_lon(this.lat, this.lon);
+        this.earth.center_lat_lon(this.lat, this.lon);
+        this.location_updated();
     }
     select_star(star) {
         if (star) {
@@ -482,6 +546,7 @@ export class ViewProperties {
     /// Derive data for the internals based on the time, date, lat and lon
     ///
     derive_data() {
+        this.earth.derive_data(this);
         if (this.fovh > (Math.PI * 3) / 4) {
             this.fovh = (Math.PI * 3) / 4;
         }

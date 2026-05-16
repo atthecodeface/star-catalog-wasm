@@ -1,14 +1,20 @@
 import { WasmOrbit, WasmVec3f32, WasmMat4f32, WasmBezier3f32, } from "../pkg/star_catalog_wasm.js";
-import { WebglUniform, } from "./web_gl.js";
+import { WebglTexture, WebglUniform, } from "./web_gl.js";
 export class Planet {
-    constructor(name) {
+    constructor(name, image_filename) {
         this.planet_scale = 0.002;
         this.planet_color = [1, 1, 1, 1];
+        this.texture = null;
         this.orbit = WasmOrbit.of_solar_system(name);
         this.orbit_bezier = new WasmBezier3f32();
         this.orbit_to_parent = this.orbit.orbit_to_parent();
         this.vec = new WasmVec3f32(0, 0, 0);
         this.mat = WasmMat4f32.identity();
+        this.image_filename = image_filename;
+    }
+    webgl_init(webgl) {
+        this.texture = new WebglTexture(webgl, new Image());
+        this.texture.image.src = this.image_filename;
     }
     set_time(secs_since_epoch, builder) {
         this.orbit_to_parent = this.orbit.orbit_to_parent();
@@ -37,6 +43,9 @@ export class Planet {
         this.mat.set_scale3(this.planet_scale);
         this.mat.set_translate_by_vec3(this.vec);
         webgl.set_color(this.planet_color);
+        if (this.texture !== null) {
+            webgl.set_texture(this.texture);
+        }
         webgl.set_uniform_mat4(WebglUniform.Model, this.mat.array, true);
         webgl.draw(icosphere);
     }

@@ -1,9 +1,5 @@
 import { WasmIcosphere } from "../pkg/star_catalog_wasm.js";
-import {
-  WasmVec3f32,
-  WasmMat4f32,
-  WasmQuatf32,
-} from "../pkg/star_catalog_wasm.js";
+import { WasmVec3f32, WasmMat4f32 } from "../pkg/star_catalog_wasm.js";
 
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
@@ -31,8 +27,6 @@ export class Earth {
   use_webgl: boolean;
   ctx: CanvasRenderingContext2D | null;
   icos: WasmIcosphere;
-  center_on_lat: number;
-  center_on_lon: number;
   webgl_icosphere: Webgl3DObj | null = null;
   webgl_triangle: Webgl3DObj | null = null;
   webgl: Webgl | null = null;
@@ -40,8 +34,6 @@ export class Earth {
   texture: WebglTexture | null = null;
 
   view_scale: number;
-  q: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
-  triangle_q_ll: WasmQuatf32 = new WasmQuatf32(0, 0, 0, 1);
 
   constructor(
     application: Application,
@@ -77,19 +69,8 @@ export class Earth {
     this.icos.subdivide(division);
 
     this.view_scale = 0.9;
-    this.center_on_lat = this.vp.lat;
-    this.center_on_lon = -this.vp.lon;
 
     this.start_webgl();
-  }
-
-  center_lat_lon(lat: number, lon: number) {
-    this.center_on_lat = lat;
-    this.center_on_lon = -lon;
-  }
-
-  update() {
-    this.draw();
   }
 
   start_webgl() {
@@ -136,9 +117,18 @@ export class Earth {
     this.webgl!.create(this.webgl_triangle);
 
     this.texture = new WebglTexture(this.webgl!, new Image()); // on loaded call this.draw()!
-    this.texture.image!.src = "Blue_Marble_2002_x10.jpg";
+    this.texture.image!.src = "images/Blue_Marble_2002_x10.jpg";
 
     this.logger.info("webgl", `WebGl started successfully`);
+  }
+
+  update() {
+    if (!this.texture!.texture_bound) {
+      return;
+    }
+    if (this.webgl !== null) {
+      this.webgl_draw();
+    }
   }
 
   webgl_draw() {
@@ -149,6 +139,8 @@ export class Earth {
     this.webgl.webgl!.viewport(0, 0, this.width, this.height);
     this.webgl.use_program(this.program);
     this.webgl.clear_buffer();
+
+    this.vp.view_wh = [this.width, this.height];
 
     // WebGL has a clip space of -1,-1,-1 to 1,1,1; negative z is more visible
     const projection = [
@@ -175,7 +167,7 @@ export class Earth {
     this.webgl.set_uniform_mat4(WebglUniform.Projection, projection);
 
     const matrix = WasmMat4f32.identity();
-    this.q.set_mat4_rotation(matrix);
+    this.vp.earth.q.set_mat4_rotation(matrix);
     this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
 
     this.webgl.set_texture(this.texture!);
@@ -188,74 +180,9 @@ export class Earth {
 
     this.webgl.set_color([1, 0, 0, 0]);
 
-    this.triangle_q_ll.set_mat4_rotation(matrix);
+    this.vp.earth.triangle_q_ll.set_mat4_rotation(matrix);
     this.webgl.set_uniform_mat4(WebglUniform.Model, matrix.array, true);
     this.webgl.draw(this.webgl_triangle!);
-  }
-
-  derive_data() {
-    if (this.center_on_lat < -80) {
-      this.center_on_lat = -80;
-    }
-    if (this.center_on_lat > 80) {
-      this.center_on_lat = 80;
-    }
-    if (this.center_on_lon < -180) {
-      this.center_on_lon += 360;
-    }
-    if (this.center_on_lon > 180) {
-      this.center_on_lon -= 360;
-    }
-    {
-      const qy = WasmQuatf32.unit().rotate_y(
-        this.center_on_lat * this.vp.deg2rad,
-      );
-      const qz = WasmQuatf32.unit().rotate_z(
-        this.center_on_lon * this.vp.deg2rad,
-      );
-      this.q = qy.mul(qz);
-    }
-    {
-      const qy = WasmQuatf32.unit().rotate_y(-this.vp.lat * this.vp.deg2rad);
-      const qz = WasmQuatf32.unit().rotate_z(this.vp.lon * this.vp.deg2rad);
-      this.triangle_q_ll = qz.mul(qy);
-    }
-  }
-
-  // Used in user_release
-  latlon_of_cxy(cxy: [number, number]): [number, number] | null {
-    this.derive_data();
-    const dx = ((cxy[0] / this.width) * 2 - 1.0) / this.view_scale;
-    const dy = (1.0 - (cxy[1] / this.height) * 2) / this.view_scale;
-    const d2 = dx * dx + dy * dy;
-    if (d2 >= 0.98) {
-      return null;
-    }
-    const d = Math.sqrt(d2);
-    const dz = Math.sqrt(1 - d2);
-    const yaw = Math.atan2(d, dz);
-    const roll = Math.atan2(dy, dx);
-    const v = new WasmVec3f32(
-      Math.cos(yaw),
-      Math.sin(yaw) * Math.cos(roll),
-      Math.sin(yaw) * Math.sin(roll),
-    );
-
-    const world = this.q.conjugate().apply(v);
-    // const world = this.q.apply3(v);
-    const lat = this.rad2deg * Math.asin(world.array[2]!);
-    const lon = this.rad2deg * Math.atan2(world.array[1]!, world.array[0]!);
-    return [lat, lon];
-  }
-
-  draw() {
-    this.derive_data();
-    if (!this.texture!.texture_bound) {
-      return;
-    }
-    if (this.webgl !== null) {
-      this.webgl_draw();
-    }
   }
 
   drag_start(_start_xy: [number, number], _xy: [number, number]): void {}
@@ -273,25 +200,26 @@ export class Earth {
   ): void {
     const dcx = old_xy[0] - new_xy[0];
     const dcy = old_xy[1] - new_xy[1];
-    this.center_on_lat -= dcy;
-    this.center_on_lon -= dcx;
+    this.vp.earth.center_on_lat -= dcy;
+    this.vp.earth.center_on_lon -= dcx;
     this.application.view_updated();
   }
 
   user_release(_start_xy: [number, number], cxy: [number, number]): void {
-    const lat_lon = this.latlon_of_cxy(cxy);
+    const lat_lon = this.vp.earth.latlon_of_cxy(this.vp, cxy);
     if (lat_lon == null) {
       return;
     }
     this.vp.update_latlon(lat_lon[0], lat_lon[1]);
+    console.log(lat_lon[0], lat_lon[1]);
     this.application.location_updated();
   }
 
   user_zoom(_cxy: [number, number], factor: number): void {
     if (factor < 1.0) {
-      this.center_on_lon -= 1.0 / factor;
+      this.vp.earth.center_on_lon -= 1.0 / factor;
     } else {
-      this.center_on_lon += factor;
+      this.vp.earth.center_on_lon += factor;
     }
     this.application.view_updated();
   }

@@ -29,7 +29,8 @@ export class TestCanvas {
         this.redraw_canvas();
     }
     redraw_canvas() {
-        this.webgl_canvas.redraw_canvas();
+        // this.webgl_canvas.redraw_canvas();
+        this.webgl_canvas.draw_earth();
     }
     drag_end(_start_xy, _xy) { }
     user_press(_xy, actions) {

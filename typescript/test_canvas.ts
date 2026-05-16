@@ -65,7 +65,9 @@ export class TestCanvas {
   }
 
   redraw_canvas() {
-    this.webgl_canvas.redraw_canvas();
+    // this.webgl_canvas.redraw_canvas();
+
+    this.webgl_canvas.draw_earth();
   }
 
   drag_end(_start_xy: [number, number], _xy: [number, number]): void {}
