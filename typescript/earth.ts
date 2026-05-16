@@ -3,6 +3,7 @@ import { Logger } from "./log.js";
 
 import { Application } from "./application.js";
 import { ViewProperties } from "./view_properties.js";
+import { WebglCanvasView } from "./webgl_canvas.js";
 
 export class Earth {
   application: Application;
@@ -23,7 +24,7 @@ export class Earth {
   }
 
   update() {
-    this.vp.webgl_canvas_show_earth = true;
+    this.vp.webgl_canvas_view = WebglCanvasView.Earth;
   }
 
   drag_start(_start_xy: [number, number], _xy: [number, number]): void {}

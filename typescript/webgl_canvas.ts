@@ -7,7 +7,12 @@ import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
 
-import { EarthShader, StarShader, SphereShader } from "./shaders.js";
+import {
+  EarthShader,
+  StarShader,
+  SphereShader,
+  StarMapShader,
+} from "./shaders.js";
 
 import { SolarSystem } from "./solar_system.js";
 import { StarField } from "./star_field.js";
@@ -22,6 +27,12 @@ import {
   WebglCubicBezierObj,
 } from "./web_gl.js";
 
+export enum WebglCanvasView {
+  Earth,
+  SolarSystem,
+  StarMap,
+}
+
 export class WebglCanvas {
   application: Application;
   vp: ViewProperties;
@@ -35,6 +46,7 @@ export class WebglCanvas {
   flat_program: number = 0;
   bezier_program: number = 0;
   star_program: number = 0;
+  star_map_program: number = 0;
 
   webgl_icosphere: Webgl3DObj | null = null;
   webgl_axis: WebglFlatObj | null = null;
@@ -94,6 +106,15 @@ export class WebglCanvas {
         return false;
       } else {
         this.star_program = program;
+      }
+    }
+
+    {
+      const program = this.webgl!.compile_program(new StarMapShader());
+      if (program === null) {
+        return false;
+      } else {
+        this.star_map_program = program;
       }
     }
 
@@ -238,12 +259,10 @@ export class WebglCanvas {
     this.webgl.set_color([1, 1, 1, 1]);
     this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
     this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
+    this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
     this.webgl.draw(this.star_field);
     this.webgl.clear_depth_buffer();
 
-    if (this.star_field === null) {
-      return;
-    }
     view_matrix.set_translate_by_vec3(origin);
 
     // Set view
@@ -356,5 +375,54 @@ export class WebglCanvas {
     triangle_q_ll.set_mat4_rotation(matrix);
     this.webgl.set_uniform_mat4(WebglUniform.Model, matrix.array, true);
     this.webgl.draw(this.webgl_triangle!);
+  }
+
+  draw_star_map() {
+    this.resize_canvas();
+    const w = this.vp.view_wh[0];
+    const h = this.vp.view_wh[1];
+
+    if (this.webgl === null) {
+      return;
+    }
+    const view_scale = 1.0;
+    let xsc = 1.0;
+    let ysc = w / h / 1.6;
+    console.log(w, h, xsc, ysc);
+    if (ysc > 1.0) {
+      xsc /= ysc;
+      ysc = 1.0;
+    }
+    this.webgl.webgl!.viewport(0, 0, w, h);
+    this.webgl.clear_buffer();
+
+    this.webgl.use_program(this.star_map_program);
+    this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+
+    const view = [
+      view_scale * xsc,
+      0,
+      0,
+      0,
+
+      0,
+      view_scale * ysc,
+      0,
+      0,
+
+      0,
+      0,
+      1,
+      0,
+
+      0,
+      0,
+      0,
+      1,
+    ];
+
+    this.webgl.set_color([1, 1, 1, 1]);
+    this.webgl.set_uniform_mat4(WebglUniform.View, view, true);
+    this.webgl.draw(this.star_field);
   }
 }

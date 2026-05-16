@@ -8,7 +8,7 @@ import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
 
-import { WebglCanvas } from "./webgl_canvas.js";
+import { WebglCanvas, WebglCanvasView } from "./webgl_canvas.js";
 
 import { Webgl } from "./web_gl.js";
 
@@ -46,12 +46,22 @@ export class TestCanvas {
   }
 
   redraw_canvas() {
-    if (this.vp.webgl_canvas_show_earth) {
-      this.webgl_canvas.draw_earth();
-      this.mouse.set_client(this.vp.star_catalog.earth_canvas);
-    } else {
-      this.webgl_canvas.redraw_canvas();
-      this.mouse.set_client(this);
+    switch (this.vp.webgl_canvas_view) {
+      case WebglCanvasView.Earth: {
+        this.webgl_canvas.draw_earth();
+        this.mouse.set_client(this.vp.star_catalog.earth_canvas);
+        break;
+      }
+      case WebglCanvasView.SolarSystem: {
+        this.webgl_canvas.redraw_canvas();
+        this.mouse.set_client(this);
+        break;
+      }
+      case WebglCanvasView.StarMap: {
+        this.webgl_canvas.draw_star_map();
+        this.mouse.set_client(this);
+        break;
+      }
     }
   }
 

@@ -174,6 +174,78 @@ export class SphereShader implements WebglShaderSrc {
   `;
 }
 
+export class StarMapShader implements WebglShaderSrc {
+  id: string = "star_map";
+  extra_uniforms: string[] = ["magnitude"];
+
+  vertex: string = `#version 300 es
+  uniform mat4 projection;
+  uniform mat4 view;
+  uniform mat4 model;
+
+  uniform float magnitude;
+
+  // These are implicit
+  // in highp int gl_VertexID;
+  // in highp int gl_InstanceID;
+  // out highp vec4 gl_Position;
+  // out highp float gl_PointSize;
+
+  in ivec3 star;
+
+  out vec3 star_color;
+  void main() {
+    uint x = uint(star.z) & 0x00003fffu;
+    uint y = (uint(star.z) & 0x03ffc000u) >> 14 ;
+    uint m = uint(star.y >> 24) & 0x3fu;
+    uint temperature = uint(star.z >> 26) & 0xfu;
+
+
+    float xf = float(x) / float(0x2000) - 1.0;
+    float yf = float(y) / float(0x800) - 1.0;
+    float tf = float(temperature);
+    float mf = float(m) / 4.0;
+    bool discard_star = (mf > magnitude);
+    float zf = (discard_star) ? -4.0 : 0.0;
+
+    gl_Position = view * vec4(xf, yf, zf, 1);
+
+    // A polynomial fitting 4bit to red has a reasonable polynomial of red = 5.8x + 256x^2 (clamp to 255)
+    // A polynomial fitting 4bit to green has a reasonable polynomial of green = 18x + 167x^2 (clamp to 255)
+    // A polynomial fitting 4bit to blue has a reasonable polynomial of blue = 111 + 16x
+    float red = clamp(tf * (5.8/255.0 + 255.0/255.0*tf),0.0,1.0);
+    float green = clamp(tf * (18.0/255.0 + 167.0/255.0*tf),0.0,1.0);
+    float blue = clamp(tf * 16.0/255.0 + 111.0/255.0,0.0,1.0);
+
+    float brightness = clamp(1.0 - mf/16.0, 0.5, 1.0);
+    star_color = vec3(brightness*red, brightness*green, brightness*blue);
+    gl_PointSize = clamp(4.0 - 0.5 * mf, 1.0, 4.0);
+  }
+`;
+
+  fragment: string = `#version 300 es
+  precision mediump float;
+  in vec3 star_color;
+  uniform vec4 color;
+
+  out vec4 FragColor; // must be the only output declaration; is not implicit!
+
+  // These are implicit
+  // in highp vec4 gl_FragCoord;
+  // in bool gl_FrontFacing;
+  // out highp float gl_FragDepth;
+  // in mediump vec2 gl_PointCoord;
+
+  void main() {
+  FragColor.r = color.r * star_color.r;
+  FragColor.g = color.g * star_color.g;
+  FragColor.b = color.b * star_color.b;
+  FragColor.a = color.a;
+
+  }
+  `;
+}
+
 export class StarShader implements WebglShaderSrc {
   id: string = "stars";
   extra_uniforms: string[] = ["magnitude"];
@@ -191,7 +263,7 @@ export class StarShader implements WebglShaderSrc {
   // out highp vec4 gl_Position;
   // out highp float gl_PointSize;
 
-  in ivec2 star;
+  in ivec3 star;
 
   out vec3 star_color;
   void main() {
@@ -204,7 +276,8 @@ export class StarShader implements WebglShaderSrc {
     bool z_is_v = (star.x & 0x10000000)!=0;
     bool y_is_u = !x_is_u;
     bool y_is_v = !z_is_v;
-    uint magnitude = uint(star.y >> 24) & 0x7fu;
+    uint m = uint(star.y >> 24) & 0x3fu;
+    uint temperature = uint(star.z >> 26) & 0xfu;
 
     float uf_unsigned = float(u) / float(0x1000000);
     float vf_unsigned = float(v) / float(0x1000000);
@@ -212,6 +285,8 @@ export class StarShader implements WebglShaderSrc {
     float uf = u_is_neg ? (-uf_unsigned): (uf_unsigned);
     float vf = v_is_neg ? (-vf_unsigned): (vf_unsigned);
     float wf = w_is_neg ? (-wf_unsigned): (wf_unsigned);
+    float tf = float(temperature);
+    float mf = float(m) / 4.0;
 
     float x = x_is_u ? uf : wf;
     float y = y_is_u ? uf : (y_is_v ? vf : wf);
@@ -224,16 +299,23 @@ export class StarShader implements WebglShaderSrc {
     // Project onto plane at 'near'
     float scale = -1.0 / star_vector.z;
 
-    bool discard_star = (star_vector.z > 0.0);
+    bool discard_star = (star_vector.z > 0.0) || (mf > magnitude);
     vec4 position = vec4(scale * star_vector.x, scale * star_vector.y, -1.0, 1.0);
     position.z = discard_star ? 100.0 : position.z;
 
     // Project fully - this will only really take into account the FOV
     gl_Position = projection * position;
 
-    float brightness = (float(magnitude)+15.9) / 16.0;
-    star_color = vec3(brightness, brightness, brightness);
-    gl_PointSize = (magnitude > 4u) ? (float(magnitude)/4.0) : 1.0;
+    // A polynomial fitting 4bit to red has a reasonable polynomial of red = 5.8x + 256x^2 (clamp to 255)
+    // A polynomial fitting 4bit to green has a reasonable polynomial of green = 18x + 167x^2 (clamp to 255)
+    // A polynomial fitting 4bit to blue has a reasonable polynomial of blue = 111 + 16x
+    float red = clamp(tf * (5.8/255.0 + 255.0/255.0*tf),0.0,1.0);
+    float green = clamp(tf * (18.0/255.0 + 167.0/255.0*tf),0.0,1.0);
+    float blue = clamp(tf * 16.0/255.0 + 111.0/255.0,0.0,1.0);
+
+    float brightness = clamp(1.0 - mf/16.0, 0.5, 1.0);
+    star_color = vec3(brightness*red, brightness*green, brightness*blue);
+    gl_PointSize = clamp(4.0 - 0.5 * mf, 1.0, 4.0);
   }
 `;
 

@@ -9,6 +9,7 @@ import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
+import { WebglCanvasView } from "./webgl_canvas.js";
 
 export class MapCanvas {
   application: Application;
@@ -89,6 +90,8 @@ export class MapCanvas {
 
   //mp update
   update() {
+    this.vp.webgl_canvas_view = WebglCanvasView.StarMap;
+
     this.derive_data();
     this.redraw_canvas();
   }

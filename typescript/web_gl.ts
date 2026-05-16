@@ -361,6 +361,13 @@ export class WebglProgram {
     }
   }
 
+  set_uniform_float(uniform: WebglUniform, value: number) {
+    const u = this.uniforms[uniform];
+    if (u !== null) {
+      this.webgl.uniform1f(u!, value);
+    }
+  }
+
   set_uniform_vec4(uniform: WebglUniform, value: number[]) {
     const u = this.uniforms[uniform];
     if (u !== null) {
@@ -566,6 +573,20 @@ export class Webgl {
     if (this.webgl !== null) {
       obj.webgl_create(this.webgl);
     }
+  }
+
+  set_uniform_float(uniform: WebglUniform, value: number) {
+    if (this.current_program === null) {
+      return;
+    }
+    this.current_program.set_uniform_float(uniform, value);
+  }
+
+  set_uniform_vec4(uniform: WebglUniform, value: number[]) {
+    if (this.current_program === null) {
+      return;
+    }
+    this.current_program.set_uniform_vec4(uniform, value);
   }
 
   set_uniform_mat4(
