@@ -1,15 +1,18 @@
 import {
+  WasmVec3f32,
   WasmVec3f64,
   WasmQuatf64,
   WasmStar,
+  WasmBezierBuilder3f32,
+  WasmBezier3f32,
 } from "../pkg/star_catalog_wasm.js";
 import { Line } from "./draw.js";
-import { Cache } from "./cache.js";
+import { CacheOld } from "./cache.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
-import { WebglCanvasView } from "./webgl_canvas.js";
+import { WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
 
 export class MapCanvas {
   application: Application;
@@ -20,7 +23,7 @@ export class MapCanvas {
   width: number;
   height: number;
   brightness: number;
-  star_cache: Cache<any>;
+  star_cache: CacheOld<any>;
 
   mouse: Mouse;
 
@@ -48,7 +51,7 @@ export class MapCanvas {
     this.canvas.height = this.height;
 
     this.brightness = 4.0;
-    this.star_cache = new Cache(
+    this.star_cache = new CacheOld(
       null,
       (_x) => {
         return false;
@@ -153,6 +156,72 @@ export class MapCanvas {
     const de = Math.asin(vxyz[2]!);
     const ra = Math.atan2(vxyz[1]!, vxyz[0]!);
     return this.cxy_of_ra_de(ra, de);
+  }
+
+  create_frame_beziers(): CachedBezier[] {
+    const result = [];
+    const bezier = new WasmBezier3f32();
+    const builder = new WasmBezierBuilder3f32();
+    const vec = new WasmVec3f64(0, 0, 0);
+    const pt = new WasmVec3f32(0, 0, 0);
+    const control_points = new Float32Array(4 * 10 * 16); // 4 axes each of 10 Beziers each of one mat4 (16 control point coordinates)
+    let b = 0;
+    const me = this;
+    function create_bezier(
+      x0: number,
+      y0: number,
+      x1: number,
+      y1: number,
+    ): CachedBezier {
+      builder.clear();
+
+      for (let j = 0; j < 4; j++) {
+        me.application.sky_view_frame_to_ecef_set_vec(
+          (x0 * (3 - j) + x1 * j) / 3,
+          (y0 * (3 - j) + y1 * j) / 3,
+          vec,
+        );
+        const vxyz = me.application.wasm_memory.float_array_of_vec3f64(vec);
+        const pt0 = me.application.wasm_memory.float_array_of_vec3f32(pt);
+        const de = (Math.asin(vxyz[2]!) / Math.PI) * 2.0;
+        const ra = (Math.atan2(vxyz[1]!, vxyz[0]!) / Math.PI) * 1.0;
+
+        pt0[0] = ra;
+        pt0[1] = de;
+        pt0[2] = 0.0;
+        builder.add_vec_pt_at(j / 3.0, pt);
+      }
+
+      bezier.reconstruct(builder);
+
+      for (let j = 0; j < 4; j++) {
+        bezier.set_vec_control_pt(pt, j);
+        const pt0 = me.application.wasm_memory.float_array_of_vec3f32(pt);
+        control_points.set(pt0, b + j * 4);
+      }
+      return new CachedBezier([1, 0, 0, 1], control_points, b);
+    }
+
+    for (const y of [-1, 1]) {
+      for (let i = 0; i < 10; i++) {
+        let lx = i / 5.0 - 1.0;
+        let rx = (i + 1) / 5.0 - 1.0;
+
+        result.push(create_bezier(lx, y, rx, y));
+        b += 16;
+      }
+    }
+
+    for (const x of [-1, 1]) {
+      for (let i = 0; i < 10; i++) {
+        let by = i / 5.0 - 1.0;
+        let ty = (i + 1) / 5.0 - 1.0;
+
+        result.push(create_bezier(x, by, x, ty));
+        b += 16;
+      }
+    }
+    return result;
   }
 
   //mi draw_sky_rect

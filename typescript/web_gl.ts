@@ -177,6 +177,7 @@ export class WebglFlatObj implements WebglObjKind {
 
 export class WebglCubicBezierObj implements WebglObjKind {
   control_points: Float32Array;
+  control_points_offset: number;
   positions: Float32Array;
   position_buf: WebGLBuffer | null = null;
   point: WasmVec3f32;
@@ -187,6 +188,7 @@ export class WebglCubicBezierObj implements WebglObjKind {
       this.positions[i] = (i / (steps - 1.0)) * (max_t - min_t) + min_t;
     }
     this.control_points = new Float32Array(4 * 4);
+    this.control_points_offset = 0;
     this.point = new WasmVec3f32(0, 0, 0);
   }
 
@@ -208,6 +210,12 @@ export class WebglCubicBezierObj implements WebglObjKind {
     this.control_points.set(this.point.array, 8);
     bezier.set_vec_control_pt(this.point, 3);
     this.control_points.set(this.point.array, 12);
+    this.control_points_offset = 0;
+  }
+
+  set_control_points(control_points: Float32Array, offset: number = 0): void {
+    this.control_points = control_points;
+    this.control_points_offset = offset;
   }
 
   webgl_create(webgl: WebGLRenderingContext) {
@@ -221,7 +229,14 @@ export class WebglCubicBezierObj implements WebglObjKind {
   }
 
   webgl_set_uniforms(wgl: Webgl) {
-    wgl.set_uniform_mat4(WebglUniform.Extra0, this.control_points, false);
+    wgl.set_uniform_mat4(
+      WebglUniform.Extra0,
+      this.control_points.slice(
+        this.control_points_offset,
+        this.control_points_offset + 16,
+      ),
+      false,
+    );
   }
 
   webgl_draw(webgl: WebGLRenderingContext) {

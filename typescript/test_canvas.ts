@@ -58,8 +58,10 @@ export class TestCanvas {
         break;
       }
       case WebglCanvasView.StarMap: {
+        this.vp.star_catalog.map_canvas.derive_data();
+
         this.webgl_canvas.draw_star_map();
-        this.mouse.set_client(this);
+        this.mouse.set_client(this.vp.star_catalog.map_canvas);
         break;
       }
     }

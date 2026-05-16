@@ -15,7 +15,43 @@ const decode_star = `
   uint ra = uint(star.z) & 0x00003fffu;
   uint de = (uint(star.z) & 0x03ffc000u) >> 14 ;
 
+  float ra_f = float(ra) / float(0x2000) - 1.0;
+  float de_f = float(de) / float(0x800) - 1.0;
+  float t_f = float(t);
+  float m_f = float(m) / 4.0;
+  bool discard_star = (m_f > magnitude);
+
+  float uf_unsigned = float(u) / float(0x1000000);
+  float vf_unsigned = float(v) / float(0x1000000);
+  float wf_unsigned = sqrt(1.0 - uf_unsigned*uf_unsigned - vf_unsigned*vf_unsigned);
+  float uf = u_is_neg ? (-uf_unsigned): (uf_unsigned);
+  float vf = v_is_neg ? (-vf_unsigned): (vf_unsigned);
+  float wf = w_is_neg ? (-wf_unsigned): (wf_unsigned);
+
 `;
+
+const star_color_and_point_size = `
+  // A polynomial fitting 4bit to red has a reasonable polynomial of red = 5.8x + 256x^2 (clamp to 255)
+  // A polynomial fitting 4bit to green has a reasonable polynomial of green = 18x + 167x^2 (clamp to 255)
+  // A polynomial fitting 4bit to blue has a reasonable polynomial of blue = 111 + 16x
+  float red = clamp(t_f * (5.8/255.0 + 255.0/255.0*t_f),0.0,1.0);
+  float green = clamp(t_f * (18.0/255.0 + 167.0/255.0*t_f),0.0,1.0);
+  float blue = clamp(t_f * 16.0/255.0 + 111.0/255.0,0.0,1.0);
+
+  float brightness = clamp(1.0 - m_f/16.0, 0.5, 1.0);
+  star_color = vec3(brightness*red, brightness*green, brightness*blue);
+  gl_PointSize = clamp(4.0 - 0.5 * m_f, 1.0, 4.0);
+`;
+
+export function map_xyz_to_ra_de(xyz: string, ra_de: string): string {
+  return `
+   // x = cos(de) * cos(ra)
+   // y = cos(de) * sin(ra)
+   // z = sin(de)
+   ${ra_de}.x = atan(${xyz}.y, ${xyz}.z) / 3.1415926538; // -1.0 -> 1.0
+   ${ra_de}.y = asin(${xyz}.z) / 3.1415926538; // -0.5 -> 0.5
+  `;
+}
 
 export class EarthShader implements WebglShaderSrc {
   id = "earth";
@@ -216,25 +252,13 @@ export class StarMapShader implements WebglShaderSrc {
    // decode 'star' into all its parameters
     ${decode_star}
 
-    float ra_f = float(ra) / float(0x2000) - 1.0;
-    float de_f = float(de) / float(0x800) - 1.0;
-    float t_f = float(t);
-    float m_f = float(m) / 4.0;
-    bool discard_star = (m_f > magnitude);
     float z_f = (discard_star) ? -4.0 : 0.0;
 
     gl_Position = view * vec4(ra_f, de_f, z_f, 1);
 
-    // A polynomial fitting 4bit to red has a reasonable polynomial of red = 5.8x + 256x^2 (clamp to 255)
-    // A polynomial fitting 4bit to green has a reasonable polynomial of green = 18x + 167x^2 (clamp to 255)
-    // A polynomial fitting 4bit to blue has a reasonable polynomial of blue = 111 + 16x
-    float red = clamp(t_f * (5.8/255.0 + 255.0/255.0*t_f),0.0,1.0);
-    float green = clamp(t_f * (18.0/255.0 + 167.0/255.0*t_f),0.0,1.0);
-    float blue = clamp(t_f * 16.0/255.0 + 111.0/255.0,0.0,1.0);
+    // Calculate 'star_color' and 'gl_PointSize'
+    ${star_color_and_point_size}
 
-    float brightness = clamp(1.0 - m_f/16.0, 0.5, 1.0);
-    star_color = vec3(brightness*red, brightness*green, brightness*blue);
-    gl_PointSize = clamp(4.0 - 0.5 * m_f, 1.0, 4.0);
   }
 `;
 
@@ -286,43 +310,25 @@ export class StarShader implements WebglShaderSrc {
     // decode 'star' into all its parameters
     ${decode_star}
 
-    float uf_unsigned = float(u) / float(0x1000000);
-    float vf_unsigned = float(v) / float(0x1000000);
-    float wf_unsigned = sqrt(1.0 - uf_unsigned*uf_unsigned - vf_unsigned*vf_unsigned);
-    float uf = u_is_neg ? (-uf_unsigned): (uf_unsigned);
-    float vf = v_is_neg ? (-vf_unsigned): (vf_unsigned);
-    float wf = w_is_neg ? (-wf_unsigned): (wf_unsigned);
-    float tf = float(t);
-    float mf = float(m) / 4.0;
-
     float x = x_is_u ? uf : wf;
     float y = y_is_u ? uf : (y_is_v ? vf : wf);
     float z = z_is_v ? vf : wf;
 
-    vec4 star_vector;
     // Map through the view *orientation*
-    star_vector = view * vec4(x,y,z,1);
+    vec4 star_vector = view * vec4(x,y,z,1);
+    discard_star = discard_star || (star_vector.z > 0.0);
 
     // Project onto plane at 'near'
     float scale = -1.0 / star_vector.z;
 
-    bool discard_star = (star_vector.z > 0.0) || (mf > magnitude);
     vec4 position = vec4(scale * star_vector.x, scale * star_vector.y, -1.0, 1.0);
     position.z = discard_star ? 100.0 : position.z;
 
     // Project fully - this will only really take into account the FOV
     gl_Position = projection * position;
 
-    // A polynomial fitting 4bit to red has a reasonable polynomial of red = 5.8x + 256x^2 (clamp to 255)
-    // A polynomial fitting 4bit to green has a reasonable polynomial of green = 18x + 167x^2 (clamp to 255)
-    // A polynomial fitting 4bit to blue has a reasonable polynomial of blue = 111 + 16x
-    float red = clamp(tf * (5.8/255.0 + 255.0/255.0*tf),0.0,1.0);
-    float green = clamp(tf * (18.0/255.0 + 167.0/255.0*tf),0.0,1.0);
-    float blue = clamp(tf * 16.0/255.0 + 111.0/255.0,0.0,1.0);
-
-    float brightness = clamp(1.0 - mf/16.0, 0.5, 1.0);
-    star_color = vec3(brightness*red, brightness*green, brightness*blue);
-    gl_PointSize = clamp(4.0 - 0.5 * mf, 1.0, 4.0);
+    // Calculate 'star_color' and 'gl_PointSize'
+    ${star_color_and_point_size}
   }
 `;
 
@@ -348,21 +354,3 @@ export class StarShader implements WebglShaderSrc {
   }
   `;
 }
-
-/*
-// canvas XY of a vector
-//
-// X+ is in, Y+ is left, Z+ is up; sin(z) is declination (or atan(z/x))
-cxy_of_vector(vec: WasmVec3f64): [number, number] {
-  const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
-  const de = Math.asin(vxyz[2]!);
-  const ra = Math.atan2(vxyz[1]!, vxyz[0]!);
-  const x = 0.5 + ra / (2 * Math.PI);
-  const y = 0.5 - de / Math.PI;
-  const fx = x - Math.floor(x);
-  const fy = y - Math.floor(y);
-  const cx = fx * this.width;
-  const cy = fy * this.height;
-  return [cx, cy];
-}
-*/

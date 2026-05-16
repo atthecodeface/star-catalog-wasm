@@ -5,7 +5,7 @@ import {
 } from "../pkg/star_catalog_wasm.js";
 import { Line } from "./draw.js";
 import { Mouse, MousePressActions } from "./mouse.js";
-import { Cache } from "./cache.js";
+import { CacheOld } from "./cache.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
@@ -22,7 +22,7 @@ export class SkyCanvas {
 
   mouse: Mouse;
 
-  star_cache: Cache<any>;
+  star_cache: CacheOld<any>;
   tan_yx: number;
 
   win_ar: number = 0;
@@ -74,7 +74,7 @@ export class SkyCanvas {
       stars: [],
       brightness: 0.0,
     };
-    return new Cache(
+    return new CacheOld(
       stars,
       this.check_star_cache.bind(this),
       this.try_to_fill_star_cache.bind(this),

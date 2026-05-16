@@ -2,6 +2,7 @@ import {
   WasmVec3f32,
   WasmMat4f32,
   WasmIcosphere,
+  WasmQuatf64,
 } from "../pkg/star_catalog_wasm.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
@@ -16,6 +17,7 @@ import {
 
 import { SolarSystem } from "./solar_system.js";
 import { StarField } from "./star_field.js";
+import { CacheKey, CacheSingleton } from "./cache.js";
 
 import {
   Webgl,
@@ -31,6 +33,33 @@ export enum WebglCanvasView {
   Earth,
   SolarSystem,
   StarMap,
+}
+
+export class CachedBezier {
+  color: [number, number, number, number];
+  control_pts: Float32Array;
+  offset: number;
+  constructor(
+    color: [number, number, number, number],
+    control_pts: Float32Array,
+    offset: number = 0,
+  ) {
+    this.control_pts = control_pts;
+    this.color = color;
+    this.offset = offset;
+  }
+}
+
+class MapFrameKey implements CacheKey {
+  q: WasmQuatf64;
+  fovh: number;
+  constructor(q: WasmQuatf64, fovh: number) {
+    this.q = new WasmQuatf64(q.i, q.j, q.k, q.r);
+    this.fovh = fovh;
+  }
+  key_is_equal(other: MapFrameKey): boolean {
+    return this.q.distance_sq(other.q) == 0.0 && this.fovh == other.fovh;
+  }
 }
 
 export class WebglCanvas {
@@ -59,11 +88,14 @@ export class WebglCanvas {
   model: WasmMat4f32 = WasmMat4f32.identity();
   current_wh: [number, number];
 
+  map_frame_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
+
   constructor(application: Application, canvas: HTMLCanvasElement) {
     this.application = application;
     this.vp = application.view_properties;
     this.logger = new Logger(application.log, "webgl_canvas");
 
+    this.map_frame_beziers = new CacheSingleton();
     this.canvas = canvas;
 
     this.canvas.height = 900;
@@ -385,6 +417,12 @@ export class WebglCanvas {
     if (this.webgl === null) {
       return;
     }
+
+    this.map_frame_beziers.set_contents(
+      new MapFrameKey(this.vp.view_to_ecef_q, this.vp.fovh),
+      () => this.vp.star_catalog.map_canvas.create_frame_beziers(),
+    );
+
     const view_scale = 1.0;
     let xsc = 1.0;
     let ysc = w / h / 1.6;
@@ -398,6 +436,8 @@ export class WebglCanvas {
 
     this.webgl.use_program(this.star_map_program);
     this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+
+    const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
     const view = [
       view_scale * xsc,
@@ -424,5 +464,16 @@ export class WebglCanvas {
     this.webgl.set_color([1, 1, 1, 1]);
     this.webgl.set_uniform_mat4(WebglUniform.View, view, true);
     this.webgl.draw(this.star_field);
+
+    this.webgl.use_program(this.bezier_program);
+    this.webgl.set_uniform_mat4(WebglUniform.Projection, identity, false);
+    this.webgl.set_uniform_mat4(WebglUniform.View, view, true);
+    this.webgl.set_uniform_mat4(WebglUniform.Model, identity, true);
+
+    for (const b of this.map_frame_beziers.get_contents()!) {
+      this.webgl.set_color(b.color);
+      this.webgl_bezier!.set_control_points(b.control_pts, b.offset);
+      this.webgl.draw(this.webgl_bezier!);
+    }
   }
 }
