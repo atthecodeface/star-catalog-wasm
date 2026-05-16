@@ -175,6 +175,8 @@ export class MapCanvas {
   ): CachedBezier {
     this.builder.clear();
 
+    let to_left: boolean = false;
+    let below: boolean = false;
     for (let j = 0; j < 4; j++) {
       const x = (x0 * (3 - j) + x1 * j) / 3;
       const y = (y0 * (3 - j) + y1 * j) / 3;
@@ -186,8 +188,24 @@ export class MapCanvas {
         const pt0 = this.application.wasm_memory.float_array_of_vec3f32(
           this.pt,
         );
-        const de = (Math.asin(vxyz[2]!) / Math.PI) * 2.0;
-        const ra = (Math.atan2(vxyz[1]!, vxyz[0]!) / Math.PI) * 1.0;
+        let de = (Math.asin(vxyz[2]!) / Math.PI) * 2.0;
+        let ra = (Math.atan2(vxyz[1]!, vxyz[0]!) / Math.PI) * 1.0;
+
+        if (j == 0) {
+          to_left = ra < 0.0;
+          below = de < 0;
+        } else {
+          if (to_left && ra > 0.75) {
+            ra -= 2.0;
+          } else if (!to_left && ra < -0.75) {
+            ra += 2.0;
+          }
+          if (below && de > 0.75) {
+            de -= 2.0;
+          } else if (!below && de < -0.75) {
+            de += 2.0;
+          }
+        }
 
         pt0[0] = ra;
         pt0[1] = de;
@@ -199,7 +217,6 @@ export class MapCanvas {
         pt0[0] = x;
         pt0[1] = y;
         pt0[2] = 0.0;
-        console.log(pt0, x0, y0, x1, y1);
       }
       this.builder.add_vec_pt_at(j / 3.0, this.pt);
     }
