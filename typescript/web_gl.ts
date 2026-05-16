@@ -134,6 +134,19 @@ export class WebglFlatObj implements WebglObjKind {
     return new WebglFlatObj(new Float32Array(pts), new Uint16Array(lines));
   }
 
+  static circle(radius: number, steps: number): WebglFlatObj {
+    let pts = [];
+    let lines = [];
+    let da = Math.PI / (steps * 0.5);
+    for (let i = 0; i < steps; i++) {
+      let x = radius * Math.cos(i * da);
+      let y = radius * Math.sin(i * da);
+      pts.push(x, y);
+      lines.push(i, (i + 1) % steps);
+    }
+    return new WebglFlatObj(new Float32Array(pts), new Uint16Array(lines));
+  }
+
   set_point(index: number, x: number, y: number) {
     this.positions[index * 2]! = x;
     this.positions[index * 2 + 1]! = y;

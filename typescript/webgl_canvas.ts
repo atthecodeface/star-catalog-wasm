@@ -81,6 +81,7 @@ export class WebglCanvas {
   webgl_axis: WebglFlatObj | null = null;
   webgl_bezier: WebglCubicBezierObj | null = null;
   webgl_triangle: Webgl3DObj | null = null;
+  webgl_circle: WebglFlatObj | null = null;
 
   solar_system: SolarSystem;
   star_field: StarField;
@@ -206,6 +207,9 @@ export class WebglCanvas {
       [2, 0.1],
     ]);
     this.webgl!.create(this.webgl_axis);
+
+    this.webgl_circle = WebglFlatObj.circle(1.0, 20);
+    this.webgl!.create(this.webgl_circle);
 
     this.webgl_bezier = new WebglCubicBezierObj();
     this.webgl!.create(this.webgl_bezier);
@@ -424,8 +428,9 @@ export class WebglCanvas {
     );
 
     const view_scale = 1.0;
+    const ar = 1.6;
     let xsc = 1.0;
-    let ysc = w / h / 1.6;
+    let ysc = w / h / ar;
     console.log(w, h, xsc, ysc);
     if (ysc > 1.0) {
       xsc /= ysc;
@@ -474,6 +479,47 @@ export class WebglCanvas {
       this.webgl.set_color(b.color);
       this.webgl_bezier!.set_control_points(b.control_pts, b.offset);
       this.webgl.draw(this.webgl_bezier!);
+    }
+
+    this.webgl.use_program(this.flat_program);
+    this.webgl.set_uniform_mat4(WebglUniform.Projection, identity, false);
+    this.webgl.set_uniform_mat4(WebglUniform.View, view, true);
+    this.webgl.set_color([1, 0.26, 0.16, 0.1]);
+    if (this.vp.selected_star) {
+      const star = this.vp.catalog.star(this.vp.selected_star)!;
+
+      const radius = 0.02;
+      let cx = (star.right_ascension / Math.PI) * 1.0;
+      let cy = (star.declination / Math.PI) * 2.0;
+      if (cx > 1) {
+        cx -= 2;
+      }
+      if (cy > 1) {
+        cy -= 2;
+      }
+      this.webgl.set_uniform_mat4(
+        WebglUniform.Model,
+        [
+          radius,
+          0,
+          0,
+          cx,
+          /**/ 0,
+          radius * ar,
+          0,
+          cy,
+          /**/ 0,
+          0,
+          1,
+          0,
+          /**/ 0,
+          0,
+          0,
+          1,
+        ],
+        true,
+      );
+      this.webgl.draw(this.webgl_circle!);
     }
   }
 }
