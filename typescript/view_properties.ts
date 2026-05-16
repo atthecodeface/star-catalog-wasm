@@ -317,7 +317,7 @@ export class ViewProperties implements Application {
   view_observer_center_dir: WasmVec3f64 = new WasmVec3f64(0, 0, 0);
 
   solar_sytem_orientation: WasmQuatf32 = WasmQuatf32.unit();
-  solar_system_fovh: number = 3.0;
+  solar_system_fovh: number = 0.9;
 
   ra: number = 0;
   de: number = 0;

@@ -254,7 +254,7 @@ export class ViewProperties {
         this.view_ecef_center_dir = new WasmVec3f64(0, 0, 0);
         this.view_observer_center_dir = new WasmVec3f64(0, 0, 0);
         this.solar_sytem_orientation = WasmQuatf32.unit();
-        this.solar_system_fovh = 3.0;
+        this.solar_system_fovh = 0.9;
         this.ra = 0;
         this.de = 0;
         this.observer_compass = 0;
@@ -264,6 +264,7 @@ export class ViewProperties {
         // this.tan_hfovh is what half the width is horizontally in tan space
         this.tan_hfovh = 0;
         this.brightness = 4;
+        this.webgl_canvas_show_earth = false;
         this.star_catalog = star_catalog;
         this.catalog = star_catalog.catalog;
         this.current_styling = star_catalog.styling;

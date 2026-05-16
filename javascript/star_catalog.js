@@ -131,12 +131,10 @@ export class StarCatalog {
             }
         }
     }
-    //mp set_styling
     /// Invoked by events on the page to change the contents; such as selection of equatorial grid 'on'
     set_styling() {
         this.set_view_needs_update();
     }
-    //mp set_view_needs_update
     /// Mark the view as needing an update
     set_view_needs_update() {
         if (!this.view_needs_update) {
@@ -146,7 +144,6 @@ export class StarCatalog {
             });
         }
     }
-    //mp update_view
     /// Update the view, because of a view change, time change, etc
     update_view() {
         if (this.vp === undefined) {

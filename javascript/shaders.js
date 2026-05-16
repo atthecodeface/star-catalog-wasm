@@ -218,22 +218,17 @@ export class StarShader {
     star_vector = view * vec4(x,y,z,1);
 
     // Project onto plane at 'near'
-    vec4 position =  star_vector;
-    float scale = -1.0 / position.z;
-    if (star_vector.z < 0.0) {
-      position.z = -1.0;
-      position.x = scale * star_vector.x;
-      position.y = scale * star_vector.y;
-      position.w = 1.0;
-    }  else {
-      // Discard
-      position.z = 100.0;
-    }
+    float scale = -1.0 / star_vector.z;
+
+    bool discard_star = (star_vector.z > 0.0);
+    vec4 position = vec4(scale * star_vector.x, scale * star_vector.y, -1.0, 1.0);
+    position.z = discard_star ? 100.0 : position.z;
 
     // Project fully - this will only really take into account the FOV
     gl_Position = projection * position;
 
-    star_color = vec3(1,1,1);
+    float brightness = (float(magnitude)+15.9) / 16.0;
+    star_color = vec3(brightness, brightness, brightness);
     gl_PointSize = (magnitude > 4u) ? (float(magnitude)/4.0) : 1.0;
   }
 `;
@@ -255,7 +250,7 @@ export class StarShader {
   FragColor.g = color.g * star_color.g;
   FragColor.b = color.b * star_color.b;
   FragColor.a = color.a;
-  FragColor = vec4(1,1,1,1);
+
   }
   `;
     }

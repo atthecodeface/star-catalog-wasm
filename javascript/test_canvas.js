@@ -5,15 +5,6 @@ import { WebglCanvas } from "./webgl_canvas.js";
 export class TestCanvas {
     constructor(application, canvas_div_id) {
         this.webgl = null;
-        this.sphere_program = 0;
-        this.flat_program = 0;
-        this.bezier_program = 0;
-        this.star_program = 0;
-        this.texture = null;
-        this.triangle_q_ll = new WasmQuatf32(0, 0, 0, 1);
-        this.webgl_icosphere = null;
-        this.webgl_axis = null;
-        this.webgl_bezier = null;
         this.model = WasmMat4f32.identity();
         this.application = application;
         this.vp = application.view_properties;
@@ -23,14 +14,19 @@ export class TestCanvas {
         this.div.appendChild(this.canvas);
         this.webgl_canvas = new WebglCanvas(application, this.canvas);
         this.mouse = new Mouse(this, this.canvas);
-        this.mouse.set_client(this.vp.star_catalog.earth_canvas);
     }
     update() {
         this.redraw_canvas();
     }
     redraw_canvas() {
-        // this.webgl_canvas.redraw_canvas();
-        this.webgl_canvas.draw_earth();
+        if (this.vp.webgl_canvas_show_earth) {
+            this.webgl_canvas.draw_earth();
+            this.mouse.set_client(this.vp.star_catalog.earth_canvas);
+        }
+        else {
+            this.webgl_canvas.redraw_canvas();
+            this.mouse.set_client(this);
+        }
     }
     drag_end(_start_xy, _xy) { }
     user_press(_xy, actions) {
@@ -52,7 +48,10 @@ export class TestCanvas {
     }
     user_release(_start_xy, _cxy) { }
     user_zoom(_cxy, factor) {
-        this.vp.solar_system_fovh *= Math.pow(factor, 0.1);
+        this.vp.solar_system_fovh += (1.0 - factor) * 0.1;
+        console.log(factor, this.vp.solar_system_fovh);
+        this.vp.solar_system_fovh = Math.min(Math.max(this.vp.solar_system_fovh, 0.01), 1.5);
+        console.log(factor, this.vp.solar_system_fovh);
         // No content change, purely visual
         this.vp.view_updated();
     }
