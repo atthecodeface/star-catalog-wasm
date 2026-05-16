@@ -90,6 +90,8 @@ export class WebglCanvas {
   current_wh: [number, number];
 
   map_frame_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
+  map_azimuthal_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
+  map_equatorial_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
 
   constructor(application: Application, canvas: HTMLCanvasElement) {
     this.application = application;
@@ -97,6 +99,9 @@ export class WebglCanvas {
     this.logger = new Logger(application.log, "webgl_canvas");
 
     this.map_frame_beziers = new CacheSingleton();
+    this.map_equatorial_grid_beziers = new CacheSingleton();
+    this.map_azimuthal_grid_beziers = new CacheSingleton();
+
     this.canvas = canvas;
 
     this.canvas.height = 900;
@@ -426,6 +431,14 @@ export class WebglCanvas {
       new MapFrameKey(this.vp.view_to_ecef_q, this.vp.fovh),
       () => this.vp.star_catalog.map_canvas.create_frame_beziers(),
     );
+    this.map_azimuthal_grid_beziers.set_contents(
+      new MapFrameKey(this.vp.observer_to_ecef_q, 1.0),
+      () => this.vp.star_catalog.map_canvas.create_azimuthal_grid_beziers(),
+    );
+    this.map_equatorial_grid_beziers.set_contents(
+      new MapFrameKey(WasmQuatf64.unit(), 1.0),
+      () => this.vp.star_catalog.map_canvas.create_equatorial_grid_beziers(),
+    );
 
     const view_scale = 1.0;
     const ar = 1.6;
@@ -475,10 +488,19 @@ export class WebglCanvas {
     this.webgl.set_uniform_mat4(WebglUniform.View, view, true);
     this.webgl.set_uniform_mat4(WebglUniform.Model, identity, true);
 
-    for (const b of this.map_frame_beziers.get_contents()!) {
-      this.webgl.set_color(b.color);
-      this.webgl_bezier!.set_control_points(b.control_pts, b.offset);
-      this.webgl.draw(this.webgl_bezier!);
+    for (const bezier_sets of [
+      this.map_frame_beziers.get_contents(),
+      this.map_azimuthal_grid_beziers.get_contents(),
+      this.map_equatorial_grid_beziers.get_contents(),
+    ]) {
+      if (bezier_sets === null) {
+        continue;
+      }
+      for (const b of bezier_sets) {
+        this.webgl.set_color(b.color);
+        this.webgl_bezier!.set_control_points(b.control_pts, b.offset);
+        this.webgl.draw(this.webgl_bezier!);
+      }
     }
 
     this.webgl.use_program(this.flat_program);

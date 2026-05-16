@@ -3,11 +3,12 @@ import { Log, Logger } from "./log.js";
 
 export class WebglFlatShader {
   id = "weblgl_flat";
-  extra_uniforms = [];
+  extra_uniforms = ["line_width"];
   vertex = `
   uniform mat4 projection;
   uniform mat4 view;
   uniform mat4 model;
+  uniform float line_width;
 
   attribute vec2 position;
 
@@ -36,12 +37,13 @@ export class WebglFlatShader {
 
 export class WebglCubicBezierShader {
   id = "weblgl_cubic_bezier";
-  extra_uniforms = ["control_points"];
+  extra_uniforms = ["control_points", "line_width"];
   vertex = `
   uniform mat4 projection;
   uniform mat4 view;
   uniform mat4 model;
   uniform mat4 control_points;
+  uniform float line_width;
 
   attribute float position;
 
