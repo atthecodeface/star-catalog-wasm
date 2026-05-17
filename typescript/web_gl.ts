@@ -3,14 +3,13 @@ import { Log, Logger } from "./log.js";
 
 export class WebglFlatShader {
   id = "weblgl_flat";
-  extra_uniforms = ["line_width"];
-  vertex = `
+  extra_uniforms = [];
+  vertex = `#version 300 es
   uniform mat4 projection;
   uniform mat4 view;
   uniform mat4 model;
-  uniform float line_width;
 
-  attribute vec2 position;
+  in vec2 position;
 
   void main() {
     vec4 position4;
@@ -23,27 +22,29 @@ export class WebglFlatShader {
     gl_Position = pos;
   }
   `;
-  fragment = `
+  fragment = `#version 300 es
   precision mediump float;
   uniform vec4 color;
+
+  out vec4 FragColor; // must be the only output declaration; is not implicit!
+
   void main() {
-  gl_FragColor.r = color.r;
-  gl_FragColor.g = color.g;
-  gl_FragColor.b = color.b;
-  gl_FragColor.a = color.a;
+  FragColor.r = color.r;
+  FragColor.g = color.g;
+  FragColor.b = color.b;
+  FragColor.a = color.a;
   }
   `;
 }
 
 export class WebglCubicBezierShader {
   id = "weblgl_cubic_bezier";
-  extra_uniforms = ["control_points", "line_width"];
+  extra_uniforms = ["control_points"];
   vertex = `
   uniform mat4 projection;
   uniform mat4 view;
   uniform mat4 model;
   uniform mat4 control_points;
-  uniform float line_width;
 
   attribute float position;
 
@@ -94,6 +95,10 @@ export enum WebglUniform {
   Color,
   Sampler,
   Extra0,
+  Extra1,
+  Extra2,
+  Extra3,
+  Extra4,
 }
 
 export interface WebglObjKind {
@@ -184,7 +189,6 @@ export class WebglFlatObj implements WebglObjKind {
     webgl.enableVertexAttribArray(0);
     webgl.vertexAttribPointer(0, 2, webgl.FLOAT, false, 0, 0);
 
-    webgl.lineWidth(1);
     webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, this.indices_buf);
     webgl.drawElements(webgl.LINES, this.num_indices, webgl.UNSIGNED_SHORT, 0);
   }
@@ -259,7 +263,6 @@ export class WebglCubicBezierObj implements WebglObjKind {
     webgl.enableVertexAttribArray(0);
     webgl.vertexAttribPointer(0, 1, webgl.FLOAT, false, 0, 0);
 
-    webgl.lineWidth(1);
     webgl.drawArrays(webgl.LINE_STRIP, 0, this.positions.length);
   }
 }

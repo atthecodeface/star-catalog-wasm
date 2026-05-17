@@ -237,7 +237,7 @@ export class MapCanvas {
     const result = [];
     const control_points = new Float32Array(30 * 16);
     let b = 0;
-    for (const ra of [-0.9999, 0.0, 0.9999]) {
+    for (const ra of [-0.9999, 0.001, -0.001, 0.9999]) {
       result.push(
         this.create_bezier(
           control_points,
@@ -284,7 +284,7 @@ export class MapCanvas {
       b += 16;
     }
 
-    for (let y = 1; y <= 3; y++) {
+    for (let y = 0; y <= 3; y++) {
       let de = y / 3.0;
       result.push(
         this.create_bezier(
@@ -299,19 +299,21 @@ export class MapCanvas {
         ),
       );
       b += 16;
-      result.push(
-        this.create_bezier(
-          control_points,
-          b,
-          [0, 1, 0, 1],
-          false,
-          -1,
-          -de,
-          1,
-          -de,
-        ),
-      );
-      b += 16;
+      if (y > 0) {
+        result.push(
+          this.create_bezier(
+            control_points,
+            b,
+            [0, 1, 0, 1],
+            false,
+            -1,
+            -de,
+            1,
+            -de,
+          ),
+        );
+        b += 16;
+      }
     }
 
     return result;
