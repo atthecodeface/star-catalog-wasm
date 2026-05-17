@@ -9,7 +9,7 @@ import { CacheOld } from "./cache.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
-import { CachedBezier } from "./webgl_canvas.js";
+import { WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
 
 //a SkyCanvas
 export class SkyCanvas {
@@ -147,6 +147,7 @@ export class SkyCanvas {
 
   //mp update
   update() {
+    this.vp.webgl_canvas_view = WebglCanvasView.SkyView;
     this.derive_data();
     this.redraw_canvas();
   }

@@ -1,6 +1,7 @@
 import {
   WasmVec3f32,
   WasmMat4f32,
+  WasmMat4f64,
   WasmIcosphere,
   WasmQuatf64,
   WasmBezier3f32,
@@ -36,6 +37,7 @@ export enum WebglCanvasView {
   Earth,
   SolarSystem,
   StarMap,
+  SkyView,
 }
 
 export class CachedBezier {
@@ -133,6 +135,8 @@ export class WebglCanvas {
   model: WasmMat4f32 = WasmMat4f32.identity();
   current_wh: [number, number];
 
+  sky_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
+
   map_frame_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
   map_azimuthal_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
   map_equatorial_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
@@ -142,6 +146,7 @@ export class WebglCanvas {
     this.vp = application.view_properties;
     this.logger = new Logger(application.log, "webgl_canvas");
 
+    this.sky_grid_beziers = new CacheSingleton();
     this.map_frame_beziers = new CacheSingleton();
     this.map_equatorial_grid_beziers = new CacheSingleton();
     this.map_azimuthal_grid_beziers = new CacheSingleton();
@@ -460,6 +465,67 @@ export class WebglCanvas {
     triangle_q_ll.set_mat4_rotation(matrix);
     this.webgl.set_uniform_mat4(WebglUniform.Model, matrix.array, true);
     this.webgl.draw(this.webgl_triangle!);
+  }
+
+  draw_sky_view() {
+    this.resize_canvas();
+    const w = this.vp.view_wh[0];
+    const h = this.vp.view_wh[1];
+
+    if (this.webgl === null) {
+      return;
+    }
+
+    this.sky_grid_beziers.set_contents(
+      new MapFrameKey(WasmQuatf64.unit(), 1.0),
+      () => this.vp.star_catalog.sky_canvas.create_azimuthal_grid_beziers(),
+    );
+
+    // const view_scale = 1.0;
+    const ar = w / h;
+
+    this.webgl.webgl!.viewport(0, 0, w, h);
+    this.webgl.clear_buffer();
+
+    const f = 1.2 / this.vp.tan_hfovh;
+    // W = -z
+    // Z = (near + far) / (near - far) * z - (near * far * 2) / (near - far) = (near * z + far * z - near * far * 2) / (near - far)
+    //  if z = near, Z(*w) = (near * near + far * near - near * far * 2) / (near - far) = (near * near - near * far) / (near - far) = near; Z = -1
+    //  if z = far, Z(*w) = (near * far + far * far - near * far * 2) / (near - far) = (far * far - near * far) / (near - far) = -far; Z = 1
+    // Note this has to flip the polarity of Z as the OpenGL clipping space is + into the screen, so -1 is near, +1 is far
+    const projection = new Float32Array([
+      f,
+      0,
+      0,
+      0,
+
+      0,
+      f * ar,
+      0,
+      0,
+
+      0,
+      0,
+      1,
+      0,
+
+      0,
+      0,
+      0,
+      1,
+    ]);
+
+    this.webgl.use_program(this.star_program);
+    this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+
+    this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+
+    const matrix = WasmMat4f64.identity();
+    this.vp.ecef_to_view_q.set_mat4_rotation(matrix);
+
+    this.webgl.set_color([1, 1, 1, 1]);
+    this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+    this.webgl.draw(this.star_field);
   }
 
   draw_star_map() {

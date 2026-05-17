@@ -285,7 +285,7 @@ export class StarMapShader implements WebglShaderSrc {
   `;
 }
 
-export class StarShader implements WebglShaderSrc {
+export class StarShaderProjectedOntoNear implements WebglShaderSrc {
   id: string = "stars";
   extra_uniforms: string[] = ["magnitude"];
 
@@ -316,16 +316,84 @@ export class StarShader implements WebglShaderSrc {
 
     // Map through the view *orientation*
     vec4 star_vector = view * vec4(x,y,z,1);
-    discard_star = discard_star || (star_vector.z > 0.0);
+    discard_star = discard_star || (star_vector.x > 0.0);
 
     // Project onto plane at 'near'
-    float scale = -1.0 / star_vector.z;
+    float scale = -1.0 / star_vector.x;
 
-    vec4 position = vec4(scale * star_vector.x, scale * star_vector.y, -1.0, 1.0);
+    vec4 position = vec4(scale * star_vector.y, -scale * star_vector.z, -1.0, 1.0);
     position.z = discard_star ? 100.0 : position.z;
 
     // Project fully - this will only really take into account the FOV
     gl_Position = projection * position;
+
+    // Calculate 'star_color' and 'gl_PointSize'
+    ${star_color_and_point_size}
+  }
+`;
+
+  fragment: string = `#version 300 es
+  precision mediump float;
+  in vec3 star_color;
+  uniform vec4 color;
+
+  out vec4 FragColor; // must be the only output declaration; is not implicit!
+
+  // These are implicit
+  // in highp vec4 gl_FragCoord;
+  // in bool gl_FrontFacing;
+  // out highp float gl_FragDepth;
+  // in mediump vec2 gl_PointCoord;
+
+  void main() {
+  FragColor.r = color.r * star_color.r;
+  FragColor.g = color.g * star_color.g;
+  FragColor.b = color.b * star_color.b;
+  FragColor.a = color.a;
+
+  }
+  `;
+}
+
+/**
+ * StarShader
+ *
+ * This maps the star vector through the view,
+ */
+export class StarShader implements WebglShaderSrc {
+  id: string = "stars";
+  extra_uniforms: string[] = ["magnitude"];
+
+  vertex: string = `#version 300 es
+  uniform mat4 projection;
+  uniform mat4 view;
+  uniform mat4 model;
+
+  uniform float magnitude;
+
+  // These are implicit
+  // in highp int gl_VertexID;
+  // in highp int gl_InstanceID;
+  // out highp vec4 gl_Position;
+  // out highp float gl_PointSize;
+
+  in ivec3 star;
+
+  out vec3 star_color;
+  void main() {
+
+    // decode 'star' into all its parameters
+    ${decode_star}
+
+    float x = x_is_u ? uf : wf;
+    float y = y_is_u ? uf : (y_is_v ? vf : wf);
+    float z = z_is_v ? vf : wf;
+
+    vec4 view_vector = view * vec4(x,y,z, 1);
+    vec4 rotated_view_vector = vec4(-view_vector.y,view_vector.z,view_vector.x, 1.0);
+    discard_star = discard_star || (rotated_view_vector.z < -0.001);
+    gl_Position = projection * rotated_view_vector;
+    if (discard_star) {gl_Position.z = 100.0;}
 
     // Calculate 'star_color' and 'gl_PointSize'
     ${star_color_and_point_size}
