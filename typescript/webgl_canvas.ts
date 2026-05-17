@@ -3,6 +3,8 @@ import {
   WasmMat4f32,
   WasmIcosphere,
   WasmQuatf64,
+  WasmBezier3f32,
+  WasmBezierBuilder3f32,
 } from "../pkg/star_catalog_wasm.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
@@ -28,6 +30,7 @@ import {
   WebglUniform,
   WebglCubicBezierObj,
 } from "./web_gl.js";
+import { WasmMemory } from "./wasm_memory.js";
 
 export enum WebglCanvasView {
   Earth,
@@ -39,6 +42,12 @@ export class CachedBezier {
   color: [number, number, number, number];
   control_pts: Float32Array;
   offset: number;
+
+  static initialized: boolean = false;
+  static bezier: WasmBezier3f32;
+  static builder: WasmBezierBuilder3f32;
+  static pt: WasmVec3f32;
+
   constructor(
     color: [number, number, number, number],
     control_pts: Float32Array,
@@ -47,6 +56,41 @@ export class CachedBezier {
     this.control_pts = control_pts;
     this.color = color;
     this.offset = offset;
+  }
+
+  static init(): void {
+    this.bezier = new WasmBezier3f32();
+    this.builder = new WasmBezierBuilder3f32();
+    this.pt = new WasmVec3f32(0, 0, 0);
+  }
+  static create_mapped(
+    wasm_memory: WasmMemory,
+    control_points: Float32Array,
+    offset: number,
+    color: [number, number, number, number],
+    map: (i: number, x: number, y: number) => [number, number, number],
+    x0_y0: [number, number],
+    x1_y1: [number, number],
+  ): CachedBezier {
+    if (!this.initialized) {
+      this.init();
+    }
+
+    this.builder.clear();
+    for (let j = 0; j < 4; j++) {
+      const x = (x0_y0[0] * (3 - j) + x1_y1[0] * j) / 3;
+      const y = (x0_y0[1] * (3 - j) + x1_y1[1] * j) / 3;
+      const pt0 = wasm_memory.float_array_of_vec3f32(this.pt);
+      pt0.set(map(j, x, y), 0);
+      this.builder.add_vec_pt_at(j / 3.0, this.pt);
+    }
+    this.bezier.reconstruct(this.builder);
+    for (let j = 0; j < 4; j++) {
+      this.bezier.set_vec_control_pt(this.pt, j);
+      const pt0 = wasm_memory.float_array_of_vec3f32(this.pt);
+      control_points.set(pt0, offset + j * 4);
+    }
+    return new CachedBezier(color, control_points, offset);
   }
 }
 

@@ -35,6 +35,7 @@ export class MapCanvas {
   vec = new WasmVec3f64(0, 0, 0);
   pt = new WasmVec3f32(0, 0, 0);
 
+  to_left: boolean = false;
   constructor(
     application: Application,
     canvas_div_id: string,
@@ -163,156 +164,84 @@ export class MapCanvas {
     return this.cxy_of_ra_de(ra, de);
   }
 
-  private create_bezier(
-    control_points: Float32Array,
-    offset: number,
-    color: [number, number, number, number],
-    map_to_ecef: boolean,
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-  ): CachedBezier {
-    this.builder.clear();
-
-    let to_left: boolean = false;
-    let below: boolean = false;
-    for (let j = 0; j < 4; j++) {
-      const x = (x0 * (3 - j) + x1 * j) / 3;
-      const y = (y0 * (3 - j) + y1 * j) / 3;
-      if (map_to_ecef) {
-        this.application.sky_view_frame_to_ecef_set_vec(x, y, this.vec);
-        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(
-          this.vec,
-        );
-        const pt0 = this.application.wasm_memory.float_array_of_vec3f32(
-          this.pt,
-        );
-        let de = (Math.asin(vxyz[2]!) / Math.PI) * 2.0;
-        let ra = (Math.atan2(vxyz[1]!, vxyz[0]!) / Math.PI) * 1.0;
-
-        if (j == 0) {
-          to_left = ra < 0.0;
-          below = de < 0;
-        } else {
-          if (to_left && ra > 0.75) {
-            ra -= 2.0;
-          } else if (!to_left && ra < -0.75) {
-            ra += 2.0;
-          }
-          if (below && de > 0.75) {
-            de -= 2.0;
-          } else if (!below && de < -0.75) {
-            de += 2.0;
-          }
-        }
-
-        pt0[0] = ra;
-        pt0[1] = de;
-        pt0[2] = 0.0;
-      } else {
-        const pt0 = this.application.wasm_memory.float_array_of_vec3f32(
-          this.pt,
-        );
-        pt0[0] = x;
-        pt0[1] = y;
-        pt0[2] = 0.0;
-      }
-      this.builder.add_vec_pt_at(j / 3.0, this.pt);
-    }
-
-    this.bezier.reconstruct(this.builder);
-
-    for (let j = 0; j < 4; j++) {
-      this.bezier.set_vec_control_pt(this.pt, j);
-      const pt0 = this.application.wasm_memory.float_array_of_vec3f32(this.pt);
-      control_points.set(pt0, offset + j * 4);
-    }
-    return new CachedBezier(color, control_points, offset);
-  }
   create_azimuthal_grid_beziers(): CachedBezier[] {
     return [];
   }
+
+  map_xy_view_frame(i: number, x: number, y: number): [number, number, number] {
+    this.application.sky_view_frame_to_ecef_set_vec(x, y, this.vec);
+    const vxyz = this.application.wasm_memory.float_array_of_vec3f64(this.vec);
+    let de = (Math.asin(vxyz[2]!) / Math.PI) * 2.0;
+    let ra = (Math.atan2(vxyz[1]!, vxyz[0]!) / Math.PI) * 1.0;
+
+    if (i == 0) {
+      this.to_left = ra < 0.0;
+    } else {
+      if (this.to_left && ra > 0.75) {
+        ra -= 2.0;
+      } else if (!this.to_left && ra < -0.75) {
+        ra += 2.0;
+      }
+    }
+    return [ra, de, 0.0];
+  }
+
+  static map_xy_identity(
+    _i: number,
+    x: number,
+    y: number,
+  ): [number, number, number] {
+    return [x, y, 0.0];
+  }
+
   create_equatorial_grid_beziers(): CachedBezier[] {
     const result = [];
     const control_points = new Float32Array(30 * 16);
+
     let b = 0;
-    for (const ra of [-0.9999, 0.001, -0.001, 0.9999]) {
-      result.push(
-        this.create_bezier(
-          control_points,
-          b,
-          [0, 1, 0, 1],
-          false,
-          ra,
-          -1,
-          ra,
-          1,
-        ),
-      ); // line width 2
-      b += 16;
-    }
-
-    for (let x = 1; x < 6; x++) {
-      let ra = x / 6.0;
-
-      result.push(
-        this.create_bezier(
-          control_points,
-          b,
-          [0, 1, 0, 1],
-          false,
-          -ra,
-          -1,
-          -ra,
-          1,
-        ),
-      );
-      b += 16;
-      result.push(
-        this.create_bezier(
-          control_points,
-          b,
-          [0, 1, 0, 1],
-          false,
-          ra,
-          -1,
-          ra,
-          1,
-        ),
-      );
-      b += 16;
+    for (const ra of [
+      0.9999,
+      5 / 6.0,
+      4 / 6.0,
+      3 / 6.0,
+      2 / 6.0,
+      1 / 6.0,
+      0.001,
+    ]) {
+      for (const side of [-1, 1]) {
+        result.push(
+          CachedBezier.create_mapped(
+            this.application.wasm_memory,
+            control_points,
+            b,
+            [0, 1, 0, 1],
+            MapCanvas.map_xy_identity,
+            [ra * side, -1],
+            [ra * side, 1],
+          ),
+        );
+        b += 16;
+      }
     }
 
     for (let y = 0; y <= 3; y++) {
       let de = y / 3.0;
-      result.push(
-        this.create_bezier(
-          control_points,
-          b,
-          [0, 1, 0, 1],
-          false,
-          -1,
-          de,
-          1,
-          de,
-        ),
-      );
-      b += 16;
-      if (y > 0) {
+      for (const side of [-1, 1]) {
         result.push(
-          this.create_bezier(
+          CachedBezier.create_mapped(
+            this.application.wasm_memory,
             control_points,
             b,
             [0, 1, 0, 1],
-            false,
-            -1,
-            -de,
-            1,
-            -de,
+            MapCanvas.map_xy_identity,
+            [-1, de * side],
+            [1, de * side],
           ),
         );
         b += 16;
+        if (y == 0) {
+          break;
+        }
       }
     }
 
@@ -323,42 +252,32 @@ export class MapCanvas {
     const result = [];
     const control_points = new Float32Array(4 * 10 * 16); // 4 axes each of 10 Beziers each of one mat4 (16 control point coordinates)
     let b = 0;
-    for (const y of [-1, 1]) {
+    for (const xy of [-1, 1]) {
       for (let i = 0; i < 10; i++) {
         let lx = i / 5.0 - 1.0;
         let rx = (i + 1) / 5.0 - 1.0;
 
         result.push(
-          this.create_bezier(
+          CachedBezier.create_mapped(
+            this.application.wasm_memory,
             control_points,
             b,
             [1, 0, 0, 1],
-            true,
-            lx,
-            y,
-            rx,
-            y,
+            this.map_xy_view_frame.bind(this),
+            [lx, xy],
+            [rx, xy],
           ),
         );
         b += 16;
-      }
-    }
-
-    for (const x of [-1, 1]) {
-      for (let i = 0; i < 10; i++) {
-        let by = i / 5.0 - 1.0;
-        let ty = (i + 1) / 5.0 - 1.0;
-
         result.push(
-          this.create_bezier(
+          CachedBezier.create_mapped(
+            this.application.wasm_memory,
             control_points,
             b,
             [1, 0, 0, 1],
-            true,
-            x,
-            by,
-            x,
-            ty,
+            this.map_xy_view_frame.bind(this),
+            [xy, lx],
+            [xy, rx],
           ),
         );
         b += 16;
