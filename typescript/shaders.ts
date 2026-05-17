@@ -390,7 +390,8 @@ export class StarShader implements WebglShaderSrc {
     float z = z_is_v ? vf : wf;
 
     vec4 view_vector = view * vec4(x,y,z, 1);
-    vec4 rotated_view_vector = vec4(-view_vector.y,view_vector.z,view_vector.x, 1.0);
+    // vec4 rotated_view_vector = vec4(-view_vector.y,view_vector.z,view_vector.x, 1.0);
+    vec4 rotated_view_vector = vec4(view_vector.x,view_vector.y,view_vector.z, 1.0);
     gl_Position = projection * rotated_view_vector;
     if (discard_star) {gl_Position.z = 100.0;}
 
