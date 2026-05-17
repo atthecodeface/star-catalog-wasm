@@ -198,6 +198,7 @@ export class SkyCanvas {
     result: CachedBezier[],
     de: number,
   ): number {
+    const de_r = de * this.vp.deg2rad;
     const da = this.vp.deg2rad * 45;
     for (let i = 0; i < 360; i += 45) {
       const ra = i * da;
@@ -208,8 +209,8 @@ export class SkyCanvas {
           offset,
           [1, 0, 0, 1],
           this.map_ra_de.bind(this),
-          [ra, de],
-          [ra + da, de],
+          [ra, de_r],
+          [ra + da, de_r],
         ),
       );
       offset += 16;
@@ -224,9 +225,10 @@ export class SkyCanvas {
     result: CachedBezier[],
     ra: number,
   ): number {
+    const ra_r = ra * this.vp.deg2rad;
     const da = this.vp.deg2rad * 10;
-    for (let i = -80; i <= 80; i += 10) {
-      const de = i * da;
+    for (let i = -80; i <= 70; i += 10) {
+      const de = i * this.vp.deg2rad;
       result.push(
         CachedBezier.create_mapped(
           this.application.wasm_memory,
@@ -234,8 +236,8 @@ export class SkyCanvas {
           offset,
           [1, 0, 0, 1],
           this.map_ra_de.bind(this),
-          [ra, de],
-          [ra, de + da],
+          [ra_r, de],
+          [ra_r, de + da],
         ),
       );
       offset += 16;

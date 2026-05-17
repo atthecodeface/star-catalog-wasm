@@ -16,6 +16,7 @@ import {
   StarShader,
   SphereShader,
   StarMapShader,
+  StarShaderProjectedOntoNear,
 } from "./shaders.js";
 
 import { SolarSystem } from "./solar_system.js";
@@ -121,6 +122,7 @@ export class WebglCanvas {
   flat_program: number = 0;
   bezier_program: number = 0;
   star_program: number = 0;
+  star_projected_onto_near_program: number = 0;
   star_map_program: number = 0;
 
   webgl_icosphere: Webgl3DObj | null = null;
@@ -193,6 +195,17 @@ export class WebglCanvas {
         return false;
       } else {
         this.star_program = program;
+      }
+    }
+
+    {
+      const program = this.webgl!.compile_program(
+        new StarShaderProjectedOntoNear(),
+      );
+      if (program === null) {
+        return false;
+      } else {
+        this.star_projected_onto_near_program = program;
       }
     }
 
@@ -345,7 +358,7 @@ export class WebglCanvas {
 
     this.vp.solar_sytem_orientation.set_mat4_rotation(view_matrix);
 
-    this.webgl.use_program(this.star_program);
+    this.webgl.use_program(this.star_projected_onto_near_program);
     this.webgl.set_color([1, 1, 1, 1]);
     this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
     this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
@@ -488,8 +501,8 @@ export class WebglCanvas {
     this.webgl.clear_buffer();
 
     const f = 1.0 / this.vp.tan_hfovh; // should be 1/tan fov?
-    const near = 0.01; // Maps to -1 in the Z, closest to the viewer, should scale by 1/near
-    const far = 1.01; // Maps to +1 in the Z, furthest to the viewer, should scale by 1/far
+    const near = -0.01; // Maps to -1 in the Z, closest to the viewer, should scale by 1/near
+    const far = -1.01; // Maps to +1 in the Z, furthest to the viewer, should scale by 1/far
     // W = -z
     // Z = (near + far) / (near - far) * z - (near * far * 2) / (near - far) = (near * z + far * z - near * far * 2) / (near - far)
     //  if z = near, Z(*w) = (near * near + far * near - near * far * 2) / (near - far) = (near * near - near * far) / (near - far) = near; Z = -1
@@ -509,24 +522,41 @@ export class WebglCanvas {
       0,
       0,
       (near + far) / (near - far), // scale by
-      -1,
+      1,
 
       0,
       0,
       (near * far * 2) / (near - far),
       0,
     ]);
-    this.webgl.use_program(this.star_program);
-    this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
-
-    this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+    const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
     const matrix = WasmMat4f64.identity();
     this.vp.ecef_to_view_q.set_mat4_rotation(matrix);
 
+    this.webgl.use_program(this.star_program);
+    this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+    this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
     this.webgl.set_color([1, 1, 1, 1]);
     this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
     this.webgl.draw(this.star_field);
+
+    this.webgl.use_program(this.bezier_program);
+    this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+    this.webgl.set_color([1, 1, 1, 1]);
+    this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+    this.webgl.set_uniform_mat4(WebglUniform.Model, identity, true);
+
+    for (const bezier_sets of [this.sky_grid_beziers.get_contents()]) {
+      if (bezier_sets === null) {
+        continue;
+      }
+      for (const b of bezier_sets) {
+        this.webgl.set_color(b.color);
+        this.webgl_bezier!.set_control_points(b.control_pts, b.offset);
+        this.webgl.draw(this.webgl_bezier!);
+      }
+    }
   }
 
   draw_star_map() {

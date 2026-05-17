@@ -391,10 +391,8 @@ export class StarShader implements WebglShaderSrc {
 
     vec4 view_vector = view * vec4(x,y,z, 1);
     vec4 rotated_view_vector = vec4(-view_vector.y,view_vector.z,view_vector.x, 1.0);
-    discard_star = discard_star || (rotated_view_vector.z < -0.001);
-    rotated_view_vector.z = -rotated_view_vector.z;
     gl_Position = projection * rotated_view_vector;
-    if (discard_star) {gl_Position.z = -100.0;}
+    if (discard_star) {gl_Position.z = 100.0;}
 
     // Calculate 'star_color' and 'gl_PointSize'
     ${star_color_and_point_size}
