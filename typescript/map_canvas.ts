@@ -164,8 +164,131 @@ export class MapCanvas {
     return this.cxy_of_ra_de(ra, de);
   }
 
+  map_ra_de(i: number, ra: number, de: number): [number, number, number] {
+    const de_c = Math.cos(de);
+    const de_s = Math.sin(de);
+    const vxyz = this.application.wasm_memory.float_array_of_vec3f64(this.vec);
+    vxyz[0] = de_c * Math.cos(ra);
+    vxyz[1] = de_c * Math.sin(ra);
+    vxyz[2] = de_s;
+    this.vp.observer_to_ecef_q.set_vec_apply(this.vec);
+
+    let de_frame = (Math.asin(vxyz[2]!) / Math.PI) * 2.0;
+    let ra_frame = (Math.atan2(vxyz[1]!, vxyz[0]!) / Math.PI) * 1.0;
+
+    if (i == 0) {
+      this.to_left = ra_frame < 0.0;
+    } else {
+      if (this.to_left && ra_frame > 0.5) {
+        ra_frame -= 2.0;
+      } else if (!this.to_left && ra_frame < -0.5) {
+        ra_frame += 2.0;
+      }
+    }
+    return [ra_frame, de_frame, 0.0];
+  }
+
+  // 8 bezier per
+  create_declination_circle_beziers(
+    control_points: Float32Array,
+    offset: number,
+    result: CachedBezier[],
+    de: number,
+  ): number {
+    const de_r = de * this.vp.deg2rad;
+    const da = this.vp.deg2rad;
+    for (let i = 0; i < 360; i += 45) {
+      const ra = i * da;
+      result.push(
+        CachedBezier.create_mapped(
+          this.application.wasm_memory,
+          control_points,
+          offset,
+          [1, 1, 0, 1],
+          this.map_ra_de.bind(this),
+          [ra, de_r],
+          [ra + da * 45, de_r],
+        ),
+      );
+      offset += 16;
+    }
+    return offset;
+  }
+
+  // -80 to 80 in steps of 10 is 17; so 17 bezier per
+  create_ra_great_circle_half_beziers(
+    control_points: Float32Array,
+    offset: number,
+    result: CachedBezier[],
+    ra: number,
+  ): number {
+    const ra_r = ra * this.vp.deg2rad;
+    const da = this.vp.deg2rad;
+    for (let i = -80; i <= 70; i += 10) {
+      const de = i * da;
+      result.push(
+        CachedBezier.create_mapped(
+          this.application.wasm_memory,
+          control_points,
+          offset,
+          [1, 0, 1, 1],
+          this.map_ra_de.bind(this),
+          [ra_r, de],
+          [ra_r, de + da * 10],
+        ),
+      );
+      offset += 16;
+    }
+    return offset;
+  }
+
   create_azimuthal_grid_beziers(): CachedBezier[] {
-    return [];
+    const result: CachedBezier[] = [];
+    const control_points = new Float32Array((160 + 408) * 16); // 4 axes each of 10 Beziers each of one mat4 (16 control point coordinates)
+    let b = 0;
+
+    // Each of these is 8 beziers; this is 19 circles (call it 20 for now)
+
+    // Equator
+    b = this.create_declination_circle_beziers(control_points, b, result, 0.0); // color
+    // Above / below horizon
+    for (let de = 10; de <= 80; de += 10) {
+      b = this.create_declination_circle_beziers(control_points, b, result, de);
+      b = this.create_declination_circle_beziers(
+        control_points,
+        b,
+        result,
+        -de,
+      );
+    }
+
+    // Each of these is 17 beziers; this is 24 circles (408 beziers)
+
+    // Longitude 0
+    b = this.create_ra_great_circle_half_beziers(control_points, b, result, 0);
+    // Longitude 180
+    b = this.create_ra_great_circle_half_beziers(
+      control_points,
+      b,
+      result,
+      180,
+    );
+    // Other longitudes
+    for (let ra = 15; ra <= 165; ra += 15) {
+      b = this.create_ra_great_circle_half_beziers(
+        control_points,
+        b,
+        result,
+        ra,
+      );
+      b = this.create_ra_great_circle_half_beziers(
+        control_points,
+        b,
+        result,
+        -ra,
+      );
+    }
+    return result;
   }
 
   map_xy_view_frame(i: number, x: number, y: number): [number, number, number] {

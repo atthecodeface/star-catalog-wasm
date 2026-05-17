@@ -9,6 +9,7 @@ import { CacheOld } from "./cache.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
+import { CachedBezier } from "./webgl_canvas.js";
 
 //a SkyCanvas
 export class SkyCanvas {
@@ -179,6 +180,115 @@ export class SkyCanvas {
     const x = this.width / 2.0 - v[1]! / v[0]! / this.tan_pixh;
     const y = this.height / 2.0 - v[2]! / v[0]! / this.tan_pixh; // v / this.win_ar );
     return [x, y];
+  }
+
+  map_ra_de(_i: number, ra: number, de: number): [number, number, number] {
+    const de_c = Math.cos(de);
+    const de_s = Math.sin(de);
+    const ra_c = Math.cos(ra);
+    const ra_s = Math.sin(ra);
+    return [ra_c * de_c, ra_s * de_c, de_s];
+  }
+
+  // 8 bezier per
+  create_declination_circle_beziers(
+    control_points: Float32Array,
+    offset: number,
+    result: CachedBezier[],
+    de: number,
+  ): number {
+    const da = this.vp.deg2rad * 45;
+    for (let i = 0; i < 360; i += 45) {
+      const ra = i * da;
+      result.push(
+        CachedBezier.create_mapped(
+          this.application.wasm_memory,
+          control_points,
+          offset,
+          [1, 0, 0, 1],
+          this.map_ra_de.bind(this),
+          [ra, de],
+          [ra + da, de],
+        ),
+      );
+      offset += 16;
+    }
+    return offset;
+  }
+
+  // -80 to 80 in steps of 10 is 17; so 17 bezier per
+  create_ra_great_circle_half_beziers(
+    control_points: Float32Array,
+    offset: number,
+    result: CachedBezier[],
+    ra: number,
+  ): number {
+    const da = this.vp.deg2rad * 10;
+    for (let i = -80; i <= 80; i += 10) {
+      const de = i * da;
+      result.push(
+        CachedBezier.create_mapped(
+          this.application.wasm_memory,
+          control_points,
+          offset,
+          [1, 0, 0, 1],
+          this.map_ra_de.bind(this),
+          [ra, de],
+          [ra, de + da],
+        ),
+      );
+      offset += 16;
+    }
+    return offset;
+  }
+
+  create_azimuthal_grid_beziers(): CachedBezier[] {
+    const result: CachedBezier[] = [];
+    const control_points = new Float32Array((160 + 408) * 16); // 4 axes each of 10 Beziers each of one mat4 (16 control point coordinates)
+    let b = 0;
+
+    // Each of these is 8 beziers; this is 19 circles (call it 20 for now)
+
+    // Equator
+    b = this.create_declination_circle_beziers(control_points, b, result, 0.0); // color
+    // Above / below horizon
+    for (let de = 10; de <= 80; de += 10) {
+      b = this.create_declination_circle_beziers(control_points, b, result, de);
+      b = this.create_declination_circle_beziers(
+        control_points,
+        b,
+        result,
+        -de,
+      );
+    }
+
+    // Each of these is 17 beziers; this is 24 circles (408 beziers)
+
+    // Longitude 0
+    b = this.create_ra_great_circle_half_beziers(control_points, b, result, 0);
+    // Longitude 180
+    b = this.create_ra_great_circle_half_beziers(
+      control_points,
+      b,
+      result,
+      180,
+    );
+    // Other longitudes
+    for (let ra = 15; ra <= 165; ra += 15) {
+      b = this.create_ra_great_circle_half_beziers(
+        control_points,
+        b,
+        result,
+        ra,
+      );
+      b = this.create_ra_great_circle_half_beziers(
+        control_points,
+        b,
+        result,
+        -ra,
+      );
+    }
+    return result;
   }
 
   //mi rotate_axis
