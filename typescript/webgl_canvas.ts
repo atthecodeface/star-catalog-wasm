@@ -487,7 +487,9 @@ export class WebglCanvas {
     this.webgl.webgl!.viewport(0, 0, w, h);
     this.webgl.clear_buffer();
 
-    const f = 1.2 / this.vp.tan_hfovh;
+    const f = 1.0 / this.vp.tan_hfovh; // should be 1/tan fov?
+    const near = 0.01; // Maps to -1 in the Z, closest to the viewer, should scale by 1/near
+    const far = 1.01; // Maps to +1 in the Z, furthest to the viewer, should scale by 1/far
     // W = -z
     // Z = (near + far) / (near - far) * z - (near * far * 2) / (near - far) = (near * z + far * z - near * far * 2) / (near - far)
     //  if z = near, Z(*w) = (near * near + far * near - near * far * 2) / (near - far) = (near * near - near * far) / (near - far) = near; Z = -1
@@ -506,15 +508,14 @@ export class WebglCanvas {
 
       0,
       0,
-      1,
-      0,
+      (near + far) / (near - far), // scale by
+      -1,
 
       0,
       0,
+      (near * far * 2) / (near - far),
       0,
-      1,
     ]);
-
     this.webgl.use_program(this.star_program);
     this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
 
