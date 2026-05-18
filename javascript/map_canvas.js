@@ -1,29 +1,23 @@
-import { WasmVec3f64, } from "../pkg/star_catalog_wasm.js";
+import { WasmVec3f32, WasmVec3f64, WasmBezierBuilder3f32, WasmBezier3f32, } from "../pkg/star_catalog_wasm.js";
 import { Line } from "./draw.js";
-import { Cache } from "./cache.js";
-import { Mouse } from "./mouse.js";
 import { Logger } from "./log.js";
+import { WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
 export class MapCanvas {
-    constructor(application, canvas_div_id, width, height) {
+    constructor(application, webgl_canvas) {
+        this.width = 50;
+        this.height = 50;
+        this.brightness = 4;
         this.last_drag_polar = [0, 0];
         this.drag_minutes = false;
+        this.bezier = new WasmBezier3f32();
+        this.builder = new WasmBezierBuilder3f32();
+        this.vec = new WasmVec3f64(0, 0, 0);
+        this.pt = new WasmVec3f32(0, 0, 0);
+        this.to_left = false;
         this.application = application;
         this.vp = this.application.view_properties;
+        this.webgl_canvas = webgl_canvas;
         this.logger = new Logger(application.log, "map");
-        this.div = document.getElementById(canvas_div_id);
-        this.canvas = document.createElement("canvas");
-        this.div.appendChild(this.canvas);
-        this.width = width;
-        this.height = height;
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
-        this.brightness = 4.0;
-        this.star_cache = new Cache(null, (_x) => {
-            return false;
-        }, this.fill_star_cache.bind(this));
-        this.star_cache.force_refresh();
-        this.mouse = new Mouse(this, this.canvas);
-        this.logger.info(`Created map canvas`);
     }
     //mi fill_star_cache
     fill_star_cache(_x) {
@@ -45,8 +39,9 @@ export class MapCanvas {
     }
     //mp update
     update() {
+        this.vp.webgl_canvas_view = WebglCanvasView.StarMap;
         this.derive_data();
-        this.redraw_canvas();
+        this.webgl_canvas.redraw_canvas();
     }
     //mi derive_data
     derive_data() {
@@ -63,8 +58,6 @@ export class MapCanvas {
         if (set_w != this.width || set_h != this.height) {
             this.width = set_w;
             this.height = set_h;
-            this.canvas.width = this.width;
-            this.canvas.height = this.height;
         }
     }
     //mi ra_de_of_cxy
@@ -74,18 +67,6 @@ export class MapCanvas {
         const ra = (fx - 0.5) * 2 * Math.PI;
         const de = (0.5 - fy) * Math.PI;
         return [ra, de];
-    }
-    //mi vector_of_cxy
-    // Vector of a canvas XY
-    //
-    // X+ is in, Y+ is left, Z+ is up
-    unused_vector_of_cxy(cxy) {
-        const de_ra = this.ra_de_of_cxy(cxy);
-        const vz = Math.sin(de_ra[0]);
-        const c = Math.cos(de_ra[0]);
-        const vx = c * Math.cos(de_ra[1]);
-        const vy = -c * Math.sin(de_ra[1]);
-        return [vx, vy, vz];
     }
     //mi cxy_of_ra_de
     // Canvas XY of RA and DE
@@ -113,6 +94,142 @@ export class MapCanvas {
         const de = Math.asin(vxyz[2]);
         const ra = Math.atan2(vxyz[1], vxyz[0]);
         return this.cxy_of_ra_de(ra, de);
+    }
+    map_ra_de(i, ra, de) {
+        const de_c = Math.cos(de);
+        const de_s = Math.sin(de);
+        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(this.vec);
+        vxyz[0] = de_c * Math.cos(ra);
+        vxyz[1] = de_c * Math.sin(ra);
+        vxyz[2] = de_s;
+        this.vp.observer_to_ecef_q.set_vec_apply(this.vec);
+        let de_frame = (Math.asin(vxyz[2]) / Math.PI) * 2.0;
+        let ra_frame = (Math.atan2(vxyz[1], vxyz[0]) / Math.PI) * 1.0;
+        if (i == 0) {
+            this.to_left = ra_frame < 0.0;
+        }
+        else {
+            if (this.to_left && ra_frame > 0.5) {
+                ra_frame -= 2.0;
+            }
+            else if (!this.to_left && ra_frame < -0.5) {
+                ra_frame += 2.0;
+            }
+        }
+        return [ra_frame, de_frame, 0.0];
+    }
+    // 8 bezier per
+    create_declination_circle_beziers(control_points, offset, result, de) {
+        const de_r = de * this.vp.deg2rad;
+        const da = this.vp.deg2rad;
+        for (let i = 0; i < 360; i += 45) {
+            const ra = i * da;
+            result.push(CachedBezier.create_mapped(this.application.wasm_memory, control_points, offset, [1, 1, 0, 1], this.map_ra_de.bind(this), [ra, de_r], [ra + da * 45, de_r]));
+            offset += 16;
+        }
+        return offset;
+    }
+    // -80 to 80 in steps of 10 is 17; so 17 bezier per
+    create_ra_great_circle_half_beziers(control_points, offset, result, ra) {
+        const ra_r = ra * this.vp.deg2rad;
+        const da = this.vp.deg2rad;
+        for (let i = -80; i <= 70; i += 10) {
+            const de = i * da;
+            result.push(CachedBezier.create_mapped(this.application.wasm_memory, control_points, offset, [1, 0, 1, 1], this.map_ra_de.bind(this), [ra_r, de], [ra_r, de + da * 10]));
+            offset += 16;
+        }
+        return offset;
+    }
+    create_azimuthal_grid_beziers() {
+        const result = [];
+        const control_points = new Float32Array((160 + 408) * 16); // 4 axes each of 10 Beziers each of one mat4 (16 control point coordinates)
+        let b = 0;
+        // Each of these is 8 beziers; this is 19 circles (call it 20 for now)
+        // Equator
+        b = this.create_declination_circle_beziers(control_points, b, result, 0.0); // color
+        // Above / below horizon
+        for (let de = 10; de <= 80; de += 10) {
+            b = this.create_declination_circle_beziers(control_points, b, result, de);
+            b = this.create_declination_circle_beziers(control_points, b, result, -de);
+        }
+        // Each of these is 17 beziers; this is 24 circles (408 beziers)
+        // Longitude 0
+        b = this.create_ra_great_circle_half_beziers(control_points, b, result, 0);
+        // Longitude 180
+        b = this.create_ra_great_circle_half_beziers(control_points, b, result, 180);
+        // Other longitudes
+        for (let ra = 15; ra <= 165; ra += 15) {
+            b = this.create_ra_great_circle_half_beziers(control_points, b, result, ra);
+            b = this.create_ra_great_circle_half_beziers(control_points, b, result, -ra);
+        }
+        return result;
+    }
+    map_xy_view_frame(i, x, y) {
+        this.application.sky_view_frame_to_ecef_set_vec(x, y, this.vec);
+        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(this.vec);
+        let de = (Math.asin(vxyz[2]) / Math.PI) * 2.0;
+        let ra = (Math.atan2(vxyz[1], vxyz[0]) / Math.PI) * 1.0;
+        if (i == 0) {
+            this.to_left = ra < 0.0;
+        }
+        else {
+            if (this.to_left && ra > 0.75) {
+                ra -= 2.0;
+            }
+            else if (!this.to_left && ra < -0.75) {
+                ra += 2.0;
+            }
+        }
+        return [ra, de, 0.0];
+    }
+    static map_xy_identity(_i, x, y) {
+        return [x, y, 0.0];
+    }
+    create_equatorial_grid_beziers() {
+        const result = [];
+        const control_points = new Float32Array(30 * 16);
+        let b = 0;
+        for (const ra of [
+            0.9999,
+            5 / 6.0,
+            4 / 6.0,
+            3 / 6.0,
+            2 / 6.0,
+            1 / 6.0,
+            0.001,
+        ]) {
+            for (const side of [-1, 1]) {
+                result.push(CachedBezier.create_mapped(this.application.wasm_memory, control_points, b, [0, 1, 0, 1], MapCanvas.map_xy_identity, [ra * side, -1], [ra * side, 1]));
+                b += 16;
+            }
+        }
+        for (let y = 0; y <= 3; y++) {
+            let de = y / 3.0;
+            for (const side of [-1, 1]) {
+                result.push(CachedBezier.create_mapped(this.application.wasm_memory, control_points, b, [0, 1, 0, 1], MapCanvas.map_xy_identity, [-1, de * side], [1, de * side]));
+                b += 16;
+                if (y == 0) {
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+    create_frame_beziers() {
+        const result = [];
+        const control_points = new Float32Array(4 * 10 * 16); // 4 axes each of 10 Beziers each of one mat4 (16 control point coordinates)
+        let b = 0;
+        for (const xy of [-1, 1]) {
+            for (let i = 0; i < 10; i++) {
+                let lx = i / 5.0 - 1.0;
+                let rx = (i + 1) / 5.0 - 1.0;
+                result.push(CachedBezier.create_mapped(this.application.wasm_memory, control_points, b, [1, 0, 0, 1], this.map_xy_view_frame.bind(this), [lx, xy], [rx, xy]));
+                b += 16;
+                result.push(CachedBezier.create_mapped(this.application.wasm_memory, control_points, b, [1, 0, 0, 1], this.map_xy_view_frame.bind(this), [xy, lx], [xy, rx]));
+                b += 16;
+            }
+        }
+        return result;
     }
     //mi draw_sky_rect
     // Draw the 'rectangle' that the Sky canvas represents
@@ -290,30 +407,6 @@ export class MapCanvas {
             this.add_ra_great_circle(q_grid, l, v, ra + 180, 1);
         }
         l.finish();
-    }
-    //mi redraw_canvas
-    redraw_canvas() {
-        const catalog = this.application.catalog;
-        const ctx = this.canvas.getContext("2d");
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        for (const star of this.star_cache.get()) {
-            this.draw_star(ctx, star);
-        }
-        this.draw_azimuthal_grid(ctx);
-        this.draw_equatorial_grid(ctx);
-        this.draw_sky_rect(ctx);
-        if (this.vp.selected_star) {
-            const star = catalog.star(this.vp.selected_star);
-            const cxy = this.cxy_of_vector(star.vector);
-            if (cxy != null) {
-                ctx.strokeStyle = "white";
-                ctx.lineWidth = 1.0;
-                ctx.beginPath();
-                ctx.arc(cxy[0], cxy[1], 8, 0, 2 * Math.PI);
-                ctx.stroke();
-            }
-        }
     }
     user_press(_xy, _actions) { }
     user_press_move(_start_xy, _xy) { }

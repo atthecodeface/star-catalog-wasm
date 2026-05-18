@@ -372,17 +372,19 @@ export class FindCanvas {
             ctx.closePath();
             ctx.stroke();
         }
+        /*
         const stars = this.vp.star_catalog.sky_canvas.star_cache.get();
         for (const star of stars.stars) {
-            star.set_vector(this.star_vector);
-            this.star_vector.set_apply_q3(this.vp.ecef_to_view_q);
-            const ixy = this.img_xy_of_vector(this.star_vector);
-            const sxy = this.zoomed_window.scr_xy_of_img_xy(ixy);
-            ctx.save();
-            Draw.set_transform(ctx, [sxy[0], sxy[1]]);
-            this.cross.draw(ctx, (x) => style[x]);
-            ctx.restore();
+          star.set_vector(this.star_vector);
+          this.star_vector.set_apply_q3(this.vp.ecef_to_view_q);
+          const ixy = this.img_xy_of_vector(this.star_vector);
+          const sxy = this.zoomed_window.scr_xy_of_img_xy(ixy);
+          ctx.save();
+          Draw.set_transform(ctx, [sxy[0], sxy[1]]);
+          this.cross.draw(ctx, (x) => (style as any)[x]);
+          ctx.restore();
         }
+     */
         for (const ixy of this.selected_stars) {
             ctx.save();
             const sxy = this.zoomed_window.scr_xy_of_img_xy(ixy);

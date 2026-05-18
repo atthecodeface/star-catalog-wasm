@@ -4,12 +4,12 @@ export class WebglFlatShader {
     constructor() {
         this.id = "weblgl_flat";
         this.extra_uniforms = [];
-        this.vertex = `
+        this.vertex = `#version 300 es
   uniform mat4 projection;
   uniform mat4 view;
   uniform mat4 model;
 
-  attribute vec2 position;
+  in vec2 position;
 
   void main() {
     vec4 position4;
@@ -22,14 +22,17 @@ export class WebglFlatShader {
     gl_Position = pos;
   }
   `;
-        this.fragment = `
+        this.fragment = `#version 300 es
   precision mediump float;
   uniform vec4 color;
+
+  out vec4 FragColor; // must be the only output declaration; is not implicit!
+
   void main() {
-  gl_FragColor.r = color.r;
-  gl_FragColor.g = color.g;
-  gl_FragColor.b = color.b;
-  gl_FragColor.a = color.a;
+  FragColor.r = color.r;
+  FragColor.g = color.g;
+  FragColor.b = color.b;
+  FragColor.a = color.a;
   }
   `;
     }
@@ -87,6 +90,10 @@ export var WebglUniform;
     WebglUniform[WebglUniform["Color"] = 3] = "Color";
     WebglUniform[WebglUniform["Sampler"] = 4] = "Sampler";
     WebglUniform[WebglUniform["Extra0"] = 5] = "Extra0";
+    WebglUniform[WebglUniform["Extra1"] = 6] = "Extra1";
+    WebglUniform[WebglUniform["Extra2"] = 7] = "Extra2";
+    WebglUniform[WebglUniform["Extra3"] = 8] = "Extra3";
+    WebglUniform[WebglUniform["Extra4"] = 9] = "Extra4";
 })(WebglUniform || (WebglUniform = {}));
 export class WebglFlatObj {
     constructor(positions, indices) {
@@ -117,6 +124,18 @@ export class WebglFlatObj {
         }
         return new WebglFlatObj(new Float32Array(pts), new Uint16Array(lines));
     }
+    static circle(radius, steps) {
+        let pts = [];
+        let lines = [];
+        let da = Math.PI / (steps * 0.5);
+        for (let i = 0; i < steps; i++) {
+            let x = radius * Math.cos(i * da);
+            let y = radius * Math.sin(i * da);
+            pts.push(x, y);
+            lines.push(i, (i + 1) % steps);
+        }
+        return new WebglFlatObj(new Float32Array(pts), new Uint16Array(lines));
+    }
     set_point(index, x, y) {
         this.positions[index * 2] = x;
         this.positions[index * 2 + 1] = y;
@@ -138,7 +157,6 @@ export class WebglFlatObj {
         webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
         webgl.enableVertexAttribArray(0);
         webgl.vertexAttribPointer(0, 2, webgl.FLOAT, false, 0, 0);
-        webgl.lineWidth(1);
         webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, this.indices_buf);
         webgl.drawElements(webgl.LINES, this.num_indices, webgl.UNSIGNED_SHORT, 0);
     }
@@ -151,6 +169,7 @@ export class WebglCubicBezierObj {
             this.positions[i] = (i / (steps - 1.0)) * (max_t - min_t) + min_t;
         }
         this.control_points = new Float32Array(4 * 4);
+        this.control_points_offset = 0;
         this.point = new WasmVec3f32(0, 0, 0);
     }
     static of_bezier(bezier, steps = 10) {
@@ -167,6 +186,11 @@ export class WebglCubicBezierObj {
         this.control_points.set(this.point.array, 8);
         bezier.set_vec_control_pt(this.point, 3);
         this.control_points.set(this.point.array, 12);
+        this.control_points_offset = 0;
+    }
+    set_control_points(control_points, offset = 0) {
+        this.control_points = control_points;
+        this.control_points_offset = offset;
     }
     webgl_create(webgl) {
         this.position_buf = webgl.createBuffer();
@@ -174,13 +198,12 @@ export class WebglCubicBezierObj {
         webgl.bufferData(webgl.ARRAY_BUFFER, this.positions.buffer, webgl.STATIC_DRAW);
     }
     webgl_set_uniforms(wgl) {
-        wgl.set_uniform_mat4(WebglUniform.Extra0, this.control_points, false);
+        wgl.set_uniform_mat4(WebglUniform.Extra0, this.control_points.slice(this.control_points_offset, this.control_points_offset + 16), false);
     }
     webgl_draw(webgl) {
         webgl.bindBuffer(webgl.ARRAY_BUFFER, this.position_buf);
         webgl.enableVertexAttribArray(0);
         webgl.vertexAttribPointer(0, 1, webgl.FLOAT, false, 0, 0);
-        webgl.lineWidth(1);
         webgl.drawArrays(webgl.LINE_STRIP, 0, this.positions.length);
     }
 }
@@ -264,6 +287,12 @@ export class WebglProgram {
                 this.matrix.set(matrix);
             }
             this.webgl.uniformMatrix4fv(u, false, this.matrix);
+        }
+    }
+    set_uniform_float(uniform, value) {
+        const u = this.uniforms[uniform];
+        if (u !== null) {
+            this.webgl.uniform1f(u, value);
         }
     }
     set_uniform_vec4(uniform, value) {
@@ -418,6 +447,18 @@ export class Webgl {
         if (this.webgl !== null) {
             obj.webgl_create(this.webgl);
         }
+    }
+    set_uniform_float(uniform, value) {
+        if (this.current_program === null) {
+            return;
+        }
+        this.current_program.set_uniform_float(uniform, value);
+    }
+    set_uniform_vec4(uniform, value) {
+        if (this.current_program === null) {
+            return;
+        }
+        this.current_program.set_uniform_vec4(uniform, value);
     }
     set_uniform_mat4(uniform, matrix, transpose = false) {
         if (this.current_program === null) {

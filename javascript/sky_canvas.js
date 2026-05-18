@@ -1,33 +1,25 @@
 import { WasmVec3f64, WasmQuatf64, } from "../pkg/star_catalog_wasm.js";
 import { Line } from "./draw.js";
-import { Mouse } from "./mouse.js";
-import { Cache } from "./cache.js";
+import { CacheOld } from "./cache.js";
 import { Logger } from "./log.js";
+import { WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
 //a SkyCanvas
 export class SkyCanvas {
-    //fp constructor
-    constructor(application, canvas_div_id, width, height) {
+    constructor(application, webgl_canvas) {
+        this.width = 50;
+        this.height = 50;
         this.win_ar = 0;
         // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
         this.tan_pixh = 0;
         this.tan_pixv = 0;
         this.drag_rotate = "";
         this.application = application;
-        this.vp = application.view_properties;
+        this.vp = this.application.view_properties;
+        this.webgl_canvas = webgl_canvas;
         this.logger = new Logger(application.log, "clock");
-        this.div = document.getElementById(canvas_div_id);
-        this.canvas = document.createElement("canvas");
-        this.div.appendChild(this.canvas);
-        this.width = width;
-        this.height = height;
         this.star_vector = new WasmVec3f64(0, 0, 0);
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
         // Aspect ratio in 'tan' space of a single Y pixel compared to a single X pixel
         this.tan_yx = 1.0;
-        this.star_cache = this.make_star_cache();
-        this.star_cache.force_refresh();
-        this.mouse = new Mouse(this, this.canvas);
         this.derive_data();
         this.logger.info(`Created sky canvas`);
     }
@@ -39,7 +31,7 @@ export class SkyCanvas {
             stars: [],
             brightness: 0.0,
         };
-        return new Cache(stars, this.check_star_cache.bind(this), this.try_to_fill_star_cache.bind(this));
+        return new CacheOld(stars, this.check_star_cache.bind(this), this.try_to_fill_star_cache.bind(this));
     }
     //mi check_star_cache
     check_star_cache(stars) {
@@ -84,8 +76,6 @@ export class SkyCanvas {
         if (set_w != this.width || set_h != this.height) {
             this.width = set_w;
             this.height = set_h;
-            this.canvas.width = this.width;
-            this.canvas.height = this.height;
         }
         this.win_ar = this.height / this.width;
         this.tan_yx = 1.0;
@@ -95,8 +85,9 @@ export class SkyCanvas {
     }
     //mp update
     update() {
+        this.vp.webgl_canvas_view = WebglCanvasView.SkyView;
         this.derive_data();
-        this.redraw_canvas();
+        this.webgl_canvas.redraw_canvas();
     }
     //mp set_vector_of_fxy
     // Vector of *square* canvas fraction with -1,-1 being bottom left, 1,1 top right
@@ -125,6 +116,59 @@ export class SkyCanvas {
         const x = this.width / 2.0 - v[1] / v[0] / this.tan_pixh;
         const y = this.height / 2.0 - v[2] / v[0] / this.tan_pixh; // v / this.win_ar );
         return [x, y];
+    }
+    map_ra_de(_i, ra, de) {
+        const de_c = Math.cos(de);
+        const de_s = Math.sin(de);
+        const ra_c = Math.cos(ra);
+        const ra_s = Math.sin(ra);
+        return [ra_c * de_c, ra_s * de_c, de_s];
+    }
+    // 8 bezier per
+    create_declination_circle_beziers(control_points, offset, result, de) {
+        const de_r = de * this.vp.deg2rad;
+        const da = this.vp.deg2rad * 45;
+        for (let i = 0; i < 360; i += 45) {
+            const ra = i * da;
+            result.push(CachedBezier.create_mapped(this.application.wasm_memory, control_points, offset, [1, 1, 1, 1], this.map_ra_de.bind(this), [ra, de_r], [ra + da, de_r]));
+            offset += 16;
+        }
+        return offset;
+    }
+    // -80 to 80 in steps of 10 is 17; so 17 bezier per
+    create_ra_great_circle_half_beziers(control_points, offset, result, ra) {
+        const ra_r = ra * this.vp.deg2rad;
+        const da = this.vp.deg2rad * 10;
+        for (let i = -80; i <= 70; i += 10) {
+            const de = i * this.vp.deg2rad;
+            result.push(CachedBezier.create_mapped(this.application.wasm_memory, control_points, offset, [1, 1, 1, 1], this.map_ra_de.bind(this), [ra_r, de], [ra_r, de + da]));
+            offset += 16;
+        }
+        return offset;
+    }
+    create_azimuthal_grid_beziers() {
+        const result = [];
+        const control_points = new Float32Array((160 + 408) * 16); // 4 axes each of 10 Beziers each of one mat4 (16 control point coordinates)
+        let b = 0;
+        // Each of these is 8 beziers; this is 19 circles (call it 20 for now)
+        // Equator
+        b = this.create_declination_circle_beziers(control_points, b, result, 0.0); // color
+        // Above / below horizon
+        for (let de = 10; de <= 80; de += 10) {
+            b = this.create_declination_circle_beziers(control_points, b, result, de);
+            b = this.create_declination_circle_beziers(control_points, b, result, -de);
+        }
+        // Each of these is 17 beziers; this is 24 circles (408 beziers)
+        // Longitude 0
+        b = this.create_ra_great_circle_half_beziers(control_points, b, result, 0);
+        // Longitude 180
+        b = this.create_ra_great_circle_half_beziers(control_points, b, result, 180);
+        // Other longitudes
+        for (let ra = 15; ra <= 165; ra += 15) {
+            b = this.create_ra_great_circle_half_beziers(control_points, b, result, ra);
+            b = this.create_ra_great_circle_half_beziers(control_points, b, result, -ra);
+        }
+        return result;
     }
     //mi rotate_axis
     rotate_axis(axis, delta) {
@@ -238,8 +282,8 @@ export class SkyCanvas {
         if (styling.sky.view_border == null) {
             return;
         }
-        const rx = this.canvas.width;
-        const by = this.canvas.height;
+        const rx = this.width;
+        const by = this.height;
         ctx.fillStyle = styling.sky.view_border[0];
         ctx.fillRect(0, by - 2, rx, 2);
         ctx.fillStyle = styling.sky.view_border[2];
@@ -250,51 +294,17 @@ export class SkyCanvas {
         ctx.fillRect(rx - 2, 0, 2, by);
     }
     //mi redraw_canvas
-    redraw_canvas() {
-        const catalog = this.vp.catalog;
-        const styling = this.vp.styling();
-        const ctx = this.canvas.getContext("2d");
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.draw_border(ctx);
-        if (this.vp.selected_star !== null) {
-            const star = catalog.star(this.vp.selected_star);
-            ctx.strokeStyle = "White";
-            const qv = this.vp.ecef_to_view_q.apply(star.vector);
-            const cxy = this.cxy_of_vector(qv);
-            if (cxy !== null) {
-                const cx = cxy[0];
-                const cy = cxy[1];
-                ctx.beginPath();
-                ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
-                ctx.stroke();
-            }
-        }
-        if (this.vp.show_azimuthal) {
-            this.draw_grid(ctx, this.vp.ecef_to_view_q.mul(this.vp.observer_to_ecef_q), styling.sky.azimuthal_grid);
-        }
-        if (this.vp.show_equatorial) {
-            this.draw_grid(ctx, this.vp.ecef_to_view_q, styling.sky.equatorial_grid);
-        }
-        const stars = this.star_cache.get();
-        if (stars.stars.length == 0) {
-            this.vp.brightness = this.vp.brightness * 0.9;
-            this.vp.update_html_elements();
-            // this.star_catalog.set_view_needs_update();
-            this.derive_data();
-            this.redraw_canvas();
-        }
-        else {
-            for (const star of stars.stars) {
-                this.draw_star(ctx, star);
-            }
-        }
-    }
+    redraw_canvas() { }
     drag_end(_start_xy, _xy) { }
     user_press(_xy, _actions) { }
     user_press_move(_start_xy, _xy) { }
     user_press_cancel(_start_xy) { }
     user_pan(_xy, _dxy) { }
+    user_rotate(_xy, angle) {
+        const v = new WasmVec3f64(1, 0, 0);
+        const q = WasmQuatf64.of_axis_angle(v, -angle);
+        this.vp.view_q_post_mul(q);
+    }
     drag_start(_start_xy, xy) {
         const cx = xy[0] - this.width / 2;
         const cy = xy[1] - this.height / 2;
@@ -313,14 +323,14 @@ export class SkyCanvas {
             const cx1 = cxy1[0] - this.width / 2;
             const cy1 = cxy1[1] - this.height / 2;
             const angle = Math.atan2(cy1, cx1) - Math.atan2(cy0, cx0);
-            const q = WasmQuatf64.unit().rotate_x(-angle);
+            const q = WasmQuatf64.unit().rotate_z(angle);
             this.vp.view_q_post_mul(q);
         }
         else {
             const dcx = (cxy0[0] - cxy1[0]) * this.tan_pixh;
             const dcy = (cxy0[1] - cxy1[1]) * this.tan_pixv;
-            const qz = WasmQuatf64.unit().rotate_z(-Math.atan(dcx));
-            const qy = WasmQuatf64.unit().rotate_y(Math.atan(dcy));
+            const qz = WasmQuatf64.unit().rotate_y(Math.atan(dcx));
+            const qy = WasmQuatf64.unit().rotate_x(Math.atan(dcy));
             const q = qz.mul(qy);
             this.vp.view_q_post_mul(q);
         }
@@ -341,10 +351,5 @@ export class SkyCanvas {
     }
     user_zoom(_cxy, factor) {
         this.application.sky_view_zoom_by(factor);
-    }
-    user_rotate(_xy, angle) {
-        const v = new WasmVec3f64(1, 0, 0);
-        const q = WasmQuatf64.of_axis_angle(v, -angle);
-        this.vp.view_q_post_mul(q);
     }
 }

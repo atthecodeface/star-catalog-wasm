@@ -9,9 +9,10 @@ import { Log, Logger, Severity } from "./log.js";
 import { Orientation } from "./orientation.js";
 import { Animate } from "./animate.js";
 import { Controls } from "./controls.js";
+import { WebglCanvas } from "./webgl_canvas.js";
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
-import { FindCanvas } from "./find_canvas.js";
+// import { FindCanvas } from "./find_canvas.js";
 import { TestCanvas } from "./test_canvas.js";
 import { Earth } from "./earth.js";
 import { Styling } from "./styling.js";
@@ -72,14 +73,15 @@ export class StarCatalog {
         this.vp = new ViewProperties(this, params);
         this.resize_observer = new ResizeObserver(this.resize_canvas.bind(this));
         this.controls = new Controls(this, "controls");
-        this.sky_canvas = new SkyCanvas(this.vp, "SkyCanvas", 50, 50);
-        this.map_canvas = new MapCanvas(this.vp, "MapCanvas", 50, 50);
-        this.earth_canvas = new Earth(this.vp, "EarthCanvas", 800, 400, this.vp.earth_webgl, this.vp.earth_division);
-        this.find_canvas = new FindCanvas(this.vp, "FindCanvas");
-        this.test_canvas = new TestCanvas(this.vp, "TestCanvas");
+        this.webgl_canvas = new WebglCanvas(this.vp, "WebCanvas");
+        this.sky_canvas = new SkyCanvas(this.vp, this.webgl_canvas);
+        this.map_canvas = new MapCanvas(this.vp, this.webgl_canvas);
+        this.earth_canvas = new Earth(this.vp, this.webgl_canvas);
+        this.solar_system_canvas = new TestCanvas(this.vp, this.webgl_canvas);
+        // this.find_canvas = new FindCanvas(this.vp, "FindCanvas");
         this.pending_resize = null;
         this.selected_css_changed();
-        for (const resizable_content of document.getElementsByClassName("resizable-content")) {
+        for (const resizable_content of document.getElementsByClassName("get_size_of_this")) {
             this.resize_observer.observe(resizable_content);
         }
         this.set_view_needs_update();
@@ -124,7 +126,7 @@ export class StarCatalog {
     }
     resize_canvas(e) {
         for (const ele of e) {
-            // console.log(ele.contentRect, ele.target.id);
+            console.log(ele.contentRect, ele.target.id);
             if (ele.contentRect.width > 0 && ele.contentRect.height > 0) {
                 this.pending_resize = [ele.contentRect.width, ele.contentRect.height];
                 this.set_view_needs_update();
@@ -169,11 +171,13 @@ export class StarCatalog {
         if (this.selected_tab == SelectedTab.Location) {
             this.earth_canvas.update();
         }
+        /*
         if (this.selected_tab == SelectedTab.Find) {
-            this.find_canvas.update();
+          this.find_canvas.update();
         }
+        */
         if (this.selected_tab == SelectedTab.Test) {
-            this.test_canvas.update();
+            this.solar_system_canvas.update();
         }
         this.view_needs_update = false;
     }

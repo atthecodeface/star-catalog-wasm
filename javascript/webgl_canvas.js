@@ -1,36 +1,97 @@
-import { WasmVec3f32, WasmMat4f32, WasmIcosphere, } from "../pkg/star_catalog_wasm.js";
+import { WasmVec3f32, WasmMat4f32, WasmMat4f64, WasmIcosphere, WasmQuatf64, WasmBezier3f32, WasmBezierBuilder3f32, } from "../pkg/star_catalog_wasm.js";
 import { Logger } from "./log.js";
-import { EarthShader, StarShader, SphereShader } from "./shaders.js";
+import { Mouse } from "./mouse.js";
+import { EarthShader, StarShader, SphereShader, StarMapShader, StarShaderProjectedOntoNear, } from "./shaders.js";
 import { SolarSystem } from "./solar_system.js";
 import { StarField } from "./star_field.js";
+import { CacheSingleton } from "./cache.js";
 import { Webgl, Webgl3DObj, WebglCubicBezierShader, WebglFlatShader, WebglFlatObj, WebglUniform, WebglCubicBezierObj, } from "./web_gl.js";
+export var WebglCanvasView;
+(function (WebglCanvasView) {
+    WebglCanvasView[WebglCanvasView["Earth"] = 0] = "Earth";
+    WebglCanvasView[WebglCanvasView["SolarSystem"] = 1] = "SolarSystem";
+    WebglCanvasView[WebglCanvasView["StarMap"] = 2] = "StarMap";
+    WebglCanvasView[WebglCanvasView["SkyView"] = 3] = "SkyView";
+})(WebglCanvasView || (WebglCanvasView = {}));
+export class CachedBezier {
+    constructor(color, control_pts, offset = 0) {
+        this.control_pts = control_pts;
+        this.color = color;
+        this.offset = offset;
+    }
+    static init() {
+        this.bezier = new WasmBezier3f32();
+        this.builder = new WasmBezierBuilder3f32();
+        this.pt = new WasmVec3f32(0, 0, 0);
+    }
+    static create_mapped(wasm_memory, control_points, offset, color, map, x0_y0, x1_y1) {
+        if (!this.initialized) {
+            this.init();
+        }
+        this.builder.clear();
+        for (let j = 0; j < 4; j++) {
+            const x = (x0_y0[0] * (3 - j) + x1_y1[0] * j) / 3;
+            const y = (x0_y0[1] * (3 - j) + x1_y1[1] * j) / 3;
+            const pt0 = wasm_memory.float_array_of_vec3f32(this.pt);
+            pt0.set(map(j, x, y), 0);
+            this.builder.add_vec_pt_at(j / 3.0, this.pt);
+        }
+        this.bezier.reconstruct(this.builder);
+        for (let j = 0; j < 4; j++) {
+            this.bezier.set_vec_control_pt(this.pt, j);
+            const pt0 = wasm_memory.float_array_of_vec3f32(this.pt);
+            control_points.set(pt0, offset + j * 4);
+        }
+        return new CachedBezier(color, control_points, offset);
+    }
+}
+CachedBezier.initialized = false;
+class MapFrameKey {
+    constructor(q, fovh) {
+        this.q = new WasmQuatf64(q.i, q.j, q.k, q.r);
+        this.fovh = fovh;
+    }
+    key_is_equal(other) {
+        return this.q.distance_sq(other.q) == 0.0 && this.fovh == other.fovh;
+    }
+}
 export class WebglCanvas {
-    constructor(application, canvas) {
+    constructor(application, div_id) {
         this.webgl = null;
         this.earth_program = 0;
         this.sphere_program = 0;
         this.flat_program = 0;
         this.bezier_program = 0;
         this.star_program = 0;
+        this.star_projected_onto_near_program = 0;
+        this.star_map_program = 0;
         this.webgl_icosphere = null;
         this.webgl_axis = null;
         this.webgl_bezier = null;
         this.webgl_triangle = null;
+        this.webgl_circle = null;
         this.model = WasmMat4f32.identity();
         this.application = application;
         this.vp = application.view_properties;
         this.logger = new Logger(application.log, "webgl_canvas");
-        this.canvas = canvas;
+        const div = document.getElementById(div_id);
+        this.canvas = document.createElement("canvas");
+        div.appendChild(this.canvas);
+        this.sky_grid_beziers = new CacheSingleton();
+        this.map_frame_beziers = new CacheSingleton();
+        this.map_equatorial_grid_beziers = new CacheSingleton();
+        this.map_azimuthal_grid_beziers = new CacheSingleton();
+        this.mouse = new Mouse(this, this.canvas);
         this.canvas.height = 900;
         this.current_wh = [50, 50];
         this.webgl = new Webgl(application.log, this.canvas);
         this.solar_system = new SolarSystem();
         this.star_field = new StarField(application);
-        if (!this.start_webgl(5)) {
+        if (!this.start_webgl(8)) {
             throw "Webgl was not created correctly; aborting webgl canvas";
         }
     }
-    start_webgl(division) {
+    start_webgl(icos_division) {
         if (!this.webgl.start_webgl()) {
             return false;
         }
@@ -60,6 +121,24 @@ export class WebglCanvas {
             }
         }
         {
+            const program = this.webgl.compile_program(new StarShaderProjectedOntoNear());
+            if (program === null) {
+                return false;
+            }
+            else {
+                this.star_projected_onto_near_program = program;
+            }
+        }
+        {
+            const program = this.webgl.compile_program(new StarMapShader());
+            if (program === null) {
+                return false;
+            }
+            else {
+                this.star_map_program = program;
+            }
+        }
+        {
             const program = this.webgl.compile_program(new WebglFlatShader());
             if (program === null) {
                 return false;
@@ -84,7 +163,7 @@ export class WebglCanvas {
         this.webgl_triangle.add_face([0, 2, 1]);
         this.webgl.create(this.webgl_triangle);
         const icos = new WasmIcosphere();
-        icos.subdivide(division);
+        icos.subdivide(icos_division);
         this.webgl_icosphere = new Webgl3DObj(icos.num_vertices, icos.num_faces * 3);
         for (var i = 0; i < icos.num_vertices; i++) {
             const v = icos.subdiv_vertex(i);
@@ -100,6 +179,8 @@ export class WebglCanvas {
             [2, 0.1],
         ]);
         this.webgl.create(this.webgl_axis);
+        this.webgl_circle = WebglFlatObj.circle(1.0, 20);
+        this.webgl.create(this.webgl_circle);
         this.webgl_bezier = new WebglCubicBezierObj();
         this.webgl.create(this.webgl_bezier);
         this.webgl.create(this.star_field);
@@ -117,6 +198,32 @@ export class WebglCanvas {
         this.vp.view_wh = this.current_wh;
     }
     redraw_canvas() {
+        switch (this.vp.webgl_canvas_view) {
+            case WebglCanvasView.Earth: {
+                this.draw_earth();
+                this.mouse.set_client(this.vp.star_catalog.earth_canvas);
+                break;
+            }
+            case WebglCanvasView.SolarSystem: {
+                this.redraw_solar_system();
+                this.mouse.set_client(this.vp.star_catalog.solar_system_canvas);
+                break;
+            }
+            case WebglCanvasView.StarMap: {
+                this.vp.star_catalog.map_canvas.derive_data();
+                this.draw_star_map();
+                this.mouse.set_client(this.vp.star_catalog.map_canvas);
+                break;
+            }
+            case WebglCanvasView.SkyView: {
+                this.vp.star_catalog.sky_canvas.derive_data();
+                this.draw_sky_view();
+                this.mouse.set_client(this.vp.star_catalog.sky_canvas);
+                break;
+            }
+        }
+    }
+    redraw_solar_system() {
         this.resize_canvas();
         const w = this.vp.view_wh[0];
         const h = this.vp.view_wh[1];
@@ -163,15 +270,13 @@ export class WebglCanvas {
         ]);
         const view_matrix = WasmMat4f32.identity();
         this.vp.solar_sytem_orientation.set_mat4_rotation(view_matrix);
-        this.webgl.use_program(this.star_program);
+        this.webgl.use_program(this.star_projected_onto_near_program);
         this.webgl.set_color([1, 1, 1, 1]);
         this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
         this.webgl.set_uniform_mat4(WebglUniform.View, view_matrix.array, true);
+        this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
         this.webgl.draw(this.star_field);
         this.webgl.clear_depth_buffer();
-        if (this.star_field === null) {
-            return;
-        }
         view_matrix.set_translate_by_vec3(origin);
         // Set view
         this.webgl.use_program(this.flat_program);
@@ -250,4 +355,212 @@ export class WebglCanvas {
         this.webgl.set_uniform_mat4(WebglUniform.Model, matrix.array, true);
         this.webgl.draw(this.webgl_triangle);
     }
+    draw_sky_view() {
+        this.resize_canvas();
+        const w = this.vp.view_wh[0];
+        const h = this.vp.view_wh[1];
+        if (this.webgl === null) {
+            return;
+        }
+        this.sky_grid_beziers.set_contents(new MapFrameKey(WasmQuatf64.unit(), 1.0), () => this.vp.star_catalog.sky_canvas.create_azimuthal_grid_beziers());
+        // const view_scale = 1.0;
+        const ar = w / h;
+        this.webgl.webgl.viewport(0, 0, w, h);
+        this.webgl.clear_buffer();
+        const f = 1.0 / this.vp.tan_hfovh; // should be 1/tan fov?
+        const near = -0.01; // Maps to -1 in the Z, closest to the viewer, should scale by 1/near
+        const far = -1.01; // Maps to +1 in the Z, furthest to the viewer, should scale by 1/far
+        // W = -z
+        // Z = (near + far) / (near - far) * z - (near * far * 2) / (near - far) = (near * z + far * z - near * far * 2) / (near - far)
+        //  if z = near, Z(*w) = (near * near + far * near - near * far * 2) / (near - far) = (near * near - near * far) / (near - far) = near; Z = -1
+        //  if z = far, Z(*w) = (near * far + far * far - near * far * 2) / (near - far) = (far * far - near * far) / (near - far) = -far; Z = 1
+        // Note this has to flip the polarity of Z as the OpenGL clipping space is + into the screen, so -1 is near, +1 is far
+        const projection = new Float32Array([
+            f,
+            0,
+            0,
+            0,
+            0,
+            f * ar,
+            0,
+            0,
+            0,
+            0,
+            (near + far) / (near - far), // scale by
+            1,
+            0,
+            0,
+            (near * far * 2) / (near - far),
+            0,
+        ]);
+        const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+        const matrix = WasmMat4f64.identity();
+        this.vp.ecef_to_view_q.set_mat4_rotation(matrix);
+        this.webgl.use_program(this.star_program);
+        this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+        this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+        this.webgl.set_color([1, 1, 1, 1]);
+        this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+        this.webgl.draw(this.star_field);
+        const beziers = this.sky_grid_beziers.get_contents();
+        if (beziers !== null) {
+            this.webgl.use_program(this.bezier_program);
+            this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+            this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+            if (this.vp.show_equatorial) {
+                this.webgl.set_color([1, 0.5, 0.5, 1]);
+                this.webgl.set_uniform_mat4(WebglUniform.Model, identity, false);
+                for (const b of beziers) {
+                    this.webgl_bezier.set_control_points(b.control_pts, b.offset);
+                    this.webgl.draw(this.webgl_bezier);
+                }
+            }
+            if (this.vp.show_azimuthal) {
+                const model = WasmMat4f64.identity();
+                this.webgl.set_color([0.5, 1, 1, 1]);
+                this.vp.observer_to_ecef_q.set_mat4_rotation(model);
+                this.webgl.set_uniform_mat4(WebglUniform.Model, model.array, true);
+                for (const b of beziers) {
+                    this.webgl_bezier.set_control_points(b.control_pts, b.offset);
+                    this.webgl.draw(this.webgl_bezier);
+                }
+            }
+        }
+        if (this.vp.selected_star !== null) {
+            const star = this.vp.catalog.star(this.vp.selected_star);
+            this.webgl.use_program(this.flat_program);
+            this.webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+            this.webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+            this.webgl.set_color([1, 0.26, 0.16, 0.1]);
+            const radius = 0.02;
+            this.webgl.set_uniform_mat4(WebglUniform.Model, [
+                radius,
+                0,
+                0,
+                star.vector.array[0],
+                /**/ 0,
+                radius,
+                0,
+                star.vector.array[1],
+                /**/ 0,
+                0,
+                radius,
+                star.vector.array[2],
+                /**/ 0,
+                0,
+                0,
+                1,
+            ], true);
+            this.webgl.draw(this.webgl_circle);
+        }
+    }
+    draw_star_map() {
+        this.resize_canvas();
+        const w = this.vp.view_wh[0];
+        const h = this.vp.view_wh[1];
+        if (this.webgl === null) {
+            return;
+        }
+        this.map_frame_beziers.set_contents(new MapFrameKey(this.vp.view_to_ecef_q, this.vp.fovh), () => this.vp.star_catalog.map_canvas.create_frame_beziers());
+        this.map_azimuthal_grid_beziers.set_contents(new MapFrameKey(this.vp.observer_to_ecef_q, 1.0), () => this.vp.star_catalog.map_canvas.create_azimuthal_grid_beziers());
+        this.map_equatorial_grid_beziers.set_contents(new MapFrameKey(WasmQuatf64.unit(), 1.0), () => this.vp.star_catalog.map_canvas.create_equatorial_grid_beziers());
+        const view_scale = 1.0;
+        const ar = 1.6;
+        let xsc = 1.0;
+        let ysc = w / h / ar;
+        console.log(w, h, xsc, ysc);
+        if (ysc > 1.0) {
+            xsc /= ysc;
+            ysc = 1.0;
+        }
+        this.webgl.webgl.viewport(0, 0, w, h);
+        this.webgl.clear_buffer();
+        this.webgl.use_program(this.star_map_program);
+        this.webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+        const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+        const view = [
+            view_scale * xsc,
+            0,
+            0,
+            0,
+            0,
+            view_scale * ysc,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+        ];
+        this.webgl.set_color([1, 1, 1, 1]);
+        this.webgl.set_uniform_mat4(WebglUniform.View, view, true);
+        this.webgl.draw(this.star_field);
+        this.webgl.use_program(this.bezier_program);
+        this.webgl.set_uniform_mat4(WebglUniform.Projection, identity, false);
+        this.webgl.set_uniform_mat4(WebglUniform.View, view, true);
+        this.webgl.set_uniform_mat4(WebglUniform.Model, identity, true);
+        for (const bezier_sets of [
+            this.map_frame_beziers.get_contents(),
+            this.map_azimuthal_grid_beziers.get_contents(), //       if (this.vp.show_azimuthal) {
+            this.map_equatorial_grid_beziers.get_contents(), //       if (this.vp.show_equatorial) {
+        ]) {
+            if (bezier_sets === null) {
+                continue;
+            }
+            for (const b of bezier_sets) {
+                this.webgl.set_color(b.color);
+                this.webgl_bezier.set_control_points(b.control_pts, b.offset);
+                this.webgl.draw(this.webgl_bezier);
+            }
+        }
+        if (this.vp.selected_star) {
+            const star = this.vp.catalog.star(this.vp.selected_star);
+            this.webgl.use_program(this.flat_program);
+            this.webgl.set_uniform_mat4(WebglUniform.Projection, identity, false);
+            this.webgl.set_uniform_mat4(WebglUniform.View, view, true);
+            this.webgl.set_color([1, 0.26, 0.16, 0.1]);
+            const radius = 0.02;
+            let cx = (star.right_ascension / Math.PI) * 1.0;
+            let cy = (star.declination / Math.PI) * 2.0;
+            if (cx > 1) {
+                cx -= 2;
+            }
+            if (cy > 1) {
+                cy -= 2;
+            }
+            this.webgl.set_uniform_mat4(WebglUniform.Model, [
+                radius,
+                0,
+                0,
+                cx,
+                /**/ 0,
+                radius * ar,
+                0,
+                cy,
+                /**/ 0,
+                0,
+                1,
+                0,
+                /**/ 0,
+                0,
+                0,
+                1,
+            ], true);
+            this.webgl.draw(this.webgl_circle);
+        }
+    }
+    user_press(_xy, _actions) { }
+    user_press_move(_start_xy, _xy) { }
+    user_press_cancel(_start_xy) { }
+    user_release(_start_xy, _cxy) { }
+    drag_start(_start_xy, _xy) { }
+    drag_to(_start_xy, _cxy0, _cxy1) { }
+    drag_end(_start_xy, _xy) { }
+    user_pan(_xy, _dxy) { }
+    user_zoom(_cxy, _factor) { }
+    user_rotate(_xy, _angle) { }
 }

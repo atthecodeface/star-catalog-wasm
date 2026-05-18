@@ -1,12 +1,15 @@
 import { Logger } from "./log.js";
+import { WebglCanvasView } from "./webgl_canvas.js";
 export class Earth {
-    constructor(application, _canvas_div_id, _width, _height, _use_webgl, _division) {
+    constructor(application, webgl_canvas) {
         this.application = application;
         this.vp = application.view_properties;
+        this.webgl_canvas = webgl_canvas;
         this.logger = new Logger(application.log, "earth");
     }
     update() {
-        this.vp.webgl_canvas_show_earth = true;
+        this.vp.webgl_canvas_view = WebglCanvasView.Earth;
+        this.webgl_canvas.redraw_canvas();
     }
     drag_start(_start_xy, _xy) { }
     drag_end(_start_xy, _xy) { }

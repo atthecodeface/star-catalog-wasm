@@ -3,6 +3,7 @@ import { WasmStar, WasmVec3f32, WasmVec3f64, WasmQuatf32, WasmQuatf64, } from ".
 import * as html from "./html.js";
 import { Names } from "./hipparcos.js";
 import { Logger } from "./log.js";
+import { WebglCanvasView } from "./webgl_canvas.js";
 //a Useful functions
 //fi fract
 function fract(x) {
@@ -264,7 +265,7 @@ export class ViewProperties {
         // this.tan_hfovh is what half the width is horizontally in tan space
         this.tan_hfovh = 0;
         this.brightness = 4;
-        this.webgl_canvas_show_earth = false;
+        this.webgl_canvas_view = WebglCanvasView.Earth;
         this.star_catalog = star_catalog;
         this.catalog = star_catalog.catalog;
         this.current_styling = star_catalog.styling;
