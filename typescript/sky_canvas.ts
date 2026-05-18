@@ -4,26 +4,23 @@ import {
   WasmStar,
 } from "../pkg/star_catalog_wasm.js";
 import { Line } from "./draw.js";
-import { Mouse, MousePressActions } from "./mouse.js";
+import { MousePressActions } from "./mouse.js";
 import { CacheOld } from "./cache.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
-import { WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
+import { WebglCanvas, WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
 
 //a SkyCanvas
 export class SkyCanvas {
   application: Application;
   vp: ViewProperties;
+  webgl_canvas: WebglCanvas;
   logger: Logger;
-  div: HTMLElement;
-  canvas: HTMLCanvasElement;
-  width: number;
-  height: number;
 
-  mouse: Mouse;
+  width: number = 50;
+  height: number = 50;
 
-  star_cache: CacheOld<any>;
   tan_yx: number;
 
   win_ar: number = 0;
@@ -33,35 +30,16 @@ export class SkyCanvas {
   drag_rotate: string = "";
   star_vector: WasmVec3f64;
 
-  //fp constructor
-  constructor(
-    application: Application,
-    canvas_div_id: string,
-    width: number,
-    height: number,
-  ) {
+  constructor(application: Application, webgl_canvas: WebglCanvas) {
     this.application = application;
-    this.vp = application.view_properties;
+    this.vp = this.application.view_properties;
+    this.webgl_canvas = webgl_canvas;
     this.logger = new Logger(application.log, "clock");
 
-    this.div = document.getElementById(canvas_div_id)!;
-    this.canvas = document.createElement("canvas");
-    this.div.appendChild(this.canvas);
-
-    this.width = width;
-    this.height = height;
     this.star_vector = new WasmVec3f64(0, 0, 0);
-
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
 
     // Aspect ratio in 'tan' space of a single Y pixel compared to a single X pixel
     this.tan_yx = 1.0;
-
-    this.star_cache = this.make_star_cache();
-    this.star_cache.force_refresh();
-
-    this.mouse = new Mouse(this, this.canvas);
 
     this.derive_data();
     this.logger.info(`Created sky canvas`);
@@ -134,8 +112,6 @@ export class SkyCanvas {
     if (set_w != this.width || set_h != this.height) {
       this.width = set_w;
       this.height = set_h;
-      this.canvas.width = this.width;
-      this.canvas.height = this.height;
     }
 
     this.win_ar = this.height / this.width;
@@ -149,7 +125,7 @@ export class SkyCanvas {
   update() {
     this.vp.webgl_canvas_view = WebglCanvasView.SkyView;
     this.derive_data();
-    this.redraw_canvas();
+    this.webgl_canvas.redraw_canvas();
   }
 
   //mp set_vector_of_fxy
@@ -425,8 +401,8 @@ export class SkyCanvas {
     if (styling.sky.view_border == null) {
       return;
     }
-    const rx = this.canvas.width;
-    const by = this.canvas.height;
+    const rx = this.width;
+    const by = this.height;
     ctx.fillStyle = styling.sky.view_border[0]!;
     ctx.fillRect(0, by - 2, rx, 2);
     ctx.fillStyle = styling.sky.view_border[2]!;
@@ -438,59 +414,19 @@ export class SkyCanvas {
   }
 
   //mi redraw_canvas
-  redraw_canvas(): void {
-    const catalog = this.vp.catalog;
-    const styling = this.vp.styling();
-    const ctx = this.canvas.getContext("2d")!;
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    this.draw_border(ctx);
-    if (this.vp.selected_star !== null) {
-      const star = catalog.star(this.vp.selected_star)!;
-      ctx.strokeStyle = "White";
-      const qv = this.vp.ecef_to_view_q.apply(star.vector);
-      const cxy = this.cxy_of_vector(qv);
-      if (cxy !== null) {
-        const cx = cxy[0]!;
-        const cy = cxy[1]!;
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
-        ctx.stroke();
-      }
-    }
-
-    if (this.vp.show_azimuthal) {
-      this.draw_grid(
-        ctx,
-        this.vp.ecef_to_view_q.mul(this.vp.observer_to_ecef_q),
-        styling.sky.azimuthal_grid,
-      );
-    }
-    if (this.vp.show_equatorial) {
-      this.draw_grid(ctx, this.vp.ecef_to_view_q, styling.sky.equatorial_grid);
-    }
-
-    const stars = this.star_cache.get();
-    if (stars.stars.length == 0) {
-      this.vp.brightness = this.vp.brightness * 0.9;
-      this.vp.update_html_elements();
-      // this.star_catalog.set_view_needs_update();
-      this.derive_data();
-      this.redraw_canvas();
-    } else {
-      for (const star of stars.stars) {
-        this.draw_star(ctx, star);
-      }
-    }
-  }
+  redraw_canvas(): void {}
 
   drag_end(_start_xy: [number, number], _xy: [number, number]): void {}
   user_press(_xy: [number, number], _actions: MousePressActions): void {}
   user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
   user_press_cancel(_start_xy: [number, number]): void {}
   user_pan(_xy: [number, number], _dxy: [number, number]): void {}
+
+  user_rotate(_xy: [number, number], angle: number): void {
+    const v = new WasmVec3f64(1, 0, 0);
+    const q = WasmQuatf64.of_axis_angle(v, -angle);
+    this.vp.view_q_post_mul(q);
+  }
 
   drag_start(_start_xy: [number, number], xy: [number, number]): void {
     const cx = xy[0] - this.width / 2;
@@ -514,13 +450,13 @@ export class SkyCanvas {
       const cx1 = cxy1[0] - this.width / 2;
       const cy1 = cxy1[1] - this.height / 2;
       const angle = Math.atan2(cy1, cx1) - Math.atan2(cy0, cx0);
-      const q = WasmQuatf64.unit().rotate_x(-angle);
+      const q = WasmQuatf64.unit().rotate_z(angle);
       this.vp.view_q_post_mul(q);
     } else {
       const dcx = (cxy0[0] - cxy1[0]) * this.tan_pixh;
       const dcy = (cxy0[1] - cxy1[1]) * this.tan_pixv;
-      const qz = WasmQuatf64.unit().rotate_z(-Math.atan(dcx));
-      const qy = WasmQuatf64.unit().rotate_y(Math.atan(dcy));
+      const qz = WasmQuatf64.unit().rotate_y(Math.atan(dcx));
+      const qy = WasmQuatf64.unit().rotate_x(Math.atan(dcy));
       const q = qz.mul(qy);
       this.vp.view_q_post_mul(q);
     }
@@ -546,11 +482,5 @@ export class SkyCanvas {
 
   user_zoom(_cxy: [number, number], factor: number): void {
     this.application.sky_view_zoom_by(factor);
-  }
-
-  user_rotate(_xy: [number, number], angle: number): void {
-    const v = new WasmVec3f64(1, 0, 0);
-    const q = WasmQuatf64.of_axis_angle(v, -angle);
-    this.vp.view_q_post_mul(q);
   }
 }

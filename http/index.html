@@ -8,399 +8,377 @@
     <body classs="dn">
         <link href="main.css" rel="stylesheet" type="text/css" />
         <script type="module" src="../javascript/star_catalog.js"></script>
-        <div id="tab-list" class="tab-list">
-            <ul>
-                <li><a href="#tab-help">Help</a></li>
-                <li><a href="#tab-skyview">Sky View</a></li>
-                <li><a href="#tab-skymap">Sky Map</a></li>
-                <li><a href="#tab-location">Location</a></li>
-                <li><a href="#tab-find">Find</a></li>
-                <li><a href="#tab-log">Log</a></li>
-                <li><a href="#tab-info">Info</a></li>
-                <li><a href="#tab-test">Test</a></li>
-                <li>
-                    <input
-                        class="dn"
-                        type="checkbox"
-                        id="day_night_checkbox"
-                        name="day_night"
-                        onclick="window.star_catalog.selected_css_changed()"
-                    />
-                    <label
-                        id="day_night_label"
-                        onclick="window.star_catalog.selected_css_toggle()"
-                        for="day_night"
-                        >Day mode</label
-                    >
-                </li>
-            </ul>
+        <div class="floating-div get_size_of_this">
+            <!-- Will be fixed with edges at 0px on each side-->
+            <div class="flex box">
+                <div class="flex content">
+                    <div class="floating-resizable">
+                        <div id="WebCanvas"></div>
+                    </div>
+                </div>
+                <div class="flex footer"></div>
+            </div>
         </div>
 
-        <div id="tab-help" class="main content">
-            <h1>Introduction</h1>
-            This page provides a view of the stars from where you are, and a map
-            of all the stars in the sky.
-            <p>The tabs select one of a number of subpages;</p>
-
-            <dl>
-                <dt>Sky view</dt>
-                <dd>
-                    This is your window on to the stars in the sky; it can be
-                    zoomed, panned and rotated. An individual star can be
-                    selected. Most of the view is not affected by the
-                    <b>observer position</b> which is derived from the 'time',
-                    'date', and 'location' settings. The top of the sky view has
-                    a green line; the left and right edges are blue, and the
-                    bottom is red. This window is shown on the <i>sky map</i>.
-                    The sky view exposes the controls - see below.
-                </dd>
-                <dt>Sky map</dt>
-                <dd>
-                    The sky map is *all* of the stars above a certain magnitude,
-                    using a
-                    <a
-                        href="https://en.wikipedia.org/wiki/Map_projection#Normal_cylindrical"
-                        >equirectangular cylindrical projection</a
-                    >. The rectangular <i>sky view windows</i> is shown on the
-                    sky map; this usually does not appear as a rectangle (unless
-                    the field of view is small), but distorted. The top edge of
-                    the window is green (as in the sky view window), and the
-                    bottom edge of the window is red (etc). Clicking on the map
-                    will centre the sky view window on the that location. The
-                    sky map exposes the controls - see below.
-                </dd>
-                <dt>Location</dt>
-                <dd>
-                    The location tab allows the setting of the location, by
-                    using a 3D model of the earth to select latitude and
-                    longitude. This is used for the
-                    <b>observer position</b> - which impacts the concept of
-                    'up', and the direction of the compass, for example. It also
-                    permits the setting of the date and time to 'today'. More
-                    control is probably required...
-                </dd>
-                <dt>Log</dt>
-                <dd>
-                    Many of the imporant user interface interactions are logged,
-                    so that the user can see (for example) which stars were
-                    selected in the past, or the direction the sky view was
-                    changed to. These events appear in the log.
-                </dd>
-            </dl>
-            <p></p>
-            <h2>Controls</h2>
-
-            The equatorial grid and/or azimuthal grid can be overlaid on top of
-            the view (the azimuthal grid <b>is</b> affected by the
-            <b>observer position</b>. The controls include a compass and an
-            elevation setting: the compass can be swiped horizontally to move
-            the view, setting 'up' to be vertically up from the
-            <b>observer position</b>; the elevation can be swiped vertically to
-            change the elevation of the view, again setting 'up' in a similar
-            manner.
-
-            <h2>Equatorial grid</h2>
-            An 'equatorial' grid can be overlayed on top of the map, showing the
-            equator, the 30th and 60th parallels, and great circles for every 30
-            degrees of longitude.
-
-            <h2>Azimuthal grid</h2>
-
-            An 'azimuthal' grid can be overlayed on top of the sky view and map,
-            showing the grid as seen by the
-            <b>observer position</b> (given by the location and time). This grid
-            shows the great circles (for every 15 degrees of the compass, with
-            north/south highlighted) that pass through the location of the
-            observer, the horizon and circles of constant elevation (for every
-            30 degrees of elevation).
-        </div>
-
-        <!-- Everything in resizable-tabs is hidden if we are not displaying *any* of them
-        -->
-        <div id="resizable-tabs">
-            <!-- tab-skyview is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
-            <div id="tab-skyview">
-                <div class="main content flex box">
-                    <div
-                        id="SkyCanvas"
-                        class="flex content resizable-content"
-                    ></div>
-                </div>
+        <div class="fixed-div">
+            <div id="tab-list" class="tab-list">
+                <ul>
+                    <li><a href="#tab-help">Help</a></li>
+                    <li><a href="#tab-skyview">Sky View</a></li>
+                    <li><a href="#tab-skymap">Sky Map</a></li>
+                    <li><a href="#tab-location">Location</a></li>
+                    <li><a href="#tab-find">Find</a></li>
+                    <li><a href="#tab-log">Log</a></li>
+                    <li><a href="#tab-info">Info</a></li>
+                    <li><a href="#tab-test">Test</a></li>
+                    <li>
+                        <input
+                            class="dn"
+                            type="checkbox"
+                            id="day_night_checkbox"
+                            name="day_night"
+                            onclick="window.star_catalog.selected_css_changed()"
+                        />
+                        <label
+                            id="day_night_label"
+                            onclick="window.star_catalog.selected_css_toggle()"
+                            for="day_night"
+                            >Day mode</label
+                        >
+                    </li>
+                </ul>
             </div>
 
-            <!-- tab-skymap is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
-            <div id="tab-skymap">
-                <div class="main content flex box">
-                    <div
-                        id="MapCanvas"
-                        class="flex content resizable-content"
-                    ></div>
-                </div>
+            <div id="tab-help" class="main content">
+                <h1>Introduction</h1>
+                This page provides a view of the stars from where you are, and a
+                map of all the stars in the sky.
+                <p>The tabs select one of a number of subpages;</p>
+
+                <dl>
+                    <dt>Sky view</dt>
+                    <dd>
+                        This is your window on to the stars in the sky; it can
+                        be zoomed, panned and rotated. An individual star can be
+                        selected. Most of the view is not affected by the
+                        <b>observer position</b> which is derived from the
+                        'time', 'date', and 'location' settings. The top of the
+                        sky view has a green line; the left and right edges are
+                        blue, and the bottom is red. This window is shown on the
+                        <i>sky map</i>. The sky view exposes the controls - see
+                        below.
+                    </dd>
+                    <dt>Sky map</dt>
+                    <dd>
+                        The sky map is *all* of the stars above a certain
+                        magnitude, using a
+                        <a
+                            href="https://en.wikipedia.org/wiki/Map_projection#Normal_cylindrical"
+                            >equirectangular cylindrical projection</a
+                        >. The rectangular <i>sky view windows</i> is shown on
+                        the sky map; this usually does not appear as a rectangle
+                        (unless the field of view is small), but distorted. The
+                        top edge of the window is green (as in the sky view
+                        window), and the bottom edge of the window is red (etc).
+                        Clicking on the map will centre the sky view window on
+                        the that location. The sky map exposes the controls -
+                        see below.
+                    </dd>
+                    <dt>Location</dt>
+                    <dd>
+                        The location tab allows the setting of the location, by
+                        using a 3D model of the earth to select latitude and
+                        longitude. This is used for the
+                        <b>observer position</b> - which impacts the concept of
+                        'up', and the direction of the compass, for example. It
+                        also permits the setting of the date and time to
+                        'today'. More control is probably required...
+                    </dd>
+                    <dt>Log</dt>
+                    <dd>
+                        Many of the imporant user interface interactions are
+                        logged, so that the user can see (for example) which
+                        stars were selected in the past, or the direction the
+                        sky view was changed to. These events appear in the log.
+                    </dd>
+                </dl>
+                <p></p>
+                <h2>Controls</h2>
+
+                The equatorial grid and/or azimuthal grid can be overlaid on top
+                of the view (the azimuthal grid <b>is</b> affected by the
+                <b>observer position</b>. The controls include a compass and an
+                elevation setting: the compass can be swiped horizontally to
+                move the view, setting 'up' to be vertically up from the
+                <b>observer position</b>; the elevation can be swiped vertically
+                to change the elevation of the view, again setting 'up' in a
+                similar manner.
+
+                <h2>Equatorial grid</h2>
+                An 'equatorial' grid can be overlayed on top of the map, showing
+                the equator, the 30th and 60th parallels, and great circles for
+                every 30 degrees of longitude.
+
+                <h2>Azimuthal grid</h2>
+
+                An 'azimuthal' grid can be overlayed on top of the sky view and
+                map, showing the grid as seen by the
+                <b>observer position</b> (given by the location and time). This
+                grid shows the great circles (for every 15 degrees of the
+                compass, with north/south highlighted) that pass through the
+                location of the observer, the horizon and circles of constant
+                elevation (for every 30 degrees of elevation).
             </div>
 
-            <!-- tab-location is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
+            <div id="tab-skyview"></div>
+
+            <div id="tab-skymap"></div>
+
             <div id="tab-location">
-                <div class="main content flex box">
-                    <div
-                        id="EarthCanvas"
-                        class="flex content resizable-content"
-                    ></div>
-                    <table class="flex fixed">
-                        <tr>
-                            <td class="vp_lat"></td>
-                        </tr>
-                        <tr>
-                            <td class="vp_lon"></td>
-                        </tr>
-                        <tr>
-                            <td class="vp_date"></td>
-                        </tr>
-                        <tr>
-                            <td class="vp_time"></td>
-                        </tr>
-                        <tr>
-                            <td class="vp_sky_view_link" colspan="2"></td>
-                        </tr>
-                        <tr>
-                            <td id="today">
-                                <input
-                                    class="date_button dn"
-                                    type="button"
-                                    value="Set day to today"
-                                    onclick="window.star_catalog.date_set()"
-                                />
-                            </td>
-                        </tr>
-                        <tr>
-                            <td id="now">
-                                <input
-                                    class="date_button dn"
-                                    type="button"
-                                    value="Set time to now"
-                                    onclick="window.star_catalog.time_set()"
-                                />
-                            </td>
-                        </tr>
-                    </table>
-                    <div class="flex footer"></div>
-                </div>
+                <table>
+                    <tr>
+                        <td class="vp_lat"></td>
+                    </tr>
+                    <tr>
+                        <td class="vp_lon"></td>
+                    </tr>
+                    <tr>
+                        <td class="vp_date"></td>
+                    </tr>
+                    <tr>
+                        <td class="vp_time"></td>
+                    </tr>
+                    <tr>
+                        <td class="vp_sky_view_link" colspan="2"></td>
+                    </tr>
+                    <tr>
+                        <td id="today">
+                            <input
+                                class="date_button dn"
+                                type="button"
+                                value="Set day to today"
+                                onclick="window.star_catalog.date_set()"
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td id="now">
+                            <input
+                                class="date_button dn"
+                                type="button"
+                                value="Set time to now"
+                                onclick="window.star_catalog.time_set()"
+                            />
+                        </td>
+                    </tr>
+                </table>
             </div>
 
-            <!-- tab-find is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
             <div id="tab-find">
-                <div class="main content flex box">
-                    <div
-                        id="FindCanvas"
-                        class="flex content resizable-content"
-                    ></div>
-                    <table class="flex fixed">
-                        <tr>
-                            <td>
-                                <table>
-                                    <tr>
-                                        <td>
-                                            <label for="find_get_image"
-                                                >Select a star-field image
-                                                <input
-                                                    id="find_get_image"
-                                                    name="find_get_image"
-                                                    type="file"
-                                                    accept="image/x-png,image/jpeg,image/gif"
-                                                    old_only_give_camera_on_ios_capture="environment"
-                                            /></label>
-                                        </td>
-                                        <td>
-                                            <label
-                                                for="find_max_angle"
-                                                class="dn"
-                                                id="find_ma"
-                                                >Max angle</label
-                                            ><br />
-                                            <input
-                                                type="range"
-                                                class="range dn"
-                                                id="find_max_angle"
-                                                style="width: 150px"
-                                                name="find_max_angle"
-                                                step="0.01"
-                                                min="0.01"
-                                                max="0.2"
-                                            />
-                                        </td>
-                                        <td>
-                                            <button
-                                                id="find_best_matches"
-                                                name="find_best_matches"
-                                                type="button"
-                                            >
-                                                Find best star matches
-                                            </button>
-                                        </td>
-                                        <td>
-                                            <button
-                                                id="find_clear_selection"
-                                                name="find_clear_selection"
-                                                type="button"
-                                            >
-                                                Clear selection
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr></tr>
-                                </table>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td id="LensMappings"></td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-            <!-- tab-test is hidden when it is not displayed; this is incompatible with 'flex' for its content, so box it in a div -->
-            <div id="tab-test">
-                <div class="main content flex box">
-                    <div
-                        id="TestCanvas"
-                        class="flex content resizable-content"
-                    ></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="tab-log" class="main content">
-            <table>
-                <div id="Log"></div>
-            </table>
-        </div>
-
-        <div id="tab-info" class="main content">
-            <table>
-                <tr>
-                    <td colspan="4">
-                        <table>
-                            <tr>
-                                <td>
-                                    <div id="star_info"></div>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        <div id="ctl_selectors" class="control selectors"></div>
-
-        <div id="controls">
-            <div id="zoom_mag">
-                <table class="zoom_mag">
+                <table class="flex fixed">
                     <tr>
-                        <td class="mag">
-                            <label for="brightness" class="dn" id="vp_magnitude"
-                                >Max mag:
-                                <span class="vp_magnitude"></span></label
-                            ><br />
-                            <input
-                                type="range"
-                                class="range dn"
-                                id="ctl_magnitude"
-                                name="brightness"
-                                step="0.2"
-                                min="1"
-                                max="12"
-                                oninput="
-                                    window.star_catalog.sky_view_brightness_set()
-                                "
-                            />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="zoom">
-                            <label for="zoom" class="dn"
-                                >Focal length
-                                <span class="vp_focal_length"></span>mm eq, HFov
-                                <span class="vp_fov"></span>&deg; </label
-                            ><br />
-                            <input
-                                type="range"
-                                class="range dn"
-                                id="ctl_zoom"
-                                name="zoom"
-                                step="0.1"
-                                min="0"
-                                max="100"
-                                oninput="
-                                    window.star_catalog.sky_view_zoom_set()
-                                "
-                            />
-                        </td>
-                    </tr>
-                </table>
-            </div>
-            <div id="comp_elev">
-                <table class="comp_elev">
-                    <tr>
-                        <td>
-                            <div id="ControlCompass" />
-                        </td>
-                        <td>
-                            <div id="ControlElevation" />
-                        </td>
-                    </tr>
-                </table>
-            </div>
-            <div id="time_date">
-                <table class="time_date">
-                    <tr>
-                        <td>
-                            <div id="ControlClock" />
-                        </td>
-                        <td>
-                            <div id="ControlCalendar" />
-                        </td>
                         <td>
                             <table>
                                 <tr>
                                     <td>
-                                        <input
+                                        <label for="find_get_image"
+                                            >Select a star-field image
+                                            <input
+                                                id="find_get_image"
+                                                name="find_get_image"
+                                                type="file"
+                                                accept="image/x-png,image/jpeg,image/gif"
+                                                old_only_give_camera_on_ios_capture="environment"
+                                        /></label>
+                                    </td>
+                                    <td>
+                                        <label
+                                            for="find_max_angle"
                                             class="dn"
-                                            type="checkbox"
-                                            name="show_azimuthal"
-                                            id="show_azimuthal"
-                                            onclick="
-                                                window.star_catalog.set_styling()
-                                            "
+                                            id="find_ma"
+                                            >Max angle</label
+                                        ><br />
+                                        <input
+                                            type="range"
+                                            class="range dn"
+                                            id="find_max_angle"
+                                            style="width: 150px"
+                                            name="find_max_angle"
+                                            step="0.01"
+                                            min="0.01"
+                                            max="0.2"
                                         />
-                                        <label for="show_azimuthal"
-                                            >Azimuthal</label
+                                    </td>
+                                    <td>
+                                        <button
+                                            id="find_best_matches"
+                                            name="find_best_matches"
+                                            type="button"
                                         >
+                                            Find best star matches
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <button
+                                            id="find_clear_selection"
+                                            name="find_clear_selection"
+                                            type="button"
+                                        >
+                                            Clear selection
+                                        </button>
                                     </td>
                                 </tr>
+                                <tr></tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td id="LensMappings"></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div id="tab-test"></div>
+
+            <div id="tab-log" class="main content">
+                <table>
+                    <div id="Log"></div>
+                </table>
+            </div>
+
+            <div id="tab-info" class="main content">
+                <table>
+                    <tr>
+                        <td colspan="4">
+                            <table>
                                 <tr>
                                     <td>
-                                        <input
-                                            class="dn"
-                                            type="checkbox"
-                                            name="show_equatorial"
-                                            id="show_equatorial"
-                                            onclick="
-                                                window.star_catalog.set_styling()
-                                            "
-                                        />
-                                        <label for="show_equatorial"
-                                            >Equatorial</label
-                                        >
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="vp_date">
-                                        <i>current date</i>
+                                        <div id="star_info"></div>
                                     </td>
                                 </tr>
                             </table>
                         </td>
                     </tr>
                 </table>
+            </div>
+
+            <div id="ctl_selectors" class="control selectors"></div>
+
+            <div id="controls">
+                <div id="zoom_mag">
+                    <table class="zoom_mag">
+                        <tr>
+                            <td class="mag">
+                                <label
+                                    for="brightness"
+                                    class="dn"
+                                    id="vp_magnitude"
+                                    >Max mag:
+                                    <span class="vp_magnitude"></span></label
+                                ><br />
+                                <input
+                                    type="range"
+                                    class="range dn"
+                                    id="ctl_magnitude"
+                                    name="brightness"
+                                    step="0.2"
+                                    min="1"
+                                    max="12"
+                                    oninput="
+                                        window.star_catalog.sky_view_brightness_set()
+                                    "
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="zoom">
+                                <label for="zoom" class="dn"
+                                    >Focal length
+                                    <span class="vp_focal_length"></span>mm eq,
+                                    HFov
+                                    <span class="vp_fov"></span>&deg; </label
+                                ><br />
+                                <input
+                                    type="range"
+                                    class="range dn"
+                                    id="ctl_zoom"
+                                    name="zoom"
+                                    step="0.1"
+                                    min="0"
+                                    max="100"
+                                    oninput="
+                                        window.star_catalog.sky_view_zoom_set()
+                                    "
+                                />
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div id="comp_elev">
+                    <table class="comp_elev">
+                        <tr>
+                            <td>
+                                <div id="ControlCompass" />
+                            </td>
+                            <td>
+                                <div id="ControlElevation" />
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div id="time_date">
+                    <table class="time_date">
+                        <tr>
+                            <td>
+                                <div id="ControlClock" />
+                            </td>
+                            <td>
+                                <div id="ControlCalendar" />
+                            </td>
+                            <td>
+                                <table>
+                                    <tr>
+                                        <td>
+                                            <input
+                                                class="dn"
+                                                type="checkbox"
+                                                name="show_azimuthal"
+                                                id="show_azimuthal"
+                                                onclick="
+                                                    window.star_catalog.set_styling()
+                                                "
+                                            />
+                                            <label for="show_azimuthal"
+                                                >Azimuthal</label
+                                            >
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <input
+                                                class="dn"
+                                                type="checkbox"
+                                                name="show_equatorial"
+                                                id="show_equatorial"
+                                                onclick="
+                                                    window.star_catalog.set_styling()
+                                                "
+                                            />
+                                            <label for="show_equatorial"
+                                                >Equatorial</label
+                                            >
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="vp_date">
+                                            <i>current date</i>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
 

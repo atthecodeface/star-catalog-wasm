@@ -517,6 +517,7 @@ export class FindCanvas {
       ctx.stroke();
     }
 
+    /*
     const stars = this.vp.star_catalog.sky_canvas.star_cache.get();
     for (const star of stars.stars) {
       star.set_vector(this.star_vector);
@@ -528,7 +529,7 @@ export class FindCanvas {
       this.cross.draw(ctx, (x) => (style as any)[x]);
       ctx.restore();
     }
-
+ */
     for (const ixy of this.selected_stars) {
       ctx.save();
       const sxy = this.zoomed_window.scr_xy_of_img_xy(ixy);

@@ -10,6 +10,7 @@ import {
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
+import { Mouse, MousePressActions } from "./mouse.js";
 
 import {
   EarthShader,
@@ -114,6 +115,7 @@ export class WebglCanvas {
   vp: ViewProperties;
   logger: Logger;
   canvas: HTMLCanvasElement;
+  mouse: Mouse;
 
   webgl: Webgl | null = null;
 
@@ -143,17 +145,21 @@ export class WebglCanvas {
   map_azimuthal_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
   map_equatorial_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
 
-  constructor(application: Application, canvas: HTMLCanvasElement) {
+  constructor(application: Application, div_id: string) {
     this.application = application;
     this.vp = application.view_properties;
     this.logger = new Logger(application.log, "webgl_canvas");
+
+    const div = document.getElementById(div_id)!;
+    this.canvas = document.createElement("canvas")!;
+    div.appendChild(this.canvas);
 
     this.sky_grid_beziers = new CacheSingleton();
     this.map_frame_beziers = new CacheSingleton();
     this.map_equatorial_grid_beziers = new CacheSingleton();
     this.map_azimuthal_grid_beziers = new CacheSingleton();
 
-    this.canvas = canvas;
+    this.mouse = new Mouse(this, this.canvas);
 
     this.canvas.height = 900;
     this.current_wh = [50, 50];
@@ -162,12 +168,12 @@ export class WebglCanvas {
     this.solar_system = new SolarSystem();
     this.star_field = new StarField(application);
 
-    if (!this.start_webgl(5)) {
+    if (!this.start_webgl(8)) {
       throw "Webgl was not created correctly; aborting webgl canvas";
     }
   }
 
-  start_webgl(division: number): boolean {
+  start_webgl(icos_division: number): boolean {
     if (!this.webgl!.start_webgl()) {
       return false;
     }
@@ -253,7 +259,7 @@ export class WebglCanvas {
     this.webgl!.create(this.webgl_triangle);
 
     const icos = new WasmIcosphere();
-    icos.subdivide(division);
+    icos.subdivide(icos_division);
 
     this.webgl_icosphere = new Webgl3DObj(
       icos.num_vertices,
@@ -301,6 +307,35 @@ export class WebglCanvas {
   }
 
   redraw_canvas() {
+    switch (this.vp.webgl_canvas_view) {
+      case WebglCanvasView.Earth: {
+        this.draw_earth();
+        this.mouse.set_client(this.vp.star_catalog.earth_canvas);
+        break;
+      }
+      case WebglCanvasView.SolarSystem: {
+        this.redraw_solar_system();
+        this.mouse.set_client(this.vp.star_catalog.solar_system_canvas);
+        break;
+      }
+      case WebglCanvasView.StarMap: {
+        this.vp.star_catalog.map_canvas.derive_data();
+
+        this.draw_star_map();
+        this.mouse.set_client(this.vp.star_catalog.map_canvas);
+        break;
+      }
+      case WebglCanvasView.SkyView: {
+        this.vp.star_catalog.sky_canvas.derive_data();
+
+        this.draw_sky_view();
+        this.mouse.set_client(this.vp.star_catalog.sky_canvas);
+        break;
+      }
+    }
+  }
+
+  redraw_solar_system() {
     this.resize_canvas();
     const w = this.vp.view_wh[0];
     const h = this.vp.view_wh[1];
@@ -730,4 +765,19 @@ export class WebglCanvas {
       this.webgl.draw(this.webgl_circle!);
     }
   }
+
+  user_press(_xy: [number, number], _actions: MousePressActions): void {}
+  user_press_move(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_press_cancel(_start_xy: [number, number]): void {}
+  user_release(_start_xy: [number, number], _cxy: [number, number]): void {}
+  drag_start(_start_xy: [number, number], _xy: [number, number]): void {}
+  drag_to(
+    _start_xy: [number, number],
+    _cxy0: [number, number],
+    _cxy1: [number, number],
+  ): void {}
+  drag_end(_start_xy: [number, number], _xy: [number, number]): void {}
+  user_pan(_xy: [number, number], _dxy: [number, number]): void {}
+  user_zoom(_cxy: [number, number], _factor: number): void {}
+  user_rotate(_xy: [number, number], _angle: number): void {}
 }

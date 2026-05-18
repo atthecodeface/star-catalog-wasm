@@ -7,25 +7,21 @@ import {
   WasmBezier3f32,
 } from "../pkg/star_catalog_wasm.js";
 import { Line } from "./draw.js";
-import { CacheOld } from "./cache.js";
-import { Mouse, MousePressActions } from "./mouse.js";
+import { MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
-import { WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
+import { WebglCanvas, WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
 
 export class MapCanvas {
   application: Application;
   vp: ViewProperties;
+  webgl_canvas: WebglCanvas;
   logger: Logger;
-  div: HTMLElement;
-  canvas: HTMLCanvasElement;
-  width: number;
-  height: number;
-  brightness: number;
-  star_cache: CacheOld<any>;
 
-  mouse: Mouse;
+  width: number = 50;
+  height: number = 50;
+  brightness: number = 4;
 
   last_drag_polar: [number, number] = [0, 0];
   drag_minutes: boolean = false;
@@ -36,39 +32,11 @@ export class MapCanvas {
   pt = new WasmVec3f32(0, 0, 0);
 
   to_left: boolean = false;
-  constructor(
-    application: Application,
-    canvas_div_id: string,
-    width: number,
-    height: number,
-  ) {
+  constructor(application: Application, webgl_canvas: WebglCanvas) {
     this.application = application;
     this.vp = this.application.view_properties;
+    this.webgl_canvas = webgl_canvas;
     this.logger = new Logger(application.log, "map");
-
-    this.div = document.getElementById(canvas_div_id)!;
-    this.canvas = document.createElement("canvas");
-    this.div.appendChild(this.canvas);
-
-    this.width = width;
-    this.height = height;
-
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
-
-    this.brightness = 4.0;
-    this.star_cache = new CacheOld(
-      null,
-      (_x) => {
-        return false;
-      },
-      this.fill_star_cache.bind(this),
-    );
-    this.star_cache.force_refresh();
-
-    this.mouse = new Mouse(this, this.canvas);
-
-    this.logger.info(`Created map canvas`);
   }
 
   //mi fill_star_cache
@@ -100,9 +68,8 @@ export class MapCanvas {
   //mp update
   update() {
     this.vp.webgl_canvas_view = WebglCanvasView.StarMap;
-
     this.derive_data();
-    this.redraw_canvas();
+    this.webgl_canvas.redraw_canvas();
   }
 
   //mi derive_data
@@ -121,8 +88,6 @@ export class MapCanvas {
     if (set_w != this.width || set_h != this.height) {
       this.width = set_w;
       this.height = set_h;
-      this.canvas.width = this.width;
-      this.canvas.height = this.height;
     }
   }
 
@@ -614,35 +579,6 @@ export class MapCanvas {
       this.add_ra_great_circle(q_grid, l, v, ra + 180, 1);
     }
     l.finish();
-  }
-
-  //mi redraw_canvas
-  redraw_canvas() {
-    const catalog = this.application.catalog;
-
-    const ctx = this.canvas.getContext("2d")!;
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    for (const star of this.star_cache.get()) {
-      this.draw_star(ctx, star);
-    }
-
-    this.draw_azimuthal_grid(ctx);
-    this.draw_equatorial_grid(ctx);
-
-    this.draw_sky_rect(ctx);
-    if (this.vp.selected_star) {
-      const star = catalog.star(this.vp.selected_star);
-      const cxy = this.cxy_of_vector(star!.vector);
-      if (cxy != null) {
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 1.0;
-        ctx.beginPath();
-        ctx.arc(cxy[0], cxy[1], 8, 0, 2 * Math.PI);
-        ctx.stroke();
-      }
-    }
   }
 
   user_press(_xy: [number, number], _actions: MousePressActions): void {}

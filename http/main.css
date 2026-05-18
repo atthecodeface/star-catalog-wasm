@@ -16,40 +16,39 @@
     }
 }
 
+/* Tab list layout */
+.tab-list {
+    ul {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        border-top: 2px;
+        border-top-style: solid;
+        border-bottom-width: 3px;
+        border-bottom-style: solid;
+        li {
+            float: left;
+            a {
+                display: block;
+                text-align: center;
+                padding: 6px 12px;
+                text-decoration: none;
+            }
+            label {
+                display: block;
+                text-align: bottom;
+                padding: 6px 12px;
+                text-decoration: none;
+            }
+        }
+        li.active a {
+            pointer-events: none;
+        }
+    }
+}
+
 /*a Non-colors (i.e. day and night) */
-.tab-list ul {
-    list-style-type: none;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border-top: 2px;
-    border-top-style: solid;
-    border-bottom-width: 3px;
-    border-bottom-style: solid;
-}
-
-.tab-list ul li {
-    float: left;
-}
-
-.tab-list ul li.active a {
-    pointer-events: none;
-}
-
-.tab-list ul li a {
-    display: block;
-    text-align: center;
-    padding: 6px 12px;
-    text-decoration: none;
-}
-
-.tab-list ul li label {
-    display: block;
-    text-align: bottom;
-    padding: 6px 12px;
-    text-decoration: none;
-}
-
 #day_night_checkbox {
     position: absolute;
     left: 0;
@@ -109,11 +108,10 @@ Overlay for time / date
 Overlay for settings
 
 */
+
 html {
-    height: 100%;
     margin: 0px;
     body {
-        height: 100%;
         margin: 0px;
     }
     td {
@@ -126,20 +124,52 @@ html {
     }
 }
 
-.flex.box {
-    display: flex;
-    flex-flow: column;
+.floating-div {
+    /* The outer div - force it to be the *whole* frame */
+    z-index: -1;
+    position: fixed;
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
 
-    .flex.content {
-        flex: 1 1 auto;
+    .flex.box {
+        /* Inside the outder div, pack it in completely
+
+        The content may want to be larger, but if allowed to grow/shrink then all will be good
+        */
+        display: flex;
+        flex-flow: column;
+        position: absolute;
+        top: 0px;
+        bottom: 0px;
+        left: 0px;
+        right: 0px;
+
+        .flex.content {
+            /* The div where the canvas will go - this will flex to fill the whole frame
+            */
+            flex: 1 1 auto;
+        }
+
+        .flex.fixed {
+            flex: 0 1 min-content;
+        }
+
+        .flex.footer {
+            flex: 0 1 0px;
+        }
     }
+}
 
-    .flex.fixed {
-        flex: 0 1 min-content;
-    }
-
-    .flex.footer {
-        flex: 0 1 0px;
+.fixed-div {
+    z-index: 0;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    .fixed-content {
+        /* Enable 'button' to be activated from z-index of -1 */
+        pointer-events: none;
     }
 }
 
@@ -147,7 +177,7 @@ html {
     position: absolute;
     top: 40px;
     right: 10px;
-    z-index: 1;
+    z-index: 2;
     .zoom_mag {
         position: relative;
         top: 0px;
@@ -211,49 +241,51 @@ html {
     }
 }
 #controls {
-    position: absolute;
+    z-index: 2;
+    position: fixed;
     bottom: 0px;
-    z-index: 1;
+    left: 0px;
     width: 100%;
 
     #ControlCompass {
         position: absolute;
         bottom: 0px;
         left: 20%;
-        z-index: 1;
+        z-index: 2;
     }
     #ControlElevation {
         position: absolute;
         bottom: 0px;
         right: 20%;
-        z-index: 1;
+        z-index: 2;
     }
     #ControlClock {
         position: absolute;
         bottom: 0px;
         left: 20%;
-        z-index: 1;
+        z-index: 2;
     }
     #ControlCalendar {
         position: absolute;
         bottom: 0px;
         right: 20%;
-        z-index: 1;
+        z-index: 2;
     }
     .zoom_mag {
-        z-index: 1;
+        z-index: 2;
         width: 100%;
         position: absolute;
         bottom: 0px;
+        /* To make this full width minus n pixels seems difficult; changing left/right here or inside does not help */
         .mag input {
             box-sizing: border-box;
             width: 100%;
-            max-width: 800px;
+            /* max-width: 800px; */
         }
         .zoom input {
             box-sizing: border-box;
             width: 100%;
-            max-width: 800px;
+            /* max-width: 800px; */
         }
     }
     table {

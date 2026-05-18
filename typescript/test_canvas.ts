@@ -3,7 +3,7 @@ import {
   WasmQuatf32,
   WasmMat4f32,
 } from "../pkg/star_catalog_wasm.js";
-import { Mouse, MousePressActions } from "./mouse.js";
+import { MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
@@ -16,10 +16,6 @@ export class TestCanvas {
   application: Application;
   vp: ViewProperties;
   logger: Logger;
-  div: HTMLElement;
-  canvas: HTMLCanvasElement;
-
-  mouse: Mouse;
 
   webgl: Webgl | null = null;
 
@@ -27,51 +23,17 @@ export class TestCanvas {
 
   webgl_canvas: WebglCanvas;
 
-  constructor(application: Application, canvas_div_id: string) {
+  constructor(application: Application, webgl_canvas: WebglCanvas) {
     this.application = application;
     this.vp = application.view_properties;
+    this.webgl_canvas = webgl_canvas;
     this.logger = new Logger(application.log, "test");
-
-    this.div = document.getElementById(canvas_div_id)!;
-    this.canvas = document.createElement("canvas");
-    this.div.appendChild(this.canvas);
-
-    this.webgl_canvas = new WebglCanvas(application, this.canvas);
-
-    this.mouse = new Mouse(this, this.canvas);
   }
 
   update() {
-    this.redraw_canvas();
-  }
-
-  redraw_canvas() {
-    switch (this.vp.webgl_canvas_view) {
-      case WebglCanvasView.Earth: {
-        this.webgl_canvas.draw_earth();
-        this.mouse.set_client(this.vp.star_catalog.earth_canvas);
-        break;
-      }
-      case WebglCanvasView.SolarSystem: {
-        this.webgl_canvas.redraw_canvas();
-        this.mouse.set_client(this);
-        break;
-      }
-      case WebglCanvasView.StarMap: {
-        this.vp.star_catalog.map_canvas.derive_data();
-
-        this.webgl_canvas.draw_star_map();
-        this.mouse.set_client(this.vp.star_catalog.map_canvas);
-        break;
-      }
-      case WebglCanvasView.SkyView: {
-        this.vp.star_catalog.sky_canvas.derive_data();
-
-        this.webgl_canvas.draw_sky_view();
-        this.mouse.set_client(this.vp.star_catalog.sky_canvas);
-        break;
-      }
-    }
+    this.vp.webgl_canvas_view = WebglCanvasView.SolarSystem;
+    // this.derive_data();
+    this.webgl_canvas.redraw_canvas();
   }
 
   drag_end(_start_xy: [number, number], _xy: [number, number]): void {}
@@ -91,8 +53,8 @@ export class TestCanvas {
   ): void {
     const dx = cxy1[0] - cxy0[0];
     const dy = cxy1[1] - cxy0[1];
-    const dqx = WasmQuatf32.of_axis_angle(new WasmVec3f32(0, 1, 0), dx * 0.01);
-    const dqy = WasmQuatf32.of_axis_angle(new WasmVec3f32(1, 0, 0), dy * 0.01);
+    const dqx = WasmQuatf32.of_axis_angle(new WasmVec3f32(0, 0, 1), -dx * 0.01);
+    const dqy = WasmQuatf32.of_axis_angle(new WasmVec3f32(0, 1, 0), dy * 0.01);
     this.vp.solar_sytem_orientation.set_premul(dqx);
     this.vp.solar_sytem_orientation.set_premul(dqy);
     // No content change, purely visual
