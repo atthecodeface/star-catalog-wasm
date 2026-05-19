@@ -1,16 +1,26 @@
 import {
   WasmVec3f32,
   WasmVec3f64,
-  WasmBezierBuilder3f32,
+  WasmQuatf64,
   WasmBezier3f32,
+  WasmBezierBuilder3f32,
 } from "../pkg/star_catalog_wasm.js";
+
+import { Webgl, WebglUniform } from "./web_gl.js";
+import { CacheSingleton } from "./cache.js";
 import { MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
-import { WebglCanvas, CachedBezier } from "./webgl_canvas.js";
 
-export class MapCanvas {
+import {
+  WebglCanvas,
+  CachedBezier,
+  WebglCanvasClient,
+  MapFrameKey,
+} from "./webgl_canvas.js";
+
+export class MapCanvas implements WebglCanvasClient {
   application: Application;
   vp: ViewProperties;
   webgl_canvas: WebglCanvas;
@@ -20,6 +30,9 @@ export class MapCanvas {
 
   last_drag_polar: [number, number] = [0, 0];
   drag_minutes: boolean = false;
+  map_frame_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
+  map_azimuthal_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
+  map_equatorial_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
 
   bezier = new WasmBezier3f32();
   builder = new WasmBezierBuilder3f32();
@@ -32,6 +45,136 @@ export class MapCanvas {
     this.vp = this.application.view_properties;
     this.webgl_canvas = webgl_canvas;
     this.logger = new Logger(application.log, "map");
+    this.map_frame_beziers = new CacheSingleton();
+    this.map_equatorial_grid_beziers = new CacheSingleton();
+    this.map_azimuthal_grid_beziers = new CacheSingleton();
+  }
+
+  cache_beziers() {
+    this.map_frame_beziers.set_contents(
+      new MapFrameKey(this.vp.view_to_ecef_q, this.vp.fovh),
+      () => this.create_frame_beziers(),
+    );
+    this.map_azimuthal_grid_beziers.set_contents(
+      new MapFrameKey(this.vp.observer_to_ecef_q, 1.0),
+      () => this.create_azimuthal_grid_beziers(),
+    );
+    this.map_equatorial_grid_beziers.set_contents(
+      new MapFrameKey(WasmQuatf64.unit(), 1.0),
+      () => this.create_equatorial_grid_beziers(),
+    );
+  }
+
+  redraw(webgl: Webgl, webgl_canvas: WebglCanvas): void {
+    this.cache_beziers();
+
+    const w = this.vp.view_wh[0];
+    const h = this.vp.view_wh[1];
+
+    const view_scale = 1.0;
+    const ar = 1.6;
+    let xsc = 1.0;
+    let ysc = w / h / ar;
+    console.log(w, h, xsc, ysc);
+    if (ysc > 1.0) {
+      xsc /= ysc;
+      ysc = 1.0;
+    }
+    webgl.webgl!.viewport(0, 0, w, h);
+    webgl.clear_buffer();
+
+    webgl.use_program(webgl_canvas.star_map_program);
+    webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+
+    const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+    const view = [
+      view_scale * xsc,
+      0,
+      0,
+      0,
+
+      0,
+      view_scale * ysc,
+      0,
+      0,
+
+      0,
+      0,
+      1,
+      0,
+
+      0,
+      0,
+      0,
+      1,
+    ];
+
+    webgl.set_color([1, 1, 1, 1]);
+    webgl.set_uniform_mat4(WebglUniform.View, view, true);
+    webgl.draw(webgl_canvas.star_field);
+
+    webgl.use_program(webgl_canvas.bezier_program);
+    webgl.set_uniform_mat4(WebglUniform.Projection, identity, false);
+    webgl.set_uniform_mat4(WebglUniform.View, view, true);
+    webgl.set_uniform_mat4(WebglUniform.Model, identity, true);
+
+    for (const bezier_sets of [
+      this.map_frame_beziers.get_contents(),
+      this.map_azimuthal_grid_beziers.get_contents(), //       if (this.vp.show_azimuthal) {
+      this.map_equatorial_grid_beziers.get_contents(), //       if (this.vp.show_equatorial) {
+    ]) {
+      if (bezier_sets === null) {
+        continue;
+      }
+      for (const b of bezier_sets) {
+        webgl.set_color(b.color);
+        webgl_canvas.webgl_bezier!.set_control_points(b.control_pts, b.offset);
+        webgl.draw(webgl_canvas.webgl_bezier!);
+      }
+    }
+
+    if (this.vp.selected_star) {
+      const star = this.vp.catalog.star(this.vp.selected_star)!;
+
+      webgl.use_program(webgl_canvas.flat_program);
+      webgl.set_uniform_mat4(WebglUniform.Projection, identity, false);
+      webgl.set_uniform_mat4(WebglUniform.View, view, true);
+      webgl.set_color([1, 0.26, 0.16, 0.1]);
+
+      const radius = 0.02;
+      let cx = (star.right_ascension / Math.PI) * 1.0;
+      let cy = (star.declination / Math.PI) * 2.0;
+      if (cx > 1) {
+        cx -= 2;
+      }
+      if (cy > 1) {
+        cy -= 2;
+      }
+      webgl.set_uniform_mat4(
+        WebglUniform.Model,
+        [
+          radius,
+          0,
+          0,
+          cx,
+          /**/ 0,
+          radius * ar,
+          0,
+          cy,
+          /**/ 0,
+          0,
+          1,
+          0,
+          /**/ 0,
+          0,
+          0,
+          1,
+        ],
+        true,
+      );
+      webgl.draw(webgl_canvas.webgl_circle!);
+    }
   }
 
   get_wh(): [number, number] {

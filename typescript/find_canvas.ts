@@ -4,12 +4,15 @@ import {
   WasmCatalog,
   WasmPolynomial,
 } from "../pkg/star_catalog_wasm.js";
+import { Webgl } from "./web_gl.js";
 import { Draw } from "./draw.js";
 import { Mouse, MousePressActions } from "./mouse.js";
 import { ZoomedWindow } from "./zoomed_window.js";
 import { Logger } from "./log.js";
-import { ViewProperties } from "./view_properties.js";
 import { HtmlElement } from "./html.js";
+
+import { WebglCanvas, WebglCanvasClient } from "./webgl_canvas.js";
+import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
 
 interface LensMapping {
@@ -163,7 +166,7 @@ class FindOrientation {
   }
 }
 
-export class FindCanvas {
+export class FindCanvas implements WebglCanvasClient {
   application: Application;
   vp: ViewProperties;
   logger: Logger;
@@ -300,6 +303,8 @@ export class FindCanvas {
     this.mouse = new Mouse(this, this.canvas);
     this.logger.info(`Created find canvas`);
   }
+
+  redraw(_webgl: Webgl, _webgl_canvas: WebglCanvas): void {}
 
   image_loaded(_event: Event): void {
     // const ctx = this.canvas.getContext("2d");

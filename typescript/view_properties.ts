@@ -14,7 +14,6 @@ import { StarCatalog } from "./star_catalog.js";
 import { Application } from "./application.js";
 import { WasmMemory } from "./wasm_memory.js";
 import { Styling } from "./styling.js";
-import { WebglCanvasView } from "./webgl_canvas.js";
 
 //a Useful functions
 //fi fract
@@ -339,8 +338,6 @@ export class ViewProperties implements Application {
   vp_html: ViewPropertiesHtml;
   resizable_content_size: [number, number];
 
-  webgl_canvas_view: WebglCanvasView = WebglCanvasView.Earth;
-
   constructor(star_catalog: StarCatalog, params: URLSearchParams) {
     this.star_catalog = star_catalog;
     this.catalog = star_catalog.catalog;
@@ -440,6 +437,7 @@ export class ViewProperties implements Application {
 
   set_resizable_content_size(wh: [number, number]) {
     this.resizable_content_size = wh;
+    this.view_wh = wh;
   }
 
   styling(): Styling {

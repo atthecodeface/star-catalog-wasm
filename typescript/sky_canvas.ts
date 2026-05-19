@@ -1,12 +1,25 @@
-import { WasmVec3f64, WasmQuatf64 } from "../pkg/star_catalog_wasm.js";
+import {
+  WasmVec3f64,
+  WasmMat4f64,
+  WasmQuatf64,
+} from "../pkg/star_catalog_wasm.js";
+import { Webgl, WebglUniform } from "./web_gl.js";
+
+import {} from "../pkg/star_catalog_wasm.js";
+import { CacheSingleton } from "./cache.js";
+
 import { MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
-import { WebglCanvas, CachedBezier } from "./webgl_canvas.js";
+import {
+  WebglCanvas,
+  CachedBezier,
+  WebglCanvasClient,
+  MapFrameKey,
+} from "./webgl_canvas.js";
 
-//a SkyCanvas
-export class SkyCanvas {
+export class SkyCanvas implements WebglCanvasClient {
   application: Application;
   vp: ViewProperties;
   webgl_canvas: WebglCanvas;
@@ -14,6 +27,7 @@ export class SkyCanvas {
 
   drag_rotate: string = "";
   star_vector: WasmVec3f64;
+  sky_grid_beziers: CacheSingleton<MapFrameKey, CachedBezier[]>;
 
   constructor(application: Application, webgl_canvas: WebglCanvas) {
     this.application = application;
@@ -22,8 +36,133 @@ export class SkyCanvas {
     this.logger = new Logger(application.log, "clock");
 
     this.star_vector = new WasmVec3f64(0, 0, 0);
+    this.sky_grid_beziers = new CacheSingleton();
 
     this.logger.info(`Created sky canvas`);
+  }
+
+  redraw(webgl: Webgl, webgl_canvas: WebglCanvas): void {
+    const w = this.vp.view_wh[0];
+    const h = this.vp.view_wh[1];
+
+    this.sky_grid_beziers.set_contents(
+      new MapFrameKey(WasmQuatf64.unit(), 1.0),
+      () => this.create_azimuthal_grid_beziers(),
+    );
+
+    // const view_scale = 1.0;
+    const ar = w / h;
+
+    webgl.webgl!.viewport(0, 0, w, h);
+    webgl.clear_buffer();
+
+    const f = 1.0 / this.vp.tan_hfovh; // should be 1/tan fov?
+    const near = -0.01; // Maps to -1 in the Z, closest to the viewer, should scale by 1/near
+    const far = -1.01; // Maps to +1 in the Z, furthest to the viewer, should scale by 1/far
+    // W = -z
+    // Z = (near + far) / (near - far) * z - (near * far * 2) / (near - far) = (near * z + far * z - near * far * 2) / (near - far)
+    //  if z = near, Z(*w) = (near * near + far * near - near * far * 2) / (near - far) = (near * near - near * far) / (near - far) = near; Z = -1
+    //  if z = far, Z(*w) = (near * far + far * far - near * far * 2) / (near - far) = (far * far - near * far) / (near - far) = -far; Z = 1
+    // Note this has to flip the polarity of Z as the OpenGL clipping space is + into the screen, so -1 is near, +1 is far
+    const projection = new Float32Array([
+      f,
+      0,
+      0,
+      0,
+
+      0,
+      f * ar,
+      0,
+      0,
+
+      0,
+      0,
+      (near + far) / (near - far), // scale by
+      1,
+
+      0,
+      0,
+      (near * far * 2) / (near - far),
+      0,
+    ]);
+    const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+    const matrix = WasmMat4f64.identity();
+    this.vp.ecef_to_view_q.set_mat4_rotation(matrix);
+
+    webgl.use_program(webgl_canvas.star_program);
+    webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+    webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+    webgl.set_color([1, 1, 1, 1]);
+    webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+    webgl.draw(webgl_canvas.star_field);
+
+    const beziers = this.sky_grid_beziers.get_contents();
+    if (beziers !== null) {
+      webgl.use_program(webgl_canvas.bezier_program);
+      webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+      webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+
+      if (this.vp.show_equatorial) {
+        webgl.set_color([1, 0.5, 0.5, 1]);
+        webgl.set_uniform_mat4(WebglUniform.Model, identity, false);
+        for (const b of beziers) {
+          webgl_canvas.webgl_bezier!.set_control_points(
+            b.control_pts,
+            b.offset,
+          );
+          webgl.draw(webgl_canvas.webgl_bezier!);
+        }
+      }
+
+      if (this.vp.show_azimuthal) {
+        const model = WasmMat4f64.identity();
+        webgl.set_color([0.5, 1, 1, 1]);
+        this.vp.observer_to_ecef_q.set_mat4_rotation(model);
+        webgl.set_uniform_mat4(WebglUniform.Model, model.array, true);
+        for (const b of beziers) {
+          webgl_canvas.webgl_bezier!.set_control_points(
+            b.control_pts,
+            b.offset,
+          );
+          webgl.draw(webgl_canvas.webgl_bezier!);
+        }
+      }
+    }
+
+    if (this.vp.selected_star !== null) {
+      const star = this.vp.catalog.star(this.vp.selected_star)!;
+
+      webgl.use_program(webgl_canvas.flat_program);
+      webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+      webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+      webgl.set_color([1, 0.26, 0.16, 0.1]);
+
+      const radius = 0.02;
+      webgl.set_uniform_mat4(
+        WebglUniform.Model,
+        [
+          radius,
+          0,
+          0,
+          star.vector.array[0]!,
+          /**/ 0,
+          radius,
+          0,
+          star.vector.array[1]!,
+          /**/ 0,
+          0,
+          radius,
+          star.vector.array[2]!,
+          /**/ 0,
+          0,
+          0,
+          1,
+        ],
+        true,
+      );
+      webgl.draw(webgl_canvas.webgl_circle!);
+    }
   }
 
   private map_ra_de(
