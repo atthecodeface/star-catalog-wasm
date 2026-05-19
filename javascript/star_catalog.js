@@ -13,7 +13,7 @@ import { WebglCanvas } from "./webgl_canvas.js";
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
 // import { FindCanvas } from "./find_canvas.js";
-import { TestCanvas } from "./test_canvas.js";
+import { SolarSystemCanvas } from "./solar_system_canvas.js";
 import { Earth } from "./earth.js";
 import { Styling } from "./styling.js";
 import { ViewProperties } from "./view_properties.js";
@@ -24,33 +24,35 @@ var SelectedTab;
     SelectedTab[SelectedTab["SkyMap"] = 2] = "SkyMap";
     SelectedTab[SelectedTab["Location"] = 3] = "Location";
     SelectedTab[SelectedTab["Find"] = 4] = "Find";
-    SelectedTab[SelectedTab["Test"] = 5] = "Test";
+    SelectedTab[SelectedTab["SolarSystem"] = 5] = "SolarSystem";
     SelectedTab[SelectedTab["Log"] = 6] = "Log";
     SelectedTab[SelectedTab["Info"] = 7] = "Info";
 })(SelectedTab || (SelectedTab = {}));
+class TabType {
+    constructor(href, selected_tab) {
+        this.web_canvas_client = null;
+        this.has_controls = false;
+        this.href = href;
+        this.selected_tab = selected_tab;
+    }
+    set_client(web_canvas_view) {
+        this.web_canvas_client = web_canvas_view;
+        return this;
+    }
+    set_has_controls(has_controls) {
+        this.has_controls = has_controls;
+        return this;
+    }
+}
 export class StarCatalog {
     constructor(wasm_instance, params) {
         this.view_needs_update = false;
         this.selected_css = "day";
-        this.selected_tab = SelectedTab.Help;
-        this.tab_ids = new Map([
-            [SelectedTab.Help, "#tab-help"],
-            [SelectedTab.SkyView, "#tab-skyview"],
-            [SelectedTab.SkyMap, "#tab-skymap"],
-            [SelectedTab.Location, "#tab-location"],
-            [SelectedTab.Find, "#tab-find"],
-            [SelectedTab.Test, "#tab-test"],
-            [SelectedTab.Log, "#tab-log"],
-            [SelectedTab.Info, "#tab-info"],
-        ]);
         this.pending_resize = null;
         this.wasm_memory = new WasmMemory(wasm_instance.memory);
         this.log = new Log("Log", Severity.Info, Severity.Warning);
         this.logger = new Logger(this.log, "main");
         this.catalog = new WasmCatalog("hipp_bright");
-        this.tabs = new Tabs("#tab-list", (id) => {
-            this.tab_selected(id);
-        });
         this.orientation_ctl = new Orientation(this);
         this.animate = new Animate(this.animate_cb.bind(this));
         let mode = "day";
@@ -77,13 +79,33 @@ export class StarCatalog {
         this.sky_canvas = new SkyCanvas(this.vp, this.webgl_canvas);
         this.map_canvas = new MapCanvas(this.vp, this.webgl_canvas);
         this.earth_canvas = new Earth(this.vp, this.webgl_canvas);
-        this.solar_system_canvas = new TestCanvas(this.vp, this.webgl_canvas);
+        this.solar_system_canvas = new SolarSystemCanvas(this.vp, this.webgl_canvas);
+        this.tab_types = [
+            new TabType("#tab-help", SelectedTab.Help),
+            new TabType("#tab-skyview", SelectedTab.SkyView)
+                .set_client(this.sky_canvas)
+                .set_has_controls(true),
+            new TabType("#tab-solarsystem", SelectedTab.SolarSystem)
+                .set_client(this.solar_system_canvas)
+                .set_has_controls(true),
+            new TabType("#tab-location", SelectedTab.Location).set_client(this.earth_canvas),
+            new TabType("#tab-skymap", SelectedTab.SkyMap)
+                .set_client(this.map_canvas)
+                .set_has_controls(true),
+            new TabType("#tab-find", SelectedTab.Find),
+            new TabType("#tab-log", SelectedTab.Log),
+            new TabType("#tab-info", SelectedTab.Info),
+        ];
+        this.selected_tab_type = this.tab_types[0];
         // this.find_canvas = new FindCanvas(this.vp, "FindCanvas");
         this.pending_resize = null;
         this.selected_css_changed();
         for (const resizable_content of document.getElementsByClassName("get_size_of_this")) {
             this.resize_observer.observe(resizable_content);
         }
+        this.tabs = new Tabs("#tab-list", (id) => {
+            this.tab_selected(id);
+        });
         this.set_view_needs_update();
     }
     orientation_permitted(permitted) {
@@ -146,6 +168,26 @@ export class StarCatalog {
             });
         }
     }
+    tab_selected(tab_id) {
+        this.selected_tab_type = this.tab_types[0];
+        for (const tab_type of this.tab_types) {
+            if (tab_id === tab_type.href) {
+                this.selected_tab_type = tab_type;
+            }
+        }
+        const e_ctl = document.getElementById("ctl_selectors");
+        if (e_ctl != null) {
+            e_ctl.hidden = !this.selected_tab_type.has_controls;
+        }
+        if (this.selected_tab_type.web_canvas_client === null) {
+            this.webgl_canvas.canvas.hidden = true;
+        }
+        else {
+            this.webgl_canvas.canvas.hidden = false;
+            this.webgl_canvas.mouse.set_client(this.selected_tab_type.web_canvas_client);
+        }
+        this.set_view_needs_update();
+    }
     /// Update the view, because of a view change, time change, etc
     update_view() {
         if (this.vp === undefined) {
@@ -160,60 +202,15 @@ export class StarCatalog {
         }
         this.vp.derive_data();
         this.controls.update();
-        this.sky_canvas.derive_data();
-        this.map_canvas.derive_data();
-        if (this.selected_tab == SelectedTab.SkyView) {
-            this.sky_canvas.update();
-        }
-        if (this.selected_tab == SelectedTab.SkyMap) {
-            this.map_canvas.update();
-        }
-        if (this.selected_tab == SelectedTab.Location) {
-            this.earth_canvas.update();
+        if (this.selected_tab_type.web_canvas_client !== null) {
+            this.webgl_canvas.redraw(this.selected_tab_type.web_canvas_client);
         }
         /*
         if (this.selected_tab == SelectedTab.Find) {
           this.find_canvas.update();
         }
         */
-        if (this.selected_tab == SelectedTab.Test) {
-            this.solar_system_canvas.update();
-        }
         this.view_needs_update = false;
-    }
-    tab_selected(tab_id) {
-        this.selected_tab = SelectedTab.Help;
-        for (const x of this.tab_ids) {
-            if (x[1] === tab_id) {
-                this.selected_tab = x[0];
-            }
-        }
-        const e_ctl = document.getElementById("ctl_selectors");
-        const e_resizable = document.getElementById("resizable-tabs");
-        switch (this.selected_tab) {
-            case SelectedTab.SkyMap:
-            case SelectedTab.SkyView:
-            case SelectedTab.Location:
-            case SelectedTab.Test:
-            case SelectedTab.Find: {
-                if (e_ctl !== null) {
-                    e_ctl.hidden = false;
-                }
-                if (e_resizable !== null) {
-                    new html.HtmlElement(e_resizable).set_style("display", "");
-                }
-                break;
-            }
-            default: {
-                if (e_ctl !== null) {
-                    e_ctl.hidden = true;
-                }
-                if (e_resizable !== null) {
-                    new html.HtmlElement(e_resizable).set_style("display", "none");
-                }
-            }
-        }
-        this.set_view_needs_update();
     }
     //mp selected_css_toggle
     /// Invoked by the web page when day/night mode is toggled

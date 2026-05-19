@@ -3,7 +3,6 @@ import { WasmStar, WasmVec3f32, WasmVec3f64, WasmQuatf32, WasmQuatf64, } from ".
 import * as html from "./html.js";
 import { Names } from "./hipparcos.js";
 import { Logger } from "./log.js";
-import { WebglCanvasView } from "./webgl_canvas.js";
 //a Useful functions
 //fi fract
 function fract(x) {
@@ -264,8 +263,7 @@ export class ViewProperties {
         this.fovh = 0;
         // this.tan_hfovh is what half the width is horizontally in tan space
         this.tan_hfovh = 0;
-        this.brightness = 4;
-        this.webgl_canvas_view = WebglCanvasView.Earth;
+        this.brightness = 8;
         this.star_catalog = star_catalog;
         this.catalog = star_catalog.catalog;
         this.current_styling = star_catalog.styling;
@@ -340,6 +338,7 @@ export class ViewProperties {
     }
     set_resizable_content_size(wh) {
         this.resizable_content_size = wh;
+        this.view_wh = wh;
     }
     styling() {
         return this.current_styling;
@@ -788,10 +787,24 @@ export class ViewProperties {
         // Content change ?!!
         this.time_date_updated();
     }
+    set_vector_of_fxy(vxyz, fxy) {
+        const wh = this.get_resizable_content_size();
+        const win_ar = wh[1] / wh[0];
+        const tan_yx = 1.0;
+        const fx = fxy[0];
+        const fy = (fxy[1] * win_ar) / tan_yx;
+        const roll = Math.atan2(fy, fx);
+        const f = Math.sqrt(fx * fx + fy * fy);
+        const yaw = Math.atan(f * this.tan_hfovh);
+        vxyz[0] = Math.cos(yaw);
+        vxyz[1] = Math.sin(yaw) * Math.cos(roll);
+        vxyz[2] = Math.sin(yaw) * Math.sin(roll);
+        return;
+    }
     /// Map a frame XY into a star unit direction vector
     sky_view_frame_to_ecef_set_vec(fx, fy, vec) {
         const vxyz = this.wasm_memory.float_array_of_vec3f64(vec);
-        this.star_catalog.sky_canvas.set_vector_of_fxy(vxyz, [fx, fy]);
+        this.set_vector_of_fxy(vxyz, [fx, fy]);
         vec.set_apply_q3(this.view_to_ecef_q);
     }
 }

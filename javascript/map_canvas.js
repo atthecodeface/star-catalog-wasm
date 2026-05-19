@@ -1,11 +1,10 @@
-import { WasmVec3f32, WasmVec3f64, WasmBezierBuilder3f32, WasmBezier3f32, } from "../pkg/star_catalog_wasm.js";
-import { Line } from "./draw.js";
+import { WasmVec3f32, WasmVec3f64, WasmQuatf64, WasmBezier3f32, WasmBezierBuilder3f32, } from "../pkg/star_catalog_wasm.js";
+import { WebglUniform } from "./web_gl.js";
+import { CacheSingleton } from "./cache.js";
 import { Logger } from "./log.js";
-import { WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
+import { CachedBezier, MapFrameKey, } from "./webgl_canvas.js";
 export class MapCanvas {
     constructor(application, webgl_canvas) {
-        this.width = 50;
-        this.height = 50;
         this.brightness = 4;
         this.last_drag_polar = [0, 0];
         this.drag_minutes = false;
@@ -18,52 +17,126 @@ export class MapCanvas {
         this.vp = this.application.view_properties;
         this.webgl_canvas = webgl_canvas;
         this.logger = new Logger(application.log, "map");
+        this.map_frame_beziers = new CacheSingleton();
+        this.map_equatorial_grid_beziers = new CacheSingleton();
+        this.map_azimuthal_grid_beziers = new CacheSingleton();
     }
-    //mi fill_star_cache
-    fill_star_cache(_x) {
-        const catalog = this.application.catalog;
-        const stars = [];
-        console.log("Fill map canvas cache");
-        const XP_AXIS = new WasmVec3f64(1, 0, 0);
-        catalog.clear_filter();
-        catalog.filter_max_magnitude(this.brightness);
-        for (const index of catalog.find_stars_around(XP_AXIS, 1.6, 0, 1000)) {
-            stars.push(catalog.star(index));
+    cache_beziers() {
+        this.map_frame_beziers.set_contents(new MapFrameKey(this.vp.view_to_ecef_q, this.vp.fovh), () => this.create_frame_beziers());
+        this.map_azimuthal_grid_beziers.set_contents(new MapFrameKey(this.vp.observer_to_ecef_q, 1.0), () => this.create_azimuthal_grid_beziers());
+        this.map_equatorial_grid_beziers.set_contents(new MapFrameKey(WasmQuatf64.unit(), 1.0), () => this.create_equatorial_grid_beziers());
+    }
+    redraw(webgl, webgl_canvas) {
+        this.cache_beziers();
+        const w = this.vp.view_wh[0];
+        const h = this.vp.view_wh[1];
+        const view_scale = 1.0;
+        const ar = 1.6;
+        let xsc = 1.0;
+        let ysc = w / h / ar;
+        console.log(w, h, xsc, ysc);
+        if (ysc > 1.0) {
+            xsc /= ysc;
+            ysc = 1.0;
         }
-        catalog.clear_filter();
-        catalog.filter_max_magnitude(this.brightness);
-        for (const index of catalog.find_stars_around(XP_AXIS.neg(), 1.6, 0, 1000)) {
-            stars.push(catalog.star(index));
+        webgl.webgl.viewport(0, 0, w, h);
+        webgl.clear_buffer();
+        webgl.use_program(webgl_canvas.star_map_program);
+        webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+        const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+        const view = [
+            view_scale * xsc,
+            0,
+            0,
+            0,
+            0,
+            view_scale * ysc,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+        ];
+        webgl.set_color([1, 1, 1, 1]);
+        webgl.set_uniform_mat4(WebglUniform.View, view, true);
+        webgl.draw(webgl_canvas.star_field);
+        webgl.use_program(webgl_canvas.bezier_program);
+        webgl.set_uniform_mat4(WebglUniform.Projection, identity, false);
+        webgl.set_uniform_mat4(WebglUniform.View, view, true);
+        webgl.set_uniform_mat4(WebglUniform.Model, identity, true);
+        for (const bezier_sets of [
+            this.map_frame_beziers.get_contents(),
+            this.map_azimuthal_grid_beziers.get_contents(), //       if (this.vp.show_azimuthal) {
+            this.map_equatorial_grid_beziers.get_contents(), //       if (this.vp.show_equatorial) {
+        ]) {
+            if (bezier_sets === null) {
+                continue;
+            }
+            for (const b of bezier_sets) {
+                webgl.set_color(b.color);
+                webgl_canvas.webgl_bezier.set_control_points(b.control_pts, b.offset);
+                webgl.draw(webgl_canvas.webgl_bezier);
+            }
         }
-        return stars;
+        if (this.vp.selected_star) {
+            const star = this.vp.catalog.star(this.vp.selected_star);
+            webgl.use_program(webgl_canvas.flat_program);
+            webgl.set_uniform_mat4(WebglUniform.Projection, identity, false);
+            webgl.set_uniform_mat4(WebglUniform.View, view, true);
+            webgl.set_color([1, 0.26, 0.16, 0.1]);
+            const radius = 0.02;
+            let cx = (star.right_ascension / Math.PI) * 1.0;
+            let cy = (star.declination / Math.PI) * 2.0;
+            if (cx > 1) {
+                cx -= 2;
+            }
+            if (cy > 1) {
+                cy -= 2;
+            }
+            webgl.set_uniform_mat4(WebglUniform.Model, [
+                radius,
+                0,
+                0,
+                cx,
+                /**/ 0,
+                radius * ar,
+                0,
+                cy,
+                /**/ 0,
+                0,
+                1,
+                0,
+                /**/ 0,
+                0,
+                0,
+                1,
+            ], true);
+            webgl.draw(webgl_canvas.webgl_circle);
+        }
     }
-    //mp update
-    update() {
-        this.vp.webgl_canvas_view = WebglCanvasView.StarMap;
-        this.derive_data();
-        this.webgl_canvas.redraw_canvas();
-    }
-    //mi derive_data
-    derive_data() {
+    get_wh() {
         const wh = this.vp.get_resizable_content_size();
-        let set_w = wh[0];
-        let set_h = wh[1];
+        let w = wh[0];
+        let h = wh[1];
         const ar = 2.0;
-        if (set_w > set_h * ar) {
-            set_w = set_h * ar;
+        if (w > h * ar) {
+            w = h * ar;
         }
-        if (set_h > set_w / ar) {
-            set_h = set_w / ar;
+        if (h > w / ar) {
+            h = w / ar;
         }
-        if (set_w != this.width || set_h != this.height) {
-            this.width = set_w;
-            this.height = set_h;
-        }
+        return [w, h];
     }
     //mi ra_de_of_cxy
     ra_de_of_cxy(cxy) {
-        const fx = cxy[0] / this.width;
-        const fy = cxy[1] / this.height;
+        const wh = this.get_wh();
+        const fx = cxy[0] / wh[0];
+        const fy = cxy[1] / wh[1];
         const ra = (fx - 0.5) * 2 * Math.PI;
         const de = (0.5 - fy) * Math.PI;
         return [ra, de];
@@ -77,23 +150,14 @@ export class MapCanvas {
     //
     // RA is 0 at the middle RA+ right (2PI for the width)
     cxy_of_ra_de(ra, de) {
+        const wh = this.get_wh();
         const x = 0.5 + ra / (2 * Math.PI);
         const y = 0.5 - de / Math.PI;
         const fx = x - Math.floor(x);
         const fy = y - Math.floor(y);
-        const cx = fx * this.width;
-        const cy = fy * this.height;
+        const cx = fx * wh[0];
+        const cy = fy * wh[1];
         return [cx, cy];
-    }
-    //mi cxy_of_vector
-    // canvas XY of a vector
-    //
-    // X+ is in, Y+ is left, Z+ is up; sin(z) is declination (or atan(z/x))
-    cxy_of_vector(vec) {
-        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
-        const de = Math.asin(vxyz[2]);
-        const ra = Math.atan2(vxyz[1], vxyz[0]);
-        return this.cxy_of_ra_de(ra, de);
     }
     map_ra_de(i, ra, de) {
         const de_c = Math.cos(de);
@@ -230,183 +294,6 @@ export class MapCanvas {
             }
         }
         return result;
-    }
-    //mi draw_sky_rect
-    // Draw the 'rectangle' that the Sky canvas represents
-    draw_sky_rect(ctx) {
-        const styling = this.application.styling();
-        const vec = new WasmVec3f64(0, 0, 0);
-        if (styling.map.view_border != null) {
-            ctx.strokeStyle = styling.map.view_border[0];
-            for (const y of [-1, 1]) {
-                const l = new Line(ctx, this.width, this.height);
-                for (var x = -1; x < 1.01; x += 0.1) {
-                    this.application.sky_view_frame_to_ecef_set_vec(x, y, vec);
-                    l.add_pt(this.cxy_of_vector(vec));
-                }
-                l.finish();
-                ctx.strokeStyle = styling.map.view_border[2];
-            }
-            ctx.strokeStyle = styling.map.view_border[1];
-            for (const x of [-1, 1]) {
-                const l = new Line(ctx, this.width, this.height);
-                for (var y = -1; y < 1.01; y += 0.1) {
-                    this.application.sky_view_frame_to_ecef_set_vec(x, y, vec);
-                    l.add_pt(this.cxy_of_vector(vec));
-                }
-                l.finish();
-                ctx.stroke();
-                ctx.strokeStyle = styling.map.view_border[3];
-            }
-        }
-    }
-    //mi draw_star
-    // Draw a star in the Canvas context
-    draw_star(ctx, star) {
-        const m = star.magnitude;
-        const rgb = star.rgb.array;
-        const ra = star.right_ascension;
-        const de = star.declination;
-        const cxy = this.cxy_of_ra_de(ra, de);
-        const cx = cxy[0];
-        const cy = cxy[1];
-        let r = Math.floor(Math.min(255, Math.max(0, rgb[0] * 255)));
-        let g = Math.floor(Math.min(255, Math.max(0, rgb[1] * 255)));
-        let b = Math.floor(Math.min(255, Math.max(0, rgb[2] * 255)));
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
-        if (m < 3) {
-            ctx.fillRect(cx - 1, cy - 1, 3, 3);
-        }
-        else if (m < 4) {
-            ctx.fillRect(cx, cy, 2, 2);
-        }
-        else {
-            ctx.fillRect(cx, cy, 1, 1);
-        }
-    }
-    //mi draw_equatorial_grid
-    draw_equatorial_grid(ctx) {
-        const styling = this.application.styling();
-        if (!this.vp.show_equatorial) {
-            return;
-        }
-        const l = new Line(ctx, this.width, this.height);
-        ctx.lineWidth = 2.0;
-        ctx.strokeStyle = styling.map.equatorial_grid[3];
-        for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
-            l.add_pt(this.cxy_of_ra_de(0 * Math.PI, (de * Math.PI) / 2));
-        }
-        l.finish();
-        ctx.strokeStyle = styling.map.equatorial_grid[4];
-        for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
-            l.add_pt(this.cxy_of_ra_de(0.999 * Math.PI, (de * Math.PI) / 2));
-        }
-        l.finish();
-        for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
-            l.add_pt(this.cxy_of_ra_de(-1 * Math.PI, (de * Math.PI) / 2));
-        }
-        l.finish();
-        ctx.strokeStyle = styling.map.equatorial_grid[1];
-        ctx.lineWidth = 1.0;
-        for (var ra = 1 / 6; ra < 0.999; ra += 1 / 6) {
-            for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
-                l.add_pt(this.cxy_of_ra_de(ra * Math.PI, (de * Math.PI) / 2));
-            }
-            l.finish();
-            for (const de of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
-                l.add_pt(this.cxy_of_ra_de(-ra * Math.PI, (de * Math.PI) / 2));
-            }
-            l.finish();
-        }
-        ctx.strokeStyle = styling.map.equatorial_grid[1];
-        for (var de = -1; de < -0.01; de += 1 / 3) {
-            l.new_segment();
-            for (const ra of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
-                l.add_pt(this.cxy_of_ra_de(ra * Math.PI, (de * Math.PI) / 2));
-            }
-            l.new_segment();
-            for (const ra of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
-                l.add_pt(this.cxy_of_ra_de(ra * Math.PI, (-de * Math.PI) / 2));
-            }
-        }
-        l.finish();
-        ctx.strokeStyle = styling.map.equatorial_grid[2];
-        for (const ra of [-0.9999, -0.5, 0, 0.5, 0.9999]) {
-            l.add_pt(this.cxy_of_ra_de(ra * Math.PI, 0));
-        }
-        l.finish();
-    }
-    //mi add_declination_circle - for azimuthal_grid
-    add_declination_circle(q, l, vec, de, step_size) {
-        const de_c = Math.cos(de * this.vp.deg2rad);
-        const de_s = Math.sin(de * this.vp.deg2rad);
-        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
-        l.new_segment();
-        for (var ra = 0; ra <= 360; ra += step_size) {
-            const ra_r = ra * this.vp.deg2rad;
-            vxyz[0] = de_c * Math.cos(ra_r);
-            vxyz[1] = de_c * Math.sin(ra_r);
-            vxyz[2] = de_s;
-            q.set_vec_apply(vec);
-            l.add_pt(this.cxy_of_vector(vec));
-        }
-    }
-    add_ra_great_circle(q, l, vec, ra, _step_size) {
-        const ra_c = Math.cos(ra * this.vp.deg2rad);
-        const ra_s = Math.sin(ra * this.vp.deg2rad);
-        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
-        l.new_segment();
-        for (var de = -80; de <= 80; de += 1) {
-            const de_c = Math.cos(de * this.vp.deg2rad);
-            const de_s = Math.sin(de * this.vp.deg2rad);
-            vxyz[0] = ra_c * de_c;
-            vxyz[1] = ra_s * de_c;
-            vxyz[2] = de_s;
-            q.set_vec_apply(vec);
-            l.add_pt(this.cxy_of_vector(vec));
-        }
-    }
-    //mi draw_azimuthal_grid
-    // Draw a azimuthal grid
-    //
-    // Create a RH set of axes with z as 'up', and ideally x with no
-    // component in the 'declination' direction
-    draw_azimuthal_grid(ctx) {
-        const styling = this.application.styling();
-        if (!this.vp.show_azimuthal) {
-            return;
-        }
-        const q_grid = this.vp.observer_to_ecef_q;
-        const l = new Line(ctx, this.width, this.height);
-        const v = new WasmVec3f64(0, 0, 0);
-        // ecliptic
-        ctx.strokeStyle = styling.map.azimuthal_grid[2];
-        this.add_declination_circle(q_grid, l, v, 0, 1);
-        l.finish();
-        // above horizon
-        ctx.strokeStyle = styling.map.azimuthal_grid[0];
-        for (var de = 10; de <= 80; de += 10) {
-            this.add_declination_circle(q_grid, l, v, de, 1);
-        }
-        l.finish();
-        // below horizon
-        ctx.strokeStyle = styling.map.azimuthal_grid[1];
-        for (var de = -80; de < 0; de += 10) {
-            this.add_declination_circle(q_grid, l, v, de, 1);
-        }
-        l.finish();
-        ctx.strokeStyle = styling.map.azimuthal_grid[3];
-        this.add_ra_great_circle(q_grid, l, v, 0, 1);
-        l.finish();
-        ctx.strokeStyle = styling.map.azimuthal_grid[4];
-        this.add_ra_great_circle(q_grid, l, v, 180, 1);
-        l.finish();
-        ctx.strokeStyle = styling.map.azimuthal_grid[1];
-        for (var ra = 15; ra < 175; ra += 15) {
-            this.add_ra_great_circle(q_grid, l, v, ra, 1);
-            this.add_ra_great_circle(q_grid, l, v, ra + 180, 1);
-        }
-        l.finish();
     }
     user_press(_xy, _actions) { }
     user_press_move(_start_xy, _xy) { }

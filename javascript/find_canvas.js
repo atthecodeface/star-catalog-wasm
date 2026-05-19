@@ -191,6 +191,7 @@ export class FindCanvas {
         this.mouse = new Mouse(this, this.canvas);
         this.logger.info(`Created find canvas`);
     }
+    redraw(_webgl, _webgl_canvas) { }
     image_loaded(_event) {
         // const ctx = this.canvas.getContext("2d");
         this.img_w = this.img.naturalWidth;

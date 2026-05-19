@@ -1,121 +1,113 @@
-import { WasmVec3f64, WasmQuatf64, } from "../pkg/star_catalog_wasm.js";
-import { Line } from "./draw.js";
-import { CacheOld } from "./cache.js";
+import { WasmVec3f64, WasmMat4f64, WasmQuatf64, } from "../pkg/star_catalog_wasm.js";
+import { WebglUniform } from "./web_gl.js";
+import { CacheSingleton } from "./cache.js";
 import { Logger } from "./log.js";
-import { WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
-//a SkyCanvas
+import { CachedBezier, MapFrameKey, } from "./webgl_canvas.js";
 export class SkyCanvas {
     constructor(application, webgl_canvas) {
-        this.width = 50;
-        this.height = 50;
-        this.win_ar = 0;
-        // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
-        this.tan_pixh = 0;
-        this.tan_pixv = 0;
         this.drag_rotate = "";
         this.application = application;
         this.vp = this.application.view_properties;
         this.webgl_canvas = webgl_canvas;
         this.logger = new Logger(application.log, "clock");
         this.star_vector = new WasmVec3f64(0, 0, 0);
-        // Aspect ratio in 'tan' space of a single Y pixel compared to a single X pixel
-        this.tan_yx = 1.0;
-        this.derive_data();
+        this.sky_grid_beziers = new CacheSingleton();
         this.logger.info(`Created sky canvas`);
     }
-    //mi make_star_cache
-    make_star_cache() {
-        const stars = {
-            center: this.vp.vector_x,
-            angle: 0.0,
-            stars: [],
-            brightness: 0.0,
-        };
-        return new CacheOld(stars, this.check_star_cache.bind(this), this.try_to_fill_star_cache.bind(this));
-    }
-    //mi check_star_cache
-    check_star_cache(stars) {
-        if (stars.stars.length == 0) {
-            return true;
+    redraw(webgl, webgl_canvas) {
+        const w = this.vp.view_wh[0];
+        const h = this.vp.view_wh[1];
+        this.sky_grid_beziers.set_contents(new MapFrameKey(WasmQuatf64.unit(), 1.0), () => this.create_azimuthal_grid_beziers());
+        // const view_scale = 1.0;
+        const ar = w / h;
+        webgl.webgl.viewport(0, 0, w, h);
+        webgl.clear_buffer();
+        const f = 1.0 / this.vp.tan_hfovh; // should be 1/tan fov?
+        const near = -0.01; // Maps to -1 in the Z, closest to the viewer, should scale by 1/near
+        const far = -1.01; // Maps to +1 in the Z, furthest to the viewer, should scale by 1/far
+        // W = -z
+        // Z = (near + far) / (near - far) * z - (near * far * 2) / (near - far) = (near * z + far * z - near * far * 2) / (near - far)
+        //  if z = near, Z(*w) = (near * near + far * near - near * far * 2) / (near - far) = (near * near - near * far) / (near - far) = near; Z = -1
+        //  if z = far, Z(*w) = (near * far + far * far - near * far * 2) / (near - far) = (far * far - near * far) / (near - far) = -far; Z = 1
+        // Note this has to flip the polarity of Z as the OpenGL clipping space is + into the screen, so -1 is near, +1 is far
+        const projection = new Float32Array([
+            f,
+            0,
+            0,
+            0,
+            0,
+            f * ar,
+            0,
+            0,
+            0,
+            0,
+            (near + far) / (near - far), // scale by
+            1,
+            0,
+            0,
+            (near * far * 2) / (near - far),
+            0,
+        ]);
+        const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+        const matrix = WasmMat4f64.identity();
+        this.vp.ecef_to_view_q.set_mat4_rotation(matrix);
+        webgl.use_program(webgl_canvas.star_program);
+        webgl.set_uniform_float(WebglUniform.Extra0, this.vp.brightness);
+        webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+        webgl.set_color([1, 1, 1, 1]);
+        webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+        webgl.draw(webgl_canvas.star_field);
+        const beziers = this.sky_grid_beziers.get_contents();
+        if (beziers !== null) {
+            webgl.use_program(webgl_canvas.bezier_program);
+            webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+            webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+            if (this.vp.show_equatorial) {
+                webgl.set_color([1, 0.5, 0.5, 1]);
+                webgl.set_uniform_mat4(WebglUniform.Model, identity, false);
+                for (const b of beziers) {
+                    webgl_canvas.webgl_bezier.set_control_points(b.control_pts, b.offset);
+                    webgl.draw(webgl_canvas.webgl_bezier);
+                }
+            }
+            if (this.vp.show_azimuthal) {
+                const model = WasmMat4f64.identity();
+                webgl.set_color([0.5, 1, 1, 1]);
+                this.vp.observer_to_ecef_q.set_mat4_rotation(model);
+                webgl.set_uniform_mat4(WebglUniform.Model, model.array, true);
+                for (const b of beziers) {
+                    webgl_canvas.webgl_bezier.set_control_points(b.control_pts, b.offset);
+                    webgl.draw(webgl_canvas.webgl_bezier);
+                }
+            }
         }
-        if (stars.brightness != this.vp.brightness) {
-            return true;
+        if (this.vp.selected_star !== null) {
+            const star = this.vp.catalog.star(this.vp.selected_star);
+            webgl.use_program(webgl_canvas.flat_program);
+            webgl.set_uniform_mat4(WebglUniform.Projection, projection, false);
+            webgl.set_uniform_mat4(WebglUniform.View, matrix.array, true);
+            webgl.set_color([1, 0.26, 0.16, 0.1]);
+            const radius = 0.02;
+            webgl.set_uniform_mat4(WebglUniform.Model, [
+                radius,
+                0,
+                0,
+                star.vector.array[0],
+                /**/ 0,
+                radius,
+                0,
+                star.vector.array[1],
+                /**/ 0,
+                0,
+                radius,
+                star.vector.array[2],
+                /**/ 0,
+                0,
+                0,
+                1,
+            ], true);
+            webgl.draw(webgl_canvas.webgl_circle);
         }
-        const c = this.vp.view_ecef_center_dir.dot(stars.center);
-        if (c < 0) {
-            return true;
-        }
-        const angle = Math.acos(c);
-        if (angle + this.vp.fovh > stars.angle) {
-            return true;
-        }
-        return false;
-    }
-    try_to_fill_star_cache(stars) {
-        const catalog = this.vp.catalog;
-        catalog.clear_filter();
-        catalog.filter_max_magnitude(this.vp.brightness);
-        stars.brightness = this.vp.brightness;
-        stars.center = this.vp.view_ecef_center_dir;
-        const angle = 1.5 * this.vp.fovh;
-        stars.angle = angle;
-        stars.stars = [];
-        const s = catalog.find_stars_around(this.vp.view_ecef_center_dir, angle, 0, this.vp.max_stars_in_sky);
-        if (s.length >= this.vp.max_stars_in_sky) {
-            return stars;
-        }
-        for (const index of s) {
-            stars.stars.push(catalog.star(index));
-        }
-        return stars;
-    }
-    derive_data() {
-        const wh = this.vp.get_resizable_content_size();
-        let set_w = wh[0];
-        let set_h = wh[1];
-        if (set_w != this.width || set_h != this.height) {
-            this.width = set_w;
-            this.height = set_h;
-        }
-        this.win_ar = this.height / this.width;
-        this.tan_yx = 1.0;
-        // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
-        this.tan_pixh = (2 * this.vp.tan_hfovh) / this.width;
-        this.tan_pixv = (2 * this.tan_pixh) / this.tan_yx;
-    }
-    //mp update
-    update() {
-        this.vp.webgl_canvas_view = WebglCanvasView.SkyView;
-        this.derive_data();
-        this.webgl_canvas.redraw_canvas();
-    }
-    //mp set_vector_of_fxy
-    // Vector of *square* canvas fraction with -1,-1 being bottom left, 1,1 top right
-    //
-    // This assumes that -1 in the Y corresponds to a 'full' width
-    set_vector_of_fxy(vxyz, fxy) {
-        const fx = fxy[0];
-        const fy = (fxy[1] * this.win_ar) / this.tan_yx;
-        const roll = Math.atan2(fy, fx);
-        const f = Math.sqrt(fx * fx + fy * fy);
-        const yaw = Math.atan(f * this.vp.tan_hfovh);
-        vxyz[0] = Math.cos(yaw);
-        vxyz[1] = Math.sin(yaw) * Math.cos(roll);
-        vxyz[2] = Math.sin(yaw) * Math.sin(roll);
-        return;
-    }
-    //mp cxy_of_vector
-    // Canvas XY of vector in'camera' space
-    //
-    // Note X+ is in to screen, Y+ is left, Z+ is up
-    cxy_of_vector(vv) {
-        const v = vv.array;
-        if (v[0] < 0.1) {
-            return null;
-        }
-        const x = this.width / 2.0 - v[1] / v[0] / this.tan_pixh;
-        const y = this.height / 2.0 - v[2] / v[0] / this.tan_pixh; // v / this.win_ar );
-        return [x, y];
     }
     map_ra_de(_i, ra, de) {
         const de_c = Math.cos(de);
@@ -170,131 +162,6 @@ export class SkyCanvas {
         }
         return result;
     }
-    //mi rotate_axis
-    rotate_axis(axis, delta) {
-        var v = new WasmVec3f64(1, 0, 0);
-        if (axis == 1) {
-            v = new WasmVec3f64(0, 1, 0);
-        }
-        else if (axis == 2) {
-            v = new WasmVec3f64(0, 0, 1);
-        }
-        const q = WasmQuatf64.of_axis_angle(v, delta);
-        this.vp.view_q_post_mul(q);
-    }
-    //mi draw_star
-    draw_star(ctx, star) {
-        // Determine viewer direction vector for the star
-        star.set_vector(this.star_vector);
-        this.star_vector.set_apply_q3(this.vp.ecef_to_view_q);
-        // Determine the canvas XY of the star
-        const cxy = this.cxy_of_vector(this.star_vector);
-        if (cxy == null) {
-            return;
-        }
-        const m = star.magnitude;
-        // const _ra = star.right_ascension;
-        // const _de = star.declination;
-        const rgb = star.rgb.array;
-        const cx = cxy[0];
-        const cy = cxy[1];
-        let r = Math.floor(Math.min(255, Math.max(0, rgb[0] * 255)));
-        let g = Math.floor(Math.min(255, Math.max(0, rgb[1] * 255)));
-        let b = Math.floor(Math.min(255, Math.max(0, rgb[2] * 255)));
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
-        if (m < 3) {
-            ctx.fillRect(cx - 1, cy - 1, 3, 3);
-        }
-        else if (m < 4) {
-            ctx.fillRect(cx, cy, 2, 2);
-        }
-        else {
-            ctx.fillRect(cx, cy, 1, 1);
-        }
-    }
-    //mi add_declination_circle
-    add_declination_circle(q, l, vec, de, step_size) {
-        const de_c = Math.cos(de * this.vp.deg2rad);
-        const de_s = Math.sin(de * this.vp.deg2rad);
-        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
-        l.new_segment();
-        for (var ra = 0; ra <= 360; ra += step_size) {
-            const ra_r = ra * this.vp.deg2rad;
-            vxyz[0] = de_c * Math.cos(ra_r);
-            vxyz[1] = de_c * Math.sin(ra_r);
-            vxyz[2] = de_s;
-            q.set_vec_apply(vec);
-            l.add_pt(this.cxy_of_vector(vec));
-        }
-    }
-    //mi add_ra_great_circle - for azimuthal grid
-    add_ra_great_circle(q, l, vec, ra, _step_size) {
-        const ra_c = Math.cos(ra * this.vp.deg2rad);
-        const ra_s = Math.sin(ra * this.vp.deg2rad);
-        const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
-        l.new_segment();
-        for (var de = -80; de <= 80; de += 1) {
-            const de_c = Math.cos(de * this.vp.deg2rad);
-            const de_s = Math.sin(de * this.vp.deg2rad);
-            vxyz[0] = ra_c * de_c;
-            vxyz[1] = ra_s * de_c;
-            vxyz[2] = de_s;
-            q.set_vec_apply(vec);
-            l.add_pt(this.cxy_of_vector(vec));
-        }
-    }
-    //mi draw_grid - draw a grid given a styling and ecef-to-view quaternion
-    draw_grid(ctx, q_grid, styling) {
-        if (styling == null) {
-            return;
-        }
-        const l = new Line(ctx, this.width, this.height);
-        const v = new WasmVec3f64(0, 0, 0);
-        ctx.strokeStyle = styling[2];
-        this.add_declination_circle(q_grid, l, v, 0, 1);
-        l.finish();
-        ctx.strokeStyle = styling[0];
-        for (var de = 10; de <= 80; de += 10) {
-            this.add_declination_circle(q_grid, l, v, de, 1);
-        }
-        l.finish();
-        ctx.strokeStyle = styling[1];
-        for (var de = 10; de <= 80; de += 10) {
-            this.add_declination_circle(q_grid, l, v, -de, 1);
-        }
-        l.finish();
-        ctx.strokeStyle = styling[3];
-        this.add_ra_great_circle(q_grid, l, v, 0, 1);
-        l.finish();
-        ctx.strokeStyle = styling[4];
-        this.add_ra_great_circle(q_grid, l, v, 180, 1);
-        l.finish();
-        ctx.strokeStyle = styling[0];
-        for (var ra = 15; ra < 175; ra += 15) {
-            this.add_ra_great_circle(q_grid, l, v, ra, 1);
-            this.add_ra_great_circle(q_grid, l, v, ra + 180, 1);
-        }
-        l.finish();
-    }
-    //mi draw_border
-    draw_border(ctx) {
-        const styling = this.vp.styling();
-        if (styling.sky.view_border == null) {
-            return;
-        }
-        const rx = this.width;
-        const by = this.height;
-        ctx.fillStyle = styling.sky.view_border[0];
-        ctx.fillRect(0, by - 2, rx, 2);
-        ctx.fillStyle = styling.sky.view_border[2];
-        ctx.fillRect(0, 0, rx, 2);
-        ctx.fillStyle = styling.sky.view_border[1];
-        ctx.fillRect(0, 0, 2, by);
-        ctx.fillStyle = styling.sky.view_border[3];
-        ctx.fillRect(rx - 2, 0, 2, by);
-    }
-    //mi redraw_canvas
-    redraw_canvas() { }
     drag_end(_start_xy, _xy) { }
     user_press(_xy, _actions) { }
     user_press_move(_start_xy, _xy) { }
@@ -306,10 +173,11 @@ export class SkyCanvas {
         this.vp.view_q_post_mul(q);
     }
     drag_start(_start_xy, xy) {
-        const cx = xy[0] - this.width / 2;
-        const cy = xy[1] - this.height / 2;
+        const wh = this.vp.get_resizable_content_size();
+        const cx = xy[0] - wh[0] / 2;
+        const cy = xy[1] - wh[1] / 2;
         const d2 = cx * cx + cy * cy;
-        if (d2 > (this.width * this.height) / 8) {
+        if (d2 > (wh[0] * wh[1]) / 8) {
             this.drag_rotate = "x";
         }
         else {
@@ -317,18 +185,22 @@ export class SkyCanvas {
         }
     }
     drag_to(_start_xy, cxy0, cxy1) {
+        // this.tan_pixh and tan_pixv is the 'tan' space of a horizontal pixel and vertical pixel
+        const wh = this.vp.get_resizable_content_size();
+        const tan_pixh = (2 * this.vp.tan_hfovh) / wh[0];
+        const tan_pixv = 2 * tan_pixh;
         if (this.drag_rotate == "x") {
-            const cx0 = cxy0[0] - this.width / 2;
-            const cy0 = cxy0[1] - this.height / 2;
-            const cx1 = cxy1[0] - this.width / 2;
-            const cy1 = cxy1[1] - this.height / 2;
+            const cx0 = cxy0[0] - wh[0] / 2;
+            const cy0 = cxy0[1] - wh[1] / 2;
+            const cx1 = cxy1[0] - wh[0] / 2;
+            const cy1 = cxy1[1] - wh[1] / 2;
             const angle = Math.atan2(cy1, cx1) - Math.atan2(cy0, cx0);
             const q = WasmQuatf64.unit().rotate_z(angle);
             this.vp.view_q_post_mul(q);
         }
         else {
-            const dcx = (cxy0[0] - cxy1[0]) * this.tan_pixh;
-            const dcy = (cxy0[1] - cxy1[1]) * this.tan_pixv;
+            const dcx = (cxy0[0] - cxy1[0]) * tan_pixh;
+            const dcy = (cxy0[1] - cxy1[1]) * tan_pixv;
             const qz = WasmQuatf64.unit().rotate_y(Math.atan(dcx));
             const qy = WasmQuatf64.unit().rotate_x(Math.atan(dcy));
             const q = qz.mul(qy);
@@ -336,9 +208,10 @@ export class SkyCanvas {
         }
     }
     user_release(_start_xy, cxy) {
+        const wh = this.vp.get_resizable_content_size();
         const catalog = this.vp.catalog;
-        const fx = (-cxy[0] / this.width + 0.5) * 2;
-        const fy = (-cxy[1] / this.height + 0.5) * 2;
+        const fx = (-cxy[0] / wh[0] + 0.5) * 2;
+        const fy = (-cxy[1] / wh[1] + 0.5) * 2;
         // Map click location to ECEF direction
         const vec = new WasmVec3f64(0, 0, 0);
         this.vp.sky_view_frame_to_ecef_set_vec(fx, fy, vec);
