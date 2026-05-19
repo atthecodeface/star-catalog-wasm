@@ -965,10 +965,28 @@ export class ViewProperties implements Application {
     this.time_date_updated();
   }
 
+  private set_vector_of_fxy(vxyz: Float64Array, fxy: [number, number]) {
+    const wh = this.get_resizable_content_size();
+
+    const win_ar = wh[1] / wh[0];
+    const tan_yx = 1.0;
+
+    const fx = fxy[0];
+    const fy = (fxy[1] * win_ar) / tan_yx;
+    const roll = Math.atan2(fy, fx);
+    const f = Math.sqrt(fx * fx + fy * fy);
+    const yaw = Math.atan(f * this.tan_hfovh);
+
+    vxyz[0] = Math.cos(yaw);
+    vxyz[1] = Math.sin(yaw) * Math.cos(roll);
+    vxyz[2] = Math.sin(yaw) * Math.sin(roll);
+    return;
+  }
+
   /// Map a frame XY into a star unit direction vector
   sky_view_frame_to_ecef_set_vec(fx: number, fy: number, vec: WasmVec3f64) {
     const vxyz = this.wasm_memory.float_array_of_vec3f64(vec);
-    this.star_catalog.sky_canvas.set_vector_of_fxy(vxyz, [fx, fy]);
+    this.set_vector_of_fxy(vxyz, [fx, fy]);
     vec.set_apply_q3(this.view_to_ecef_q);
   }
 }

@@ -221,7 +221,6 @@ export class StarCatalog {
     this.vp.derive_data();
 
     this.controls.update();
-    this.sky_canvas.derive_data();
     this.map_canvas.derive_data();
 
     if (this.selected_tab == SelectedTab.SkyView) {

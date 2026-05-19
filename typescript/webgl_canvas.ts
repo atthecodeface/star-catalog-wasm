@@ -326,8 +326,6 @@ export class WebglCanvas {
         break;
       }
       case WebglCanvasView.SkyView: {
-        this.vp.star_catalog.sky_canvas.derive_data();
-
         this.draw_sky_view();
         this.mouse.set_client(this.vp.star_catalog.sky_canvas);
         break;
