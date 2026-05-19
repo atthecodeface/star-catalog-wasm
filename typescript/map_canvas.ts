@@ -8,7 +8,7 @@ import { MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
-import { WebglCanvas, WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
+import { WebglCanvas, CachedBezier } from "./webgl_canvas.js";
 
 export class MapCanvas {
   application: Application;
@@ -16,8 +16,6 @@ export class MapCanvas {
   webgl_canvas: WebglCanvas;
   logger: Logger;
 
-  width: number = 50;
-  height: number = 50;
   brightness: number = 4;
 
   last_drag_polar: [number, number] = [0, 0];
@@ -36,36 +34,26 @@ export class MapCanvas {
     this.logger = new Logger(application.log, "map");
   }
 
-  //mp update
-  update() {
-    this.vp.webgl_canvas_view = WebglCanvasView.StarMap;
-    this.derive_data();
-    this.webgl_canvas.redraw_canvas();
-  }
-
-  //mi derive_data
-  derive_data() {
+  get_wh(): [number, number] {
     const wh = this.vp.get_resizable_content_size();
-    let set_w = wh[0];
-    let set_h = wh[1];
+    let w = wh[0];
+    let h = wh[1];
     const ar = 2.0;
-    if (set_w > set_h * ar) {
-      set_w = set_h * ar;
+    if (w > h * ar) {
+      w = h * ar;
     }
-    if (set_h > set_w / ar) {
-      set_h = set_w / ar;
+    if (h > w / ar) {
+      h = w / ar;
     }
 
-    if (set_w != this.width || set_h != this.height) {
-      this.width = set_w;
-      this.height = set_h;
-    }
+    return [w, h];
   }
 
   //mi ra_de_of_cxy
   ra_de_of_cxy(cxy: [number, number]): [number, number] {
-    const fx = cxy[0] / this.width;
-    const fy = cxy[1] / this.height;
+    const wh = this.get_wh();
+    const fx = cxy[0] / wh[0];
+    const fy = cxy[1] / wh[1];
     const ra = (fx - 0.5) * 2 * Math.PI;
     const de = (0.5 - fy) * Math.PI;
     return [ra, de];
@@ -80,24 +68,14 @@ export class MapCanvas {
   //
   // RA is 0 at the middle RA+ right (2PI for the width)
   cxy_of_ra_de(ra: number, de: number): [number, number] {
+    const wh = this.get_wh();
     const x = 0.5 + ra / (2 * Math.PI);
     const y = 0.5 - de / Math.PI;
     const fx = x - Math.floor(x);
     const fy = y - Math.floor(y);
-    const cx = fx * this.width;
-    const cy = fy * this.height;
+    const cx = fx * wh[0];
+    const cy = fy * wh[1];
     return [cx, cy];
-  }
-
-  //mi cxy_of_vector
-  // canvas XY of a vector
-  //
-  // X+ is in, Y+ is left, Z+ is up; sin(z) is declination (or atan(z/x))
-  cxy_of_vector(vec: WasmVec3f64): [number, number] {
-    const vxyz = this.application.wasm_memory.float_array_of_vec3f64(vec);
-    const de = Math.asin(vxyz[2]!);
-    const ra = Math.atan2(vxyz[1]!, vxyz[0]!);
-    return this.cxy_of_ra_de(ra, de);
   }
 
   map_ra_de(i: number, ra: number, de: number): [number, number, number] {

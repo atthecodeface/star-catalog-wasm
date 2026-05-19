@@ -17,7 +17,7 @@ import { Animate } from "./animate.js";
 
 import { Controls } from "./controls.js";
 
-import { WebglCanvas } from "./webgl_canvas.js";
+import { WebglCanvas, WebglCanvasView } from "./webgl_canvas.js";
 import { MapCanvas } from "./map_canvas.js";
 import { SkyCanvas } from "./sky_canvas.js";
 // import { FindCanvas } from "./find_canvas.js";
@@ -221,16 +221,18 @@ export class StarCatalog {
     this.vp.derive_data();
 
     this.controls.update();
-    this.map_canvas.derive_data();
 
     if (this.selected_tab == SelectedTab.SkyView) {
-      this.sky_canvas.update();
+      this.vp.webgl_canvas_view = WebglCanvasView.SkyView;
+      this.webgl_canvas.redraw_canvas();
     }
     if (this.selected_tab == SelectedTab.SkyMap) {
-      this.map_canvas.update();
+      this.vp.webgl_canvas_view = WebglCanvasView.StarMap;
+      this.webgl_canvas.redraw_canvas();
     }
     if (this.selected_tab == SelectedTab.Location) {
-      this.earth_canvas.update();
+      this.vp.webgl_canvas_view = WebglCanvasView.Earth;
+      this.webgl_canvas.redraw_canvas();
     }
     /*
     if (this.selected_tab == SelectedTab.Find) {
@@ -238,7 +240,8 @@ export class StarCatalog {
     }
     */
     if (this.selected_tab == SelectedTab.Test) {
-      this.solar_system_canvas.update();
+      this.vp.webgl_canvas_view = WebglCanvasView.SolarSystem;
+      this.webgl_canvas.redraw_canvas();
     }
     this.view_needs_update = false;
   }

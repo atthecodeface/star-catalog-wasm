@@ -1,25 +1,15 @@
-import {
-  WasmVec3f32,
-  WasmQuatf32,
-  WasmMat4f32,
-} from "../pkg/star_catalog_wasm.js";
+import { WasmVec3f32, WasmQuatf32 } from "../pkg/star_catalog_wasm.js";
 import { MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
 
-import { WebglCanvas, WebglCanvasView } from "./webgl_canvas.js";
-
-import { Webgl } from "./web_gl.js";
+import { WebglCanvas } from "./webgl_canvas.js";
 
 export class TestCanvas {
   application: Application;
   vp: ViewProperties;
   logger: Logger;
-
-  webgl: Webgl | null = null;
-
-  model: WasmMat4f32 = WasmMat4f32.identity();
 
   webgl_canvas: WebglCanvas;
 
@@ -28,12 +18,6 @@ export class TestCanvas {
     this.vp = application.view_properties;
     this.webgl_canvas = webgl_canvas;
     this.logger = new Logger(application.log, "test");
-  }
-
-  update() {
-    this.vp.webgl_canvas_view = WebglCanvasView.SolarSystem;
-    // this.derive_data();
-    this.webgl_canvas.redraw_canvas();
   }
 
   drag_end(_start_xy: [number, number], _xy: [number, number]): void {}

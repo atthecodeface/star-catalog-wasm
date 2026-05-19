@@ -3,7 +3,7 @@ import { MousePressActions } from "./mouse.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
 import { Application } from "./application.js";
-import { WebglCanvas, WebglCanvasView, CachedBezier } from "./webgl_canvas.js";
+import { WebglCanvas, CachedBezier } from "./webgl_canvas.js";
 
 //a SkyCanvas
 export class SkyCanvas {
@@ -24,12 +24,6 @@ export class SkyCanvas {
     this.star_vector = new WasmVec3f64(0, 0, 0);
 
     this.logger.info(`Created sky canvas`);
-  }
-
-  //mp update
-  update() {
-    this.vp.webgl_canvas_view = WebglCanvasView.SkyView;
-    this.webgl_canvas.redraw_canvas();
   }
 
   private map_ra_de(

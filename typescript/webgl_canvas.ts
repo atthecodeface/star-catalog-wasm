@@ -319,8 +319,6 @@ export class WebglCanvas {
         break;
       }
       case WebglCanvasView.StarMap: {
-        this.vp.star_catalog.map_canvas.derive_data();
-
         this.draw_star_map();
         this.mouse.set_client(this.vp.star_catalog.map_canvas);
         break;
