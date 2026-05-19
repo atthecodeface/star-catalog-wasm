@@ -330,7 +330,7 @@ export class ViewProperties implements Application {
   fovh: number = 0;
   // this.tan_hfovh is what half the width is horizontally in tan space
   tan_hfovh: number = 0;
-  brightness: number = 4;
+  brightness: number = 8;
 
   earth_division: number;
   earth_webgl: boolean;
