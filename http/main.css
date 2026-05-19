@@ -171,6 +171,13 @@ html {
         /* Enable 'button' to be activated from z-index of -1 */
         pointer-events: none;
     }
+    .main.content {
+        position: fixed;
+        top: 35px;
+        bottom: 0px;
+        left: 0px;
+        right: 0px;
+    }
 }
 
 .control.selectors {
@@ -196,14 +203,6 @@ html {
     }
 }
 
-.main.content {
-    position: absolute;
-    top: 35px;
-    bottom: 0px;
-    left: 0px;
-    right: 0px;
-}
-
 #tab-skyview {
     table {
         border-spacing: 0px;
@@ -222,16 +221,6 @@ html {
             position: absolute;
         }
     }
-}
-
-#SkyCanvas canvas {
-    position: absolute;
-}
-#MapCanvas canvas {
-    position: absolute;
-}
-#TestCanvas canvas {
-    position: absolute;
 }
 
 #ctl_selectors {
