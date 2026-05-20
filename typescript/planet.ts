@@ -7,13 +7,9 @@ import {
   WasmBezierBuilder3f32,
 } from "../pkg/star_catalog_wasm.js";
 
-import {
-  Webgl,
-  WebglTexture,
-  Webgl3DObj,
-  WebglUniform,
-  WebglCubicBezierObj,
-} from "./web_gl.js";
+import { Webgl, WebglTexture, WebglUniform } from "./web_gl.js";
+import { WebglCubicBezierObj } from "./web_gl_bezier.js";
+import { Webgl3DObj } from "./web_gl_3d_obj.js";
 
 export class Planet {
   orbit: WasmOrbit;

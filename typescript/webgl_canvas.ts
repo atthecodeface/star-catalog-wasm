@@ -6,14 +6,13 @@ import {
   WasmBezier3f32,
   WasmBezierBuilder3f32,
 } from "../pkg/star_catalog_wasm.js";
+import { Webgl } from "./web_gl.js";
+import { Webgl3DObj } from "./web_gl_3d_obj.js";
 import {
-  Webgl,
-  Webgl3DObj,
   WebglCubicBezierShader,
-  WebglFlatShader,
-  WebglFlatObj,
   WebglCubicBezierObj,
-} from "./web_gl.js";
+} from "./web_gl_bezier.js";
+import { WebglFlatShader, WebglFlatObj } from "./web_gl_flat.js";
 import { WasmMemory } from "./wasm_memory.js";
 import { Logger } from "./log.js";
 import { ViewProperties } from "./view_properties.js";
